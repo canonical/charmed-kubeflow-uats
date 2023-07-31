@@ -6,23 +6,11 @@ pre-release and post-installation. They combine different components of Charmed 
 that gives us confidence that everything works as expected, and are meant to be used by end-users
 as well as developers alike.
 
-## Design
-
 Charmed Kubeflow UATs are broken down in test scenarios implemented as Python notebooks, which are
-easy to share, understand, and maintain. The following workflows are supported:
-* Users can run the tests:
-  * from inside a Charmed Kubeflow cluster, e.g. running the test suite included in `tests` inside
-    a Notebook
-  * from a machine with access to a Charmed Kubeflow cluster, using the `driver`
-* Charmed Kubeflow CI can run the tests from Github Workflows, using the `driver`
-
-More specifically, the provided `tests` directory is **standalone**. Users can clone this repo
-inside a Jupyter Notebook and run the test suite with `pytest`, as a way to verify their
-deployments and familiarise themselves with different Charmed Kubeflow features.
-
-On the other hand, the provided `driver` allows us to automate the test execution on an existing
-cluster using `pytest` and a Kubernetes Job. More details on how to run the tests can be found in
-the [Run the tests](#run-the-tests) section.
+easy to share, understand, and maintain. We provide a **standalone** test suite included in `tests`
+that users can run directly from inside a Notebook with `pytest`, as well as a `driver` that
+automates the execution on an existing Kubeflow cluster. More details on running the tests can be
+found in the [Run the tests](#run-the-tests) section.
 
 ## Prerequisites
 
