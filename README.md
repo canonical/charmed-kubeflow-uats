@@ -61,20 +61,6 @@ As mentioned before, when it comes to running the tests, you've got 2 options:
 
 ### Running from a configured management environment using the `driver`
 
-Any environment that can be used to access and configure the Charmed Kubeflow deployment is
-considered a configured management environment. That is, essentially, any machine with `kubectl`
-access to the underlying Kubernetes cluster. This is crucial, since the driver directly depends on
-a Kubernetes Job to run the tests. More specifically, the `driver` executes the following steps:
-1. Create a Kubeflow Profile (i.e. `test-kubeflow`) to run the tests in
-2. Submit a Kubernetes Job (i.e. `test-kubeflow`) that runs `tests`
-   The Job performs the following:
-   * Mount the local `tests` directory to a Pod that uses `jupyter-scipy` as the container image
-   * Install python dependencies specified in the [requirements.txt](tests/requirements.txt)
-   * Run the test suite by executing `pytest`
-3. Wait until the Job completes (regardless of the outcome)
-4. Collect and report its logs, corresponding to the `pytest` execution of `tests`
-5. Cleanup (remove created Job and Profile)
-
 In order to run the tests using the `driver`:
 * Clone this repo locally and navigate to the repo directory:
 
@@ -96,7 +82,23 @@ In order to run the tests using the `driver`:
    tox -e uats
    ```
 
-#### Limitations
+#### Developer Notes
+
+Any environment that can be used to access and configure the Charmed Kubeflow deployment is
+considered a configured management environment. That is, essentially, any machine with `kubectl`
+access to the underlying Kubernetes cluster. This is crucial, since the driver directly depends on
+a Kubernetes Job to run the tests. More specifically, the `driver` executes the following steps:
+1. Create a Kubeflow Profile (i.e. `test-kubeflow`) to run the tests in
+2. Submit a Kubernetes Job (i.e. `test-kubeflow`) that runs `tests`
+   The Job performs the following:
+   * Mount the local `tests` directory to a Pod that uses `jupyter-scipy` as the container image
+   * Install python dependencies specified in the [requirements.txt](tests/requirements.txt)
+   * Run the test suite by executing `pytest`
+3. Wait until the Job completes (regardless of the outcome)
+4. Collect and report its logs, corresponding to the `pytest` execution of `tests`
+5. Cleanup (remove created Job and Profile)
+
+##### Limitations
 
 With the current implementation we have to wait until the Job completes to fetch its logs. Of
 course this makes for a suboptimal UX, since the user might have to wait long before they learn
