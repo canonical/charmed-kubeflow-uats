@@ -82,6 +82,29 @@ In order to run the tests using the `driver`:
    tox -e uats
    ```
 
+  You can also run a subset of the provided tests using the `-o` option and passing a filter, e.g.
+
+   ```bash
+   # run all tests containing 'kfp' or 'katib' in their name
+   tox -e uats -- -o 'filter="kfp or katib"'
+   # run any test that doesn't contain 'kserve' in its name
+   tox -e uats -- -o 'filter="not kserve"'
+   ```
+
+  This simulates the behaviour of running `pytest -k "some filter"` directly on the test suite.
+  You can read more about the options provided by Pytest in the corresponding section of the
+  [documentation](https://docs.pytest.org/en/7.4.x/reference/reference.html#command-line-flags).
+
+#### Run Kubeflow UATs
+
+In order to only run the Kubeflow-specific tests (i.e. no MLFlow integration) you can use the
+dedicated `kubeflow` tox test environment:
+
+```bash
+# assumes an existing `kubeflow` Juju model
+tox -e kubeflow
+```
+
 #### Developer Notes
 
 Any environment that can be used to access and configure the Charmed Kubeflow deployment is
