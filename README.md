@@ -82,13 +82,14 @@ In order to run the tests using the `driver`:
    tox -e uats
    ```
 
-  You can also run a subset of the provided tests using the `-o` option and passing a filter, e.g.
+  You can also run a subset of the provided tests using the `--filter` option and passing a filter
+  that follows the same syntax as the pytest `-k` option, e.g.
 
    ```bash
    # run all tests containing 'kfp' or 'katib' in their name
-   tox -e uats -- -o 'filter="kfp or katib"'
+   tox -e uats -- --filter "kfp or katib"
    # run any test that doesn't contain 'kserve' in its name
-   tox -e uats -- -o 'filter="not kserve"'
+   tox -e uats -- --filter "not kserve"
    ```
 
   This simulates the behaviour of running `pytest -k "some filter"` directly on the test suite.

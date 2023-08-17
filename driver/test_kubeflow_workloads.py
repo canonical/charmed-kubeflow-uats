@@ -30,28 +30,13 @@ PROFILE_RESOURCE = create_global_resource(
 JOB_NAME = "test-kubeflow"
 
 PYTEST_CMD_BASE = "pytest"
-PYTEST_FILTER_OPTION = "filter="
 
 
 @pytest.fixture(scope="session")
 def pytest_filter(request):
-    """Retrieve filter from Pytest invocation.
-
-    Pytest stores options provided using the '-o' argument at invocation under the 'override_ini'
-    config option. This contains a list of key-value pairs formatted as 'key=value' strings. Here,
-    we are only interested in the 'filter' option, which is used to create an expression to filter
-    suite tests (based on their names). More info on the above in the Pytest reference:
-    https://docs.pytest.org/en/7.4.x/reference/reference.html#command-line-flags
-    """
-    options = request.config.getoption("override_ini") or []
-    filter = " or ".join(
-        [
-            option.split(PYTEST_FILTER_OPTION)[1]
-            for option in options
-            if option.startswith(PYTEST_FILTER_OPTION)
-        ]
-    )
-    return f"-k {filter}" if filter else ""
+    """Retrieve filter from Pytest invocation."""
+    filter = request.config.getoption("filter")
+    return f"-k '{filter}'" if filter else ""
 
 
 @pytest.fixture(scope="session")
