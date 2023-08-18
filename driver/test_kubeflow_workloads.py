@@ -29,6 +29,21 @@ PROFILE_RESOURCE = create_global_resource(
 
 JOB_NAME = "test-kubeflow"
 
+PYTEST_CMD_BASE = "pytest"
+
+
+@pytest.fixture(scope="session")
+def pytest_filter(request):
+    """Retrieve filter from Pytest invocation."""
+    filter = request.config.getoption("filter")
+    return f"-k '{filter}'" if filter else ""
+
+
+@pytest.fixture(scope="session")
+def pytest_cmd(pytest_filter):
+    """Format the Pytest command."""
+    return f"{PYTEST_CMD_BASE} {pytest_filter}" if pytest_filter else PYTEST_CMD_BASE
+
 
 @pytest.fixture(scope="module")
 def lightkube_client():
@@ -80,13 +95,18 @@ async def test_create_profile(lightkube_client, create_profile):
     assert_namespace_active(lightkube_client, NAMESPACE)
 
 
-def test_kubeflow_workloads(lightkube_client):
+def test_kubeflow_workloads(lightkube_client, pytest_cmd):
     """Run a K8s Job to execute the notebook tests."""
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
     resources = list(
         codecs.load_all_yaml(
             JOB_TEMPLATE_FILE.read_text(),
-            context={"job_name": JOB_NAME, "test_dir": TESTS_DIR, "test_image": TESTS_IMAGE},
+            context={
+                "job_name": JOB_NAME,
+                "test_dir": TESTS_DIR,
+                "test_image": TESTS_IMAGE,
+                "pytest_cmd": pytest_cmd,
+            },
         )
     )
     assert len(resources) == 1, f"Expected 1 Job, got {len(resources)}!"
