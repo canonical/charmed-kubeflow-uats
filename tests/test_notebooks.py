@@ -8,7 +8,12 @@ import nbformat
 import pytest
 from nbclient.exceptions import CellExecutionError
 from nbconvert.preprocessors import ExecutePreprocessor
-from utils import discover_notebooks, format_error_message, save_notebook
+from utils import (
+    discover_notebooks,
+    format_error_message,
+    install_python_requirements,
+    save_notebook,
+)
 
 EXAMPLES_DIR = "notebooks"
 NOTEBOOKS = discover_notebooks(EXAMPLES_DIR)
@@ -30,7 +35,9 @@ def test_notebook(test_notebook):
     with open(test_notebook) as nb:
         notebook = nbformat.read(nb, as_version=nbformat.NO_CONVERT)
 
-    ep = ExecutePreprocessor(timeout=-1, kernel_name="python3")
+    ep = ExecutePreprocessor(
+        timeout=-1, kernel_name="python3", on_notebook_start=install_python_requirements
+    )
     ep.skip_cells_with_tag = "pytest-skip"
 
     try:
