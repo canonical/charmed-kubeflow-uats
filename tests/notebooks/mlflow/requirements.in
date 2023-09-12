@@ -1,0 +1,4 @@
+boto3
+minio
+mlflow==2.1.1
+tenacity

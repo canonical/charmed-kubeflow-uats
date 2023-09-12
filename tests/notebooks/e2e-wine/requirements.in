@@ -1,0 +1,9 @@
+boto3
+kfp==1.8.22
+minio
+mlflow==2.1.1
+numpy
+pyarrow
+requests
+scikit-learn<1.2
+tenacity
