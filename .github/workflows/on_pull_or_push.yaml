@@ -1,0 +1,17 @@
+name: On Pull Request or Push
+
+on:
+  pull_request:
+  push:
+    branches:
+    - main
+    - track/**
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - run: python3 -m pip install tox
+      - run: tox -e lint
