@@ -1,3 +1,6 @@
+# Copyright 2023 Canonical Ltd.
+# See LICENSE file for licensing details.
+
 from _pytest.config.argparsing import Parser
 
 
@@ -13,5 +16,5 @@ def pytest_addoption(parser: Parser):
         " the same syntax as the pytest `-k` option, e.g. --filter 'kfp or katib' will run all"
         " tests containing 'kfp' or 'katib' in their name, whereas --filter 'not kserve' will run"
         " any test that doesn't contain 'kserve' in its name. Essentially, the option simulates"
-        " the behaviour of running `pytest -k '<filter>'` directly on the test suite."
+        " the behaviour of running `pytest -k '<filter>'` directly on the test suite.",
     )
