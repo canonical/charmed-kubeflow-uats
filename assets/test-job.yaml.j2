@@ -32,7 +32,7 @@ spec:
               mountPath: /tests
           envFrom:
           - configMapRef:
-              name: test-cm
+              name: {{ configmap_name }}
               optional: true
       volumes:
         - name: test-volume

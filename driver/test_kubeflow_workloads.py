@@ -130,6 +130,7 @@ def test_kubeflow_workloads(lightkube_client, pytest_cmd, create_configmap):
         codecs.load_all_yaml(
             JOB_TEMPLATE_FILE.read_text(),
             context={
+                "configmap_name": CONFIGMAP_NAME,
                 "job_name": JOB_NAME,
                 "test_dir": TESTS_DIR,
                 "test_image": TESTS_IMAGE,
