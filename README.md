@@ -106,6 +106,25 @@ dedicated `kubeflow` tox test environment:
 tox -e kubeflow
 ```
 
+#### Configure environment variables on the workload Pod
+
+It is common that extra configuration needs to be provided to the environment where the tests will
+be executed. You can specify environment variables to be set on the created Pod by providing the
+path to a file containing `KEY=VALUE` pairs. An example `params.env` file is given below, for an
+execution environment behind a proxy:
+
+```shell
+# example params.env file
+HTTP_PROXY=http://squid.internal:3128
+HTTPS_PROXY=http://squid.internal:3128
+```
+
+The path to this file can be provided when invoking `tox` using the `--env` option:
+
+```shell
+tox -e uats -- --env ./params.env
+```
+
 #### Developer Notes
 
 Any environment that can be used to access and configure the Charmed Kubeflow deployment is

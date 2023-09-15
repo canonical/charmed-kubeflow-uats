@@ -9,6 +9,8 @@ def pytest_addoption(parser: Parser):
 
     * Add a `--filter` option to (de)select test cases based on their name (see also
       https://docs.pytest.org/en/7.4.x/reference/reference.html#command-line-flags)
+    * Add an `--env` option to allow passing the path to a file containing environment variables to
+      set on the created test Pod
     """
     parser.addoption(
         "--filter",
@@ -17,4 +19,10 @@ def pytest_addoption(parser: Parser):
         " tests containing 'kfp' or 'katib' in their name, whereas --filter 'not kserve' will run"
         " any test that doesn't contain 'kserve' in its name. Essentially, the option simulates"
         " the behaviour of running `pytest -k '<filter>'` directly on the test suite.",
+    )
+    parser.addoption(
+        "--env",
+        help="Provide the path to a file containing KEY=VALUE pairs to set as environment"
+        " variables in the Pod responsible for executing the test suite. This is useful for"
+        " setting up configurations like proxies.",
     )

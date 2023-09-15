@@ -8,7 +8,15 @@ from pathlib import Path
 import pytest
 from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import create_global_resource, load_in_cluster_generic_resources
-from utils import assert_namespace_active, delete_job, fetch_job_logs, wait_for_job
+from utils import (
+    assert_configmap_created,
+    assert_namespace_active,
+    create_configmap_from_file,
+    delete_configmap,
+    delete_job,
+    fetch_job_logs,
+    wait_for_job,
+)
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +36,7 @@ PROFILE_RESOURCE = create_global_resource(
     plural="profiles",
 )
 
+CONFIGMAP_NAME = "test-kubeflow"
 JOB_NAME = "test-kubeflow"
 
 PYTEST_CMD_BASE = "pytest"
@@ -74,6 +83,22 @@ def create_profile(lightkube_client):
     lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE)
 
 
+@pytest.fixture(scope="module")
+def create_configmap(request, lightkube_client):
+    """Create a ConfigMap and handle cleanup at the end of the module tests."""
+    log.info(f"Creating ConfigMap {NAMESPACE}/{CONFIGMAP_NAME}...")
+    env = request.config.getoption("env")
+    assert os.path.isfile(env), f"{env} is not a valid file path!"
+    create_configmap_from_file(CONFIGMAP_NAME, NAMESPACE, env)
+    assert_configmap_created(CONFIGMAP_NAME, NAMESPACE, lightkube_client)
+
+    yield
+
+    # delete the ConfigMap at the end of the module tests
+    log.info(f"Deleting ConfigMap {NAMESPACE}/{CONFIGMAP_NAME}...")
+    delete_configmap(CONFIGMAP_NAME, NAMESPACE, lightkube_client)
+
+
 @pytest.mark.abort_on_fail
 async def test_create_profile(lightkube_client, create_profile):
     """Test Profile creation.
@@ -96,7 +121,7 @@ async def test_create_profile(lightkube_client, create_profile):
     assert_namespace_active(lightkube_client, NAMESPACE)
 
 
-def test_kubeflow_workloads(lightkube_client, pytest_cmd):
+def test_kubeflow_workloads(lightkube_client, pytest_cmd, create_configmap):
     """Run a K8s Job to execute the notebook tests."""
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
     resources = list(

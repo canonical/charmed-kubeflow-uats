@@ -7,9 +7,24 @@ import subprocess
 import tenacity
 from lightkube import Client
 from lightkube.resources.batch_v1 import Job
-from lightkube.resources.core_v1 import Namespace
+from lightkube.resources.core_v1 import ConfigMap, Namespace
 
 log = logging.getLogger(__name__)
+
+
+@tenacity.retry(
+    wait=tenacity.wait_exponential(multiplier=2, min=1, max=10),
+    stop=tenacity.stop_after_attempt(10),
+    reraise=True,
+)
+def assert_configmap_created(cm_name: str, namespace: str, lightkube_client: Client = None):
+    """Test that the provided ConfigMap was created successfully.
+
+    Retries multiple times to allow for the K8s ConfigMap to be created.
+    """
+    client = lightkube_client or Client(trust_env=False)
+    # raises a 404 ApiError if the ConfigMap doesn't exist
+    client.get(ConfigMap, name=cm_name, namespace=namespace)
 
 
 @tenacity.retry(
@@ -89,3 +104,24 @@ def delete_job(job_name, namespace, lightkube_client=None):
     """Delete a Kubernetes Job."""
     client = lightkube_client or Client(trust_env=False)
     client.delete(Job, name=job_name, namespace=namespace)
+
+
+def create_configmap_from_file(cm_name, namespace, env_file):
+    """Create a Kubernetes ConfigMap from an env file."""
+    command = [
+        "kubectl",
+        "-n",
+        namespace,
+        "create",
+        "configmap",
+        cm_name,
+        "--from-env-file",
+        env_file,
+    ]
+    subprocess.check_call(command)
+
+
+def delete_configmap(cm_name, namespace, lightkube_client=None):
+    """Delete a Kubernetes ConfigMap."""
+    client = lightkube_client or Client(trust_env=False)
+    client.delete(ConfigMap, name=cm_name, namespace=namespace)
