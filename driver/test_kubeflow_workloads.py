@@ -86,17 +86,19 @@ def create_profile(lightkube_client):
 @pytest.fixture(scope="module")
 def create_configmap(request, lightkube_client):
     """Create a ConfigMap and handle cleanup at the end of the module tests."""
-    log.info(f"Creating ConfigMap {NAMESPACE}/{CONFIGMAP_NAME}...")
     env = request.config.getoption("env")
-    assert os.path.isfile(env), f"{env} is not a valid file path!"
-    create_configmap_from_file(CONFIGMAP_NAME, NAMESPACE, env)
-    assert_configmap_created(CONFIGMAP_NAME, NAMESPACE, lightkube_client)
+    if env:
+        log.info(f"Creating ConfigMap {NAMESPACE}/{CONFIGMAP_NAME}...")
+        assert os.path.isfile(env), f"{env} is not a valid file path!"
+        create_configmap_from_file(CONFIGMAP_NAME, NAMESPACE, env)
+        assert_configmap_created(CONFIGMAP_NAME, NAMESPACE, lightkube_client)
 
     yield
 
-    # delete the ConfigMap at the end of the module tests
-    log.info(f"Deleting ConfigMap {NAMESPACE}/{CONFIGMAP_NAME}...")
-    delete_configmap(CONFIGMAP_NAME, NAMESPACE, lightkube_client)
+    if env:
+        # delete the ConfigMap at the end of the module tests
+        log.info(f"Deleting ConfigMap {NAMESPACE}/{CONFIGMAP_NAME}...")
+        delete_configmap(CONFIGMAP_NAME, NAMESPACE, lightkube_client)
 
 
 @pytest.mark.abort_on_fail
