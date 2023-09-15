@@ -30,6 +30,10 @@ spec:
           volumeMounts:
             - name: test-volume
               mountPath: /tests
+          envFrom:
+          - configMapRef:
+              name: test-cm
+              optional: true
       volumes:
         - name: test-volume
           hostPath:

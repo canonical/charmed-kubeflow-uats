@@ -19,6 +19,7 @@ PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 TESTS_DIR = os.path.abspath(Path("tests"))
 TESTS_IMAGE = "kubeflownotebookswg/jupyter-scipy:v1.7.0"
 
+# the namespace specified in assets/installs/test-cm.yaml.j2 should always match the value set here
 NAMESPACE = "test-kubeflow"
 PROFILE_RESOURCE = create_global_resource(
     group="kubeflow.org",
