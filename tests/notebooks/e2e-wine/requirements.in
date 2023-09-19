@@ -1,0 +1,13 @@
+boto3
+# pin to the latest <2.0 version to ensure compatibility
+# with the KFP API server version deployed in CKF 1.7
+kfp==1.8.22
+minio
+# pin the client to match the version of the deployed MLflow server
+mlflow==2.1.1
+numpy
+pyarrow
+requests
+# pin to ensure compatibility with the installed mlflow client
+scikit-learn<1.2
+tenacity
