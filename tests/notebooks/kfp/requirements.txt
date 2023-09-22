@@ -125,7 +125,7 @@ requests-oauthlib==1.3.1
     # via kubernetes
 requests-toolbelt==0.10.1
     # via kfp
-rpds-py==0.10.2
+rpds-py==0.10.3
     # via
     #   jsonschema
     #   referencing
@@ -148,7 +148,7 @@ termcolor==2.3.0
     # via fire
 typer==0.9.0
     # via kfp
-typing-extensions==4.7.1
+typing-extensions==4.8.0
     # via
     #   kfp
     #   pydantic
@@ -170,7 +170,7 @@ wheel==0.41.2
     # via strip-hints
 wrapt==1.15.0
     # via deprecated
-zipp==3.16.2
+zipp==3.17.0
     # via importlib-resources
 
 # The following packages are considered to be unsafe in a requirements file:

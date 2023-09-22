@@ -8,9 +8,9 @@ alembic==1.12.0
     # via mlflow
 blinker==1.6.2
     # via flask
-boto3==1.28.45
+boto3==1.28.50
     # via -r requirements.in
-botocore==1.31.45
+botocore==1.31.50
     # via
     #   boto3
     #   s3transfer
@@ -29,7 +29,7 @@ cloudpickle==2.2.1
     # via
     #   mlflow
     #   shap
-contourpy==1.1.0
+contourpy==1.1.1
     # via matplotlib
 cycler==0.11.0
     # via matplotlib
@@ -120,7 +120,7 @@ pandas==1.5.3
     # via
     #   mlflow
     #   shap
-pillow==10.0.0
+pillow==10.0.1
     # via matplotlib
 protobuf==4.24.3
     # via mlflow
@@ -168,7 +168,7 @@ six==1.16.0
     #   querystring-parser
 slicer==0.0.7
     # via shap
-smmap==5.0.0
+smmap==5.0.1
     # via gitdb
 sqlalchemy==1.4.49
     # via
@@ -184,7 +184,7 @@ threadpoolctl==3.2.0
     # via scikit-learn
 tqdm==4.66.1
     # via shap
-typing-extensions==4.7.1
+typing-extensions==4.8.0
     # via alembic
 urllib3==1.26.16
     # via
@@ -197,7 +197,7 @@ websocket-client==1.6.3
     # via docker
 werkzeug==2.3.7
     # via flask
-zipp==3.16.2
+zipp==3.17.0
     # via
     #   importlib-metadata
     #   importlib-resources
