@@ -3,4 +3,6 @@ boto3
 minio<7.0
 # pin the client to match the version of the deployed MLflow server
 mlflow==2.1.1
+# pin to ensure compatibility with the installed mlflow client
+scikit-learn<1.2
 tenacity
