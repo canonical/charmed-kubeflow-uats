@@ -2,7 +2,7 @@ boto3
 # pin to the latest <2.0 version to ensure compatibility
 # with the KFP API server version deployed in CKF 1.7
 kfp==1.8.22
-# pin to <7.0 for compatibility with the minio client
+# pin to <7.0 to avoid breaking changes in sdk
 minio<7.0
 # pin the client to match the version of the deployed MLflow server
 mlflow==2.1.1
