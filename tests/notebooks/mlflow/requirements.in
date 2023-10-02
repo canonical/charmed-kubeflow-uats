@@ -1,5 +1,5 @@
 boto3
-minio
+minio<7.0
 # pin the client to match the version of the deployed MLflow server
 mlflow==2.1.1
 tenacity
