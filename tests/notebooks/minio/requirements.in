@@ -1,3 +1,4 @@
+# pin to <7.0 for compatibility with the minio client
 minio<7.0
 pandas
 s3fs

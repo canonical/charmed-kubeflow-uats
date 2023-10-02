@@ -1,4 +1,5 @@
 boto3
+# pin to <7.0 for compatibility with the minio client
 minio<7.0
 # pin the client to match the version of the deployed MLflow server
 mlflow==2.1.1
