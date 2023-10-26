@@ -4,14 +4,35 @@
 #
 #    pip-compile requirements.in
 #
-absl-py==1.4.0
-    # via kfp
+aiohttp==3.8.6
+    # via
+    #   aiohttp-cors
+    #   ray
+aiohttp-cors==0.7.0
+    # via ray
+aiorwlock==1.3.0
+    # via ray
+aiosignal==1.3.1
+    # via
+    #   aiohttp
+    #   ray
 alembic==1.12.0
     # via mlflow
+anyio==4.0.0
+    # via
+    #   httpcore
+    #   starlette
+    #   watchfiles
+async-timeout==4.0.3
+    # via aiohttp
 attrs==23.1.0
     # via
+    #   aiohttp
     #   jsonschema
+    #   ray
     #   referencing
+blessed==1.20.0
+    # via gpustat
 blinker==1.6.2
     # via flask
 boto3==1.28.50
@@ -24,89 +45,105 @@ cachetools==5.3.1
     # via google-auth
 certifi==2023.7.22
     # via
-    #   kfp-server-api
+    #   httpcore
+    #   httpx
     #   kubernetes
     #   minio
     #   requests
 charset-normalizer==3.2.0
-    # via requests
+    # via
+    #   aiohttp
+    #   requests
 click==8.1.7
     # via
     #   databricks-cli
     #   flask
-    #   kfp
     #   mlflow
-    #   typer
+    #   ray
+    #   uvicorn
+cloudevents==1.10.0
+    # via kserve
 cloudpickle==2.2.1
     # via
-    #   kfp
     #   mlflow
     #   shap
+colorful==0.5.5
+    # via ray
 configparser==6.0.0
     # via minio
 contourpy==1.1.1
     # via matplotlib
+cuda-python==12.3.0
+    # via tritonclient
 cycler==0.11.0
     # via matplotlib
 databricks-cli==0.17.7
     # via mlflow
-deprecated==1.2.14
-    # via kfp
+deprecation==2.1.0
+    # via cloudevents
+distlib==0.3.7
+    # via virtualenv
 docker==6.1.3
     # via mlflow
-docstring-parser==0.15
-    # via kfp
 entrypoints==0.4
     # via mlflow
-fire==0.5.0
-    # via kfp
+exceptiongroup==1.1.3
+    # via anyio
+fastapi==0.95.2
+    # via
+    #   kserve
+    #   ray
+filelock==3.12.4
+    # via
+    #   ray
+    #   virtualenv
 flask==2.3.3
     # via mlflow
 fonttools==4.42.1
     # via matplotlib
+frozenlist==1.4.0
+    # via
+    #   aiohttp
+    #   aiosignal
+    #   ray
 gitdb==4.0.10
     # via gitpython
 gitpython==3.1.36
     # via mlflow
 google-api-core==2.11.1
-    # via
-    #   google-api-python-client
-    #   google-cloud-core
-    #   google-cloud-storage
-    #   kfp
-google-api-python-client==1.12.11
-    # via kfp
+    # via opencensus
 google-auth==2.23.0
     # via
     #   google-api-core
-    #   google-api-python-client
-    #   google-auth-httplib2
-    #   google-cloud-core
-    #   google-cloud-storage
-    #   kfp
     #   kubernetes
-google-auth-httplib2==0.1.1
-    # via google-api-python-client
-google-cloud-core==2.3.3
-    # via google-cloud-storage
-google-cloud-storage==2.10.0
-    # via kfp
-google-crc32c==1.5.0
-    # via google-resumable-media
-google-resumable-media==2.6.0
-    # via google-cloud-storage
 googleapis-common-protos==1.60.0
     # via google-api-core
+gpustat==1.1.1
+    # via ray
 greenlet==2.0.2
     # via sqlalchemy
+grpcio==1.51.3
+    # via
+    #   kserve
+    #   ray
 gunicorn==20.1.0
     # via mlflow
-httplib2==0.22.0
+h11==0.14.0
     # via
-    #   google-api-python-client
-    #   google-auth-httplib2
+    #   httpcore
+    #   uvicorn
+httpcore==0.16.3
+    # via httpx
+httptools==0.6.1
+    # via uvicorn
+httpx==0.23.3
+    # via kserve
 idna==3.4
-    # via requests
+    # via
+    #   anyio
+    #   requests
+    #   rfc3986
+    #   yarl
 importlib-metadata==5.2.0
     # via
     #   alembic
@@ -133,19 +170,17 @@ jmespath==1.0.1
 joblib==1.3.2
     # via scikit-learn
 jsonschema==4.19.0
-    # via kfp
+    # via ray
 jsonschema-specifications==2023.7.1
     # via jsonschema
-kfp==1.8.22
-    # via -r requirements.in
-kfp-pipeline-spec==0.1.16
-    # via kfp
-kfp-server-api==1.8.5
-    # via kfp
 kiwisolver==1.4.5
     # via matplotlib
+kserve==0.11.1
+    # via -r requirements.in
 kubernetes==25.3.0
-    # via kfp
+    # via
+    #   -r requirements.in
+    #   kserve
 llvmlite==0.40.1
     # via numba
 mako==1.2.4
@@ -163,45 +198,75 @@ minio==6.0.2
     # via -r requirements.in
 mlflow==2.1.1
     # via -r requirements.in
+msgpack==1.0.7
+    # via ray
+multidict==6.0.4
+    # via
+    #   aiohttp
+    #   yarl
 numba==0.57.1
     # via shap
 numpy==1.24.4
     # via
     #   -r requirements.in
     #   contourpy
+    #   kserve
     #   matplotlib
     #   mlflow
     #   numba
     #   pandas
     #   pyarrow
+    #   ray
     #   scikit-learn
     #   scipy
     #   shap
+    #   tritonclient
+nvidia-ml-py==12.535.108
+    # via gpustat
 oauthlib==3.2.2
     # via
     #   databricks-cli
     #   requests-oauthlib
+opencensus==0.11.3
+    # via ray
+opencensus-context==0.1.3
+    # via opencensus
+orjson==3.9.9
+    # via kserve
 packaging==22.0
     # via
+    #   deprecation
     #   docker
     #   matplotlib
     #   mlflow
     #   shap
 pandas==1.5.3
     # via
+    #   kserve
     #   mlflow
     #   shap
 pillow==10.0.1
     # via matplotlib
 pkgutil-resolve-name==1.3.10
     # via jsonschema
+platformdirs==3.11.0
+    # via virtualenv
+prometheus-client==0.13.1
+    # via
+    #   kserve
+    #   ray
 protobuf==3.20.3
     # via
     #   google-api-core
-    #   googleapis-common-protos
-    #   kfp
-    #   kfp-pipeline-spec
+    #   kserve
     #   mlflow
+    #   ray
+psutil==5.9.6
+    # via
+    #   gpustat
+    #   kserve
+py-spy==0.3.14
+    # via ray
 pyarrow==10.0.1
     # via
     #   -r requirements.in
@@ -213,21 +278,25 @@ pyasn1==0.5.0
 pyasn1-modules==0.3.0
     # via google-auth
 pydantic==1.10.12
-    # via kfp
+    # via
+    #   fastapi
+    #   ray
 pyjwt==2.8.0
     # via databricks-cli
 pyparsing==3.1.1
-    # via
-    #   httplib2
-    #   matplotlib
+    # via matplotlib
 python-dateutil==2.8.2
     # via
     #   botocore
-    #   kfp-server-api
+    #   kserve
     #   kubernetes
     #   matplotlib
     #   minio
     #   pandas
+python-dotenv==1.0.0
+    # via uvicorn
+python-rapidjson==1.12
+    # via tritonclient
 pytz==2022.7.1
     # via
     #   minio
@@ -235,11 +304,14 @@ pytz==2022.7.1
     #   pandas
 pyyaml==6.0.1
     # via
-    #   kfp
     #   kubernetes
     #   mlflow
+    #   ray
+    #   uvicorn
 querystring-parser==1.2.4
     # via mlflow
+ray[serve]==2.4.0
+    # via kserve
 referencing==0.30.2
     # via
     #   jsonschema
@@ -250,15 +322,14 @@ requests==2.31.0
     #   databricks-cli
     #   docker
     #   google-api-core
-    #   google-cloud-storage
     #   kubernetes
     #   mlflow
+    #   ray
     #   requests-oauthlib
-    #   requests-toolbelt
 requests-oauthlib==1.3.1
     # via kubernetes
-requests-toolbelt==0.10.1
-    # via kfp
+rfc3986[idna2008]==1.5.0
+    # via httpx
 rpds-py==0.10.3
     # via
     #   jsonschema
@@ -281,70 +352,83 @@ shap==0.42.1
     # via mlflow
 six==1.16.0
     # via
+    #   blessed
     #   databricks-cli
-    #   fire
-    #   google-api-python-client
-    #   kfp-server-api
+    #   kserve
     #   kubernetes
     #   python-dateutil
     #   querystring-parser
 slicer==0.0.7
     # via shap
+smart-open==6.4.0
+    # via ray
 smmap==5.0.1
     # via gitdb
+sniffio==1.3.0
+    # via
+    #   anyio
+    #   httpcore
+    #   httpx
 sqlalchemy==1.4.49
     # via
     #   alembic
     #   mlflow
 sqlparse==0.4.4
     # via mlflow
-strip-hints==0.1.10
-    # via kfp
+starlette==0.27.0
+    # via
+    #   fastapi
+    #   ray
 tabulate==0.9.0
     # via
     #   databricks-cli
-    #   kfp
+    #   kserve
 tenacity==8.2.3
     # via -r requirements.in
-termcolor==2.3.0
-    # via fire
 threadpoolctl==3.2.0
     # via scikit-learn
+timing-asgi==0.3.1
+    # via kserve
 tqdm==4.66.1
     # via shap
-typer==0.9.0
-    # via kfp
+tritonclient==2.38.0
+    # via kserve
 typing-extensions==4.8.0
     # via
     #   alembic
-    #   kfp
     #   pydantic
-    #   typer
-uritemplate==3.0.1
-    # via
-    #   google-api-python-client
-    #   kfp
+    #   starlette
 urllib3==1.26.16
     # via
     #   botocore
     #   databricks-cli
     #   docker
     #   google-auth
-    #   kfp
-    #   kfp-server-api
     #   kubernetes
     #   minio
     #   requests
+uvicorn[standard]==0.19.0
+    # via
+    #   kserve
+    #   ray
+uvloop==0.19.0
+    # via uvicorn
+virtualenv==20.21.0
+    # via ray
+watchfiles==0.21.0
+    # via uvicorn
+wcwidth==0.2.8
+    # via blessed
 websocket-client==1.6.3
     # via
     #   docker
     #   kubernetes
+websockets==12.0
+    # via uvicorn
 werkzeug==2.3.7
     # via flask
-wheel==0.41.2
-    # via strip-hints
-wrapt==1.15.0
-    # via deprecated
+yarl==1.9.2
+    # via aiohttp
 zipp==3.17.0
     # via
     #   importlib-metadata

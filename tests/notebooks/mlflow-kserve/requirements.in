@@ -9,3 +9,5 @@ requests
 # pin to ensure compatibility with the installed mlflow client
 scikit-learn<1.2
 tenacity
+kserve
+kubernetes
