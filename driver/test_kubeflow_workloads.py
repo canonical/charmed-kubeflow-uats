@@ -68,10 +68,6 @@ def create_profile(lightkube_client):
 
     yield
 
-    # delete the Profile at the end of the module tests
-    log.info(f"Deleting Profile {NAMESPACE}...")
-    lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE)
-
 
 @pytest.mark.abort_on_fail
 async def test_create_profile(lightkube_client, create_profile):
@@ -126,5 +122,4 @@ def test_kubeflow_workloads(lightkube_client, pytest_cmd):
 
 def teardown_module():
     """Cleanup resources."""
-    log.info(f"Deleting Job {NAMESPACE}/{JOB_NAME}...")
-    delete_job(JOB_NAME, NAMESPACE)
+    log.info(f"Bye...")
