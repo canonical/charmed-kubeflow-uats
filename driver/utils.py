@@ -87,5 +87,5 @@ def fetch_job_logs(job_name, namespace):
 
 def delete_job(job_name, namespace, lightkube_client=None):
     """Delete a Kubernetes Job."""
-    client = lightkube_client or Client()
+    client = lightkube_client or Client(trust_env=False)
     client.delete(Job, name=job_name, namespace=namespace)

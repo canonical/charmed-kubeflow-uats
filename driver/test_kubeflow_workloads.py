@@ -48,7 +48,7 @@ def pytest_cmd(pytest_filter):
 @pytest.fixture(scope="module")
 def lightkube_client():
     """Initialise Lightkube Client."""
-    lightkube_client = Client()
+    lightkube_client = Client(trust_env=False)
     load_in_cluster_generic_resources(lightkube_client)
     return lightkube_client
 
