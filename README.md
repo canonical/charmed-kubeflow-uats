@@ -1,5 +1,7 @@
 # Charmed Kubeflow Automated UATs
 
+[![PRs](https://github.com/canonical/charmed-kubeflow-uats/actions/workflows/on_pull_or_push.yaml/badge.svg)](https://github.com/canonical/charmed-kubeflow-uats/actions/workflows/on_pull_or_push.yaml)
+
 Automated User Acceptance Tests (UATs) are essential for evaluating the stability of Charmed
 Kubeflow, as well as catching issues early, and are intended to be an invaluable testing tool both
 pre-release and post-installation. They combine different components of Charmed Kubeflow in a way
