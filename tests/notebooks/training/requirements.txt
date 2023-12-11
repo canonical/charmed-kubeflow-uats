@@ -4,20 +4,20 @@
 #
 #    pip-compile requirements.in
 #
-cachetools==5.3.1
+cachetools==5.3.2
     # via google-auth
-certifi==2023.7.22
+certifi==2023.11.17
     # via
     #   kubeflow-training
     #   kubernetes
     #   requests
-charset-normalizer==3.2.0
+charset-normalizer==3.3.2
     # via requests
-google-auth==2.23.0
+google-auth==2.25.2
     # via kubernetes
-idna==3.4
+idna==3.6
     # via requests
-kubeflow-training==1.6.0
+kubeflow-training==1.7.0
     # via -r requirements.in
 kubernetes==28.1.0
     # via kubeflow-training
@@ -25,7 +25,7 @@ oauthlib==3.2.2
     # via
     #   kubernetes
     #   requests-oauthlib
-pyasn1==0.5.0
+pyasn1==0.5.1
     # via
     #   pyasn1-modules
     #   rsa
@@ -53,13 +53,12 @@ six==1.16.0
     #   retrying
 tenacity==8.2.3
     # via -r requirements.in
-urllib3==1.26.16
+urllib3==1.26.18
     # via
-    #   google-auth
     #   kubeflow-training
     #   kubernetes
     #   requests
-websocket-client==1.6.3
+websocket-client==1.7.0
     # via kubernetes
 
 # The following packages are considered to be unsafe in a requirements file:
