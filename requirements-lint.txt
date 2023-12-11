@@ -4,48 +4,96 @@
 #
 #    pip-compile requirements-lint.in
 #
-black==23.9.1
+annotated-types==0.6.0
+    # via pydantic
+black==23.11.0
     # via -r requirements-lint.in
+cerberus==1.3.5
+    # via plette
+certifi==2023.11.17
+    # via requests
+charset-normalizer==3.3.2
+    # via requests
 click==8.1.7
     # via black
-codespell==2.2.5
+codespell==2.2.6
     # via -r requirements-lint.in
-flake8==6.0.0
+distlib==0.3.7
+    # via requirementslib
+docopt==0.6.2
+    # via pipreqs
+flake8==6.1.0
     # via
     #   -r requirements-lint.in
     #   flake8-builtins
     #   pep8-naming
     #   pyproject-flake8
-flake8-builtins==2.1.0
+flake8-builtins==2.2.0
     # via -r requirements-lint.in
 flake8-copyright==0.2.4
     # via -r requirements-lint.in
-isort==5.12.0
+idna==3.6
+    # via requests
+isort==5.13.0
     # via -r requirements-lint.in
 mccabe==0.7.0
     # via flake8
 mypy-extensions==1.0.0
     # via black
-packaging==23.1
+packaging==23.2
     # via black
-pathspec==0.11.2
+pathspec==0.12.1
     # via black
+pep517==0.13.1
+    # via requirementslib
 pep8-naming==0.13.3
     # via -r requirements-lint.in
-platformdirs==3.10.0
-    # via black
-pycodestyle==2.10.0
+pip-api==0.0.30
+    # via isort
+pipreqs==0.4.13
+    # via isort
+platformdirs==4.1.0
+    # via
+    #   black
+    #   requirementslib
+plette[validation]==0.4.4
+    # via requirementslib
+pycodestyle==2.11.1
     # via flake8
-pyflakes==3.0.1
+pydantic==2.5.2
+    # via requirementslib
+pydantic-core==2.14.5
+    # via pydantic
+pyflakes==3.1.0
     # via flake8
-pyproject-flake8==6.0.0.post1
+pyproject-flake8==6.1.0
     # via -r requirements-lint.in
+requests==2.31.0
+    # via
+    #   requirementslib
+    #   yarg
+requirementslib==3.0.0
+    # via isort
 tomli==2.0.1
     # via
     #   black
+    #   pep517
     #   pyproject-flake8
-typing-extensions==4.8.0
-    # via black
+tomlkit==0.12.3
+    # via
+    #   plette
+    #   requirementslib
+typing-extensions==4.9.0
+    # via
+    #   annotated-types
+    #   black
+    #   pydantic
+    #   pydantic-core
+urllib3==2.1.0
+    # via requests
+yarg==0.1.9
+    # via pipreqs
 
 # The following packages are considered to be unsafe in a requirements file:
+# pip
 # setuptools

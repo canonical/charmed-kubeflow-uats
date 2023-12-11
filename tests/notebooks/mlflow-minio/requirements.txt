@@ -4,9 +4,9 @@
 #
 #    pip-compile requirements.in
 #
-aiobotocore==2.5.4
+aiobotocore==2.8.0
     # via s3fs
-aiohttp==3.8.5
+aiohttp==3.9.1
     # via
     #   aiobotocore
     #   s3fs
@@ -18,21 +18,19 @@ async-timeout==4.0.3
     # via aiohttp
 attrs==23.1.0
     # via aiohttp
-botocore==1.31.17
+botocore==1.33.1
     # via aiobotocore
-certifi==2023.7.22
+certifi==2023.11.17
     # via minio
-charset-normalizer==3.2.0
-    # via aiohttp
 configparser==6.0.0
     # via minio
 frozenlist==1.4.0
     # via
     #   aiohttp
     #   aiosignal
-fsspec==2023.9.1
+fsspec==2023.12.1
     # via s3fs
-idna==3.4
+idna==3.6
     # via yarl
 jmespath==1.0.1
     # via botocore
@@ -55,19 +53,19 @@ pytz==2023.3.post1
     # via
     #   minio
     #   pandas
-s3fs==2023.9.1
+s3fs==2023.12.1
     # via -r requirements.in
 six==1.16.0
     # via python-dateutil
-typing-extensions==4.8.0
+typing-extensions==4.9.0
     # via aioitertools
 tzdata==2023.3
     # via pandas
-urllib3==1.26.16
+urllib3==1.26.18
     # via
     #   botocore
     #   minio
-wrapt==1.15.0
+wrapt==1.16.0
     # via aiobotocore
-yarl==1.9.2
+yarl==1.9.4
     # via aiohttp
