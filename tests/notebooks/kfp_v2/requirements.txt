@@ -4,9 +4,9 @@
 #
 #    pip-compile requirements.in
 #
-cachetools==5.3.2
+cachetools==5.3.3
     # via google-auth
-certifi==2023.11.17
+certifi==2024.2.2
     # via
     #   kfp-server-api
     #   kubernetes
@@ -15,57 +15,60 @@ charset-normalizer==3.3.2
     # via requests
 click==8.1.7
     # via kfp
-docstring-parser==0.15
+docstring-parser==0.16
     # via kfp
-google-api-core==2.14.0
+google-api-core==2.18.0
     # via
     #   google-cloud-core
     #   google-cloud-storage
     #   kfp
-google-auth==2.23.4
+google-auth==2.29.0
     # via
     #   google-api-core
     #   google-cloud-core
     #   google-cloud-storage
     #   kfp
     #   kubernetes
-google-cloud-core==2.3.3
+google-cloud-core==2.4.1
     # via google-cloud-storage
-google-cloud-storage==2.13.0
+google-cloud-storage==2.16.0
     # via kfp
 google-crc32c==1.5.0
     # via
     #   google-cloud-storage
     #   google-resumable-media
-google-resumable-media==2.6.0
+google-resumable-media==2.7.0
     # via google-cloud-storage
-googleapis-common-protos==1.61.0
+googleapis-common-protos==1.63.0
     # via google-api-core
-idna==3.4
+idna==3.6
     # via requests
-kfp==2.4.0
+kfp==2.7.0
     # via -r requirements.in
-kfp-pipeline-spec==0.2.2
+kfp-pipeline-spec==0.3.0
     # via kfp
-kfp-server-api==2.0.3
+kfp-server-api==2.0.5
     # via kfp
 kubernetes==26.1.0
     # via kfp
 oauthlib==3.2.2
     # via requests-oauthlib
-protobuf==3.20.3
+proto-plus==1.23.0
+    # via google-api-core
+protobuf==4.25.3
     # via
     #   google-api-core
     #   googleapis-common-protos
     #   kfp
     #   kfp-pipeline-spec
+    #   proto-plus
 pyasn1==0.5.1
     # via
     #   pyasn1-modules
     #   rsa
 pyasn1-modules==0.3.0
     # via google-auth
-python-dateutil==2.8.2
+python-dateutil==2.9.0.post0
     # via
     #   kfp-server-api
     #   kubernetes
@@ -80,7 +83,7 @@ requests==2.31.0
     #   kubernetes
     #   requests-oauthlib
     #   requests-toolbelt
-requests-oauthlib==1.3.1
+requests-oauthlib==2.0.0
     # via kubernetes
 requests-toolbelt==0.10.1
     # via kfp
@@ -95,7 +98,7 @@ tabulate==0.9.0
     # via kfp
 tenacity==8.2.3
     # via -r requirements.in
-typing-extensions==4.8.0
+typing-extensions==4.10.0
     # via kfp
 urllib3==1.26.18
     # via
@@ -103,7 +106,7 @@ urllib3==1.26.18
     #   kfp-server-api
     #   kubernetes
     #   requests
-websocket-client==1.6.4
+websocket-client==1.7.0
     # via kubernetes
 
 # The following packages are considered to be unsafe in a requirements file:
