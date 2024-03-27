@@ -25,7 +25,7 @@ very least) of the following pieces:
     * MicroK8s
     * Charmed Kubernetes
     * EKS cluster
-    * AKS cluster
+    * AKS cluster <!-- codespell-ignore -->
 * **Charmed Kubeflow** deployed on top of it
 * **MLFlow (optional)** deployed alongside Kubeflow
 
