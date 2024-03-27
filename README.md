@@ -25,6 +25,7 @@ very least) of the following pieces:
     * MicroK8s
     * Charmed Kubernetes
     * EKS cluster
+    * AKS cluster
 * **Charmed Kubeflow** deployed on top of it
 * **MLFlow (optional)** deployed alongside Kubeflow
 
@@ -77,6 +78,14 @@ In order to run the tests using the `driver`:
    source venv/bin/activate
    pip install tox
    ```
+
+* Then in order to run 
+#### Run tests from local copy 
+
+
+
+#### Run tests from a remote branch
+
 * Run the UATs:
 
    ```bash
@@ -105,7 +114,10 @@ dedicated `kubeflow` tox test environment:
 
 ```bash
 # assumes an existing `kubeflow` Juju model
-tox -e kubeflow
+# from the local copy
+tox -e kubeflow-local
+# or from a remote branch
+tox -e kubeflow-remote -- --branch=<remote-branch>
 ```
 
 #### Developer Notes

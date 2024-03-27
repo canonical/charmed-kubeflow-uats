@@ -16,7 +16,9 @@ ASSETS_DIR = Path("assets")
 JOB_TEMPLATE_FILE = ASSETS_DIR / "test-job.yaml.j2"
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 
-TESTS_DIR = os.path.abspath(Path("tests"))
+TESTS_LOCAL_RUN = os.environ.get("LOCAL").replace('"', "")
+TESTS_LOCAL_DIR = os.path.abspath(Path("tests"))
+
 TESTS_IMAGE = "kubeflownotebookswg/jupyter-scipy:v1.7.0"
 
 NAMESPACE = "test-kubeflow"
@@ -37,6 +39,13 @@ def pytest_filter(request):
     """Retrieve filter from Pytest invocation."""
     filter = request.config.getoption("filter")
     return f"-k '{filter}'" if filter else ""
+
+
+@pytest.fixture(scope="session")
+def tests_remote_branch(request):
+    """Retrieve active git branch from Pytest invocation."""
+    branch = request.config.getoption("branch")
+    return branch if branch else "main"
 
 
 @pytest.fixture(scope="session")
@@ -95,7 +104,7 @@ async def test_create_profile(lightkube_client, create_profile):
     assert_namespace_active(lightkube_client, NAMESPACE)
 
 
-def test_kubeflow_workloads(lightkube_client, pytest_cmd):
+def test_kubeflow_workloads(lightkube_client, pytest_cmd, tests_remote_branch):
     """Run a K8s Job to execute the notebook tests."""
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
     resources = list(
@@ -103,8 +112,10 @@ def test_kubeflow_workloads(lightkube_client, pytest_cmd):
             JOB_TEMPLATE_FILE.read_text(),
             context={
                 "job_name": JOB_NAME,
-                "test_dir": TESTS_DIR,
-                "test_image": TESTS_IMAGE,
+                "tests_local_run": TESTS_LOCAL_RUN,
+                "tests_local_dir": TESTS_LOCAL_DIR,
+                "tests_image": TESTS_IMAGE,
+                "tests_remote_branch": tests_remote_branch,
                 "pytest_cmd": pytest_cmd,
             },
         )
