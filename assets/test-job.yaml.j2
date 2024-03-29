@@ -11,16 +11,28 @@ spec:
           access-ml-pipeline: "true"
           mlflow-server-minio: "true"
     spec:
+      {% if not tests_local_run %}
+      # securityContext is needed in order for test files to be writeable 
+      # since the tests save the notebooks. Setting it enables:
+      # * The test-volume to be group-owned by this GID.
+      # * The GID to be added to each container.
+      securityContext:
+        fsGroup: 101
+      {% endif %}
       serviceAccountName: default-editor
       containers:
         - name: {{ job_name }}
-          image: {{ test_image }}
+          image: {{ tests_image }}
           command:
             - bash
             - -c
           args:
             - |
+              {% if tests_local_run %}
               cd /tests;
+              {% else %}
+              cd /tests/charmed-kubeflow-uats/tests;
+              {% endif %}
               pip install -r requirements.txt >/dev/null;
               {{ pytest_cmd }};
               # Kill Istio Sidecar after workload completes to have the Job status properly updated
@@ -30,8 +42,28 @@ spec:
           volumeMounts:
             - name: test-volume
               mountPath: /tests
+      {% if not tests_local_run %}
+      initContainers:
+        - name: git-sync
+          # This container pulls git data and publishes it into volume
+          # "test-volume".
+          image: registry.k8s.io/git-sync/git-sync:v4.0.0
+          args:
+            - --repo=https://github.com/canonical/charmed-kubeflow-uats
+            - --ref={{ tests_remote_commit }}
+            - --root=/tests
+            - --group-write
+            - --one-time
+          volumeMounts:
+            - name: test-volume
+              mountPath: /tests
+      {% endif %}
       volumes:
         - name: test-volume
+          {% if tests_local_run %}
           hostPath:
-            path: {{ test_dir }}
+            path: {{ tests_local_dir }}
+          {% else %}
+          emptyDir: {}
+          {% endif %}
       restartPolicy: Never
