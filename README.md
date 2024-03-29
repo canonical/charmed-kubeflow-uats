@@ -81,17 +81,17 @@ In order to run the tests using the `driver`:
 
 Then in order to run UATs, there are two options:
 
-#### Run tests from a remote branch
-In this case, tests are fetched from a remote branch of `charmed-kubeflow-uats` repository. In order to select a branch, use the `--branch` option. If no branch is defined, then the `main` branch is used.
+#### Run tests from a remote commit
+In this case, tests are fetched from a remote commit of `charmed-kubeflow-uats` repository. In order to define the commit, tests use the hash of the `HEAD`, where the repository is checked out locally. This means that when you want to run tests from a specific branch, you need to check out to that branch and then run the tests. Note that if the locally checked out commit is not pushed to the remote repository, then tests will fail.
 
 ```bash
 # assumes an existing `kubeflow` Juju model
-tox -e uats-remote -- --branch tests-branch
+tox -e uats-remote
 ```
 
 #### Run tests from local copy
 
-This one works when running the tests from the same node where the tests job is deployed (e.g. running from the same machine where the Microk8s cluster lives). This happens because in this case, the tests job instantiates a volume that is [mounted to the local directory of the repository where tests reside](https://github.com/canonical/charmed-kubeflow-uats/blob/ee0fa08931b11f40e97dbe3e340c413cf466a084/assets/test-job.yaml.j2#L34-L36), while the job and the pod are scheduled in a remote node. If unsure about your setup, use the `remote branch`.
+This one works only when running the tests from the same node where the tests job is deployed (e.g. running from the same machine where the Microk8s cluster lives). In this case, the tests job instantiates a volume that is [mounted to the local directory of the repository where tests reside](https://github.com/canonical/charmed-kubeflow-uats/blob/ee0fa08931b11f40e97dbe3e340c413cf466a084/assets/test-job.yaml.j2#L34-L36). If unsure about your setup, use the `-remote` option.
 
 ```bash
 # assumes an existing `kubeflow` Juju model
@@ -104,10 +104,10 @@ You can also run a subset of the provided tests using the `--filter` option and 
 that follows the same syntax as the pytest `-k` option, e.g.
 
 ```bash
-# run all tests containing 'kfp' or 'katib' in their name
-tox -e uats-local -- --filter "kfp or katib"
 # run any test that doesn't contain 'kserve' in its name
 tox -e uats-remote -- --filter "not kserve"
+# run all tests containing 'kfp' or 'katib' in their name
+tox -e uats-local -- --filter "kfp or katib"
 ```
 
 This simulates the behaviour of running `pytest -k "some filter"` directly on the test suite.
@@ -121,10 +121,10 @@ dedicated `kubeflow` tox test environment:
 
 ```bash
 # assumes an existing `kubeflow` Juju model
-# use tests from the local copy of the repo
+# run tests from the checked out commit after fetching them remotely
+tox -e kubeflow-remote
+# run tests from the local copy of the repo
 tox -e kubeflow-local
-# use tests from a remote branch
-tox -e kubeflow-remote -- --branch=<remote-branch>
 ```
 
 #### Developer Notes
@@ -136,7 +136,7 @@ a Kubernetes Job to run the tests. More specifically, the `driver` executes the 
 1. Create a Kubeflow Profile (i.e. `test-kubeflow`) to run the tests in
 2. Submit a Kubernetes Job (i.e. `test-kubeflow`) that runs `tests`
    The Job performs the following:
-   * If a `-local` tox environment is run, then it mounts the local `tests` directory to a Pod that uses `jupyter-scipy` as the container image. Else (in `-remote` tox environments), it creates an emptyDir volume which it syncs to the remote branch of uats provided, using a [git-sync](https://github.com/kubernetes/git-sync/) `initContainer`.
+   * If a `-local` tox environment is run, then it mounts the local `tests` directory to a Pod that uses `jupyter-scipy` as the container image. Else (in `-remote` tox environments), it creates an emptyDir volume which it syncs to the current commit that the repo is checked out locally, using a [git-sync](https://github.com/kubernetes/git-sync/) `initContainer`.
    * Install python dependencies specified in the [requirements.txt](tests/requirements.txt)
    * Run the test suite by executing `pytest`
 3. Wait until the Job completes (regardless of the outcome)

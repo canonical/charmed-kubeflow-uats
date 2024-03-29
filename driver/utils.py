@@ -79,8 +79,14 @@ def wait_for_job(
         raise ValueError(f"Unknown status {job.status} for Job {namespace}/{job_name}!")
 
 
-def fetch_job_logs(job_name, namespace):
+def fetch_job_logs(job_name, namespace, tests_local_run):
     """Fetch the logs produced by a Kubernetes Job."""
+    if not tests_local_run:
+        print("##### git-sync initContainer logs #####")
+        command = ["kubectl", "logs", "-n", namespace, f"job/{job_name}", "-c", "git-sync"]
+        subprocess.check_call(command)
+
+    print("##### test-kubeflow container logs #####")
     command = ["kubectl", "logs", "-n", namespace, f"job/{job_name}"]
     subprocess.check_call(command)
 

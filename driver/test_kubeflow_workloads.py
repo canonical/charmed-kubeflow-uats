@@ -3,6 +3,7 @@
 
 import logging
 import os
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -42,10 +43,10 @@ def pytest_filter(request):
 
 
 @pytest.fixture(scope="session")
-def tests_remote_branch(request):
-    """Retrieve active git branch from Pytest invocation."""
-    branch = request.config.getoption("branch")
-    return branch if branch else "main"
+def tests_checked_out_commit(request):
+    """Retrieve active git commit."""
+    head = subprocess.check_output(["git", "rev-parse", "HEAD"])
+    return head.decode("UTF-8").rstrip()
 
 
 @pytest.fixture(scope="session")
@@ -104,7 +105,7 @@ async def test_create_profile(lightkube_client, create_profile):
     assert_namespace_active(lightkube_client, NAMESPACE)
 
 
-def test_kubeflow_workloads(lightkube_client, pytest_cmd, tests_remote_branch):
+def test_kubeflow_workloads(lightkube_client, pytest_cmd, tests_checked_out_commit):
     """Run a K8s Job to execute the notebook tests."""
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
     resources = list(
@@ -115,7 +116,7 @@ def test_kubeflow_workloads(lightkube_client, pytest_cmd, tests_remote_branch):
                 "tests_local_run": TESTS_LOCAL_RUN,
                 "tests_local_dir": TESTS_LOCAL_DIR,
                 "tests_image": TESTS_IMAGE,
-                "tests_remote_branch": tests_remote_branch,
+                "tests_remote_commit": tests_checked_out_commit,
                 "pytest_cmd": pytest_cmd,
             },
         )
@@ -132,7 +133,7 @@ def test_kubeflow_workloads(lightkube_client, pytest_cmd, tests_remote_branch):
         )
     finally:
         log.info("Fetching Job logs...")
-        fetch_job_logs(JOB_NAME, NAMESPACE)
+        fetch_job_logs(JOB_NAME, NAMESPACE, TESTS_LOCAL_RUN)
 
 
 def teardown_module():
