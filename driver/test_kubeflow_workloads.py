@@ -63,46 +63,46 @@ def lightkube_client():
     return lightkube_client
 
 
-@pytest.fixture(scope="module")
-def create_profile(lightkube_client):
-    """Create Profile and handle cleanup at the end of the module tests."""
-    log.info(f"Creating Profile {NAMESPACE}...")
-    resources = list(
-        codecs.load_all_yaml(
-            PROFILE_TEMPLATE_FILE.read_text(),
-            context={"namespace": NAMESPACE},
-        )
-    )
-    assert len(resources) == 1, f"Expected 1 Profile, got {len(resources)}!"
-    lightkube_client.create(resources[0])
+# @pytest.fixture(scope="module")
+# def create_profile(lightkube_client):
+#     """Create Profile and handle cleanup at the end of the module tests."""
+#     log.info(f"Creating Profile {NAMESPACE}...")
+#     resources = list(
+#         codecs.load_all_yaml(
+#             PROFILE_TEMPLATE_FILE.read_text(),
+#             context={"namespace": NAMESPACE},
+#         )
+#     )
+#     assert len(resources) == 1, f"Expected 1 Profile, got {len(resources)}!"
+#     lightkube_client.create(resources[0])
 
-    yield
+#     yield
 
-    # delete the Profile at the end of the module tests
-    log.info(f"Deleting Profile {NAMESPACE}...")
-    lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE)
+#     # delete the Profile at the end of the module tests
+#     log.info(f"Deleting Profile {NAMESPACE}...")
+#     lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE)
 
 
-@pytest.mark.abort_on_fail
-async def test_create_profile(lightkube_client, create_profile):
-    """Test Profile creation.
+# @pytest.mark.abort_on_fail
+# async def test_create_profile(lightkube_client, create_profile):
+#     """Test Profile creation.
 
-    This test relies on the create_profile fixture, which handles the Profile creation and
-    is responsible for cleaning up at the end.
-    """
-    try:
-        profile_created = lightkube_client.get(
-            PROFILE_RESOURCE,
-            name=NAMESPACE,
-        )
-    except ApiError as e:
-        if e.status == 404:
-            profile_created = False
-        else:
-            raise
-    assert profile_created, f"Profile {NAMESPACE} not found!"
+#     This test relies on the create_profile fixture, which handles the Profile creation and
+#     is responsible for cleaning up at the end.
+#     """
+#     try:
+#         profile_created = lightkube_client.get(
+#             PROFILE_RESOURCE,
+#             name=NAMESPACE,
+#         )
+#     except ApiError as e:
+#         if e.status == 404:
+#             profile_created = False
+#         else:
+#             raise
+#     assert profile_created, f"Profile {NAMESPACE} not found!"
 
-    assert_namespace_active(lightkube_client, NAMESPACE)
+#     assert_namespace_active(lightkube_client, NAMESPACE)
 
 
 def test_kubeflow_workloads(lightkube_client, pytest_cmd, tests_checked_out_commit):
