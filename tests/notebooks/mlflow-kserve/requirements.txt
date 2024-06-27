@@ -258,6 +258,7 @@ prometheus-client==0.13.1
 protobuf==3.20.3
     # via
     #   google-api-core
+    #   googleapis-common-protos
     #   kserve
     #   mlflow
     #   ray
