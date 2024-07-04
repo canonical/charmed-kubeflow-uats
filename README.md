@@ -37,6 +37,19 @@ fail. For instructions on deploying MLFlow you can start with [this
 guide](https://discourse.charmhub.io/t/deploying-charmed-mlflow-v2-and-kubeflow-to-eks/10973),
 ignoring the EKS specific steps.
 
+## Python and Tox Setup
+To run the tests, Python 3.8 and Tox must be installed on your system. If your default Python version is higher than 3.8, you can set up Python 3.8 and Tox with the following commands:
+
+```bash
+sudo add-apt-repository ppa:deadsnakes/ppa -y
+sudo apt update -y
+sudo apt install python3.8 python3.8-distutils python3.8-venv -y
+wget https://bootstrap.pypa.io/get-pip.py
+python3.8 get-pip.py
+python3.8 -m pip install tox
+export PATH=$PATH:/home/ubuntu/.local/bin
+```
+
 ## Run the tests
 
 As mentioned before, when it comes to running the tests, you've got 2 options:
