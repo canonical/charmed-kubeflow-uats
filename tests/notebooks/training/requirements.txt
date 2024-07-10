@@ -17,7 +17,7 @@ google-auth==2.32.0
     # via kubernetes
 idna==3.7
     # via requests
-kubeflow-training==1.7.0
+kubeflow-training==1.6.0
     # via -r requirements.in
 kubernetes==30.1.0
     # via kubeflow-training

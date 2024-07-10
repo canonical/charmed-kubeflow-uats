@@ -1,2 +1,2 @@
-kubeflow-training
+kubeflow-training==1.6.0
 tenacity
