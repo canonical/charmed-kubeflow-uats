@@ -10,22 +10,25 @@ aiohttp==3.9.5
     #   ray
 aiohttp-cors==0.7.0
     # via ray
+aiorwlock==1.4.0
+    # via ray
 aiosignal==1.3.1
     # via
     #   aiohttp
     #   ray
-annotated-types==0.7.0
-    # via pydantic
 anyio==4.4.0
     # via
-    #   httpx
+    #   httpcore
     #   starlette
     #   watchfiles
 attrs==23.2.0
     # via
     #   aiohttp
     #   jsonschema
+    #   ray
     #   referencing
+blessed==1.20.0
+    # via gpustat
 cachetools==5.3.3
     # via google-auth
 certifi==2024.7.4
@@ -48,7 +51,7 @@ deprecation==2.1.0
     # via cloudevents
 distlib==0.3.8
     # via virtualenv
-fastapi==0.109.2
+fastapi==0.95.2
     # via
     #   kserve
     #   ray
@@ -69,7 +72,9 @@ google-auth==2.32.0
     #   kubernetes
 googleapis-common-protos==1.63.2
     # via google-api-core
-grpcio==1.64.1
+gpustat==1.1.1
+    # via ray
+grpcio==1.51.3
     # via
     #   kserve
     #   ray
@@ -77,23 +82,23 @@ h11==0.14.0
     # via
     #   httpcore
     #   uvicorn
-httpcore==1.0.5
+httpcore==0.16.3
     # via httpx
 httptools==0.6.1
     # via uvicorn
-httpx==0.26.0
+httpx==0.23.3
     # via kserve
 idna==3.7
     # via
     #   anyio
-    #   httpx
     #   requests
+    #   rfc3986
     #   yarl
 jsonschema==4.23.0
     # via ray
 jsonschema-specifications==2023.12.1
     # via jsonschema
-kserve==0.13.0
+kserve==0.11.2
     # via -r requirements.in
 kubernetes==30.1.0
     # via
@@ -109,6 +114,10 @@ numpy==1.26.4
     # via
     #   kserve
     #   pandas
+    #   ray
+    #   tritonclient
+nvidia-ml-py==12.555.43
+    # via gpustat
 oauthlib==3.2.2
     # via
     #   kubernetes
@@ -125,9 +134,9 @@ packaging==24.1
     #   ray
 pandas==2.2.2
     # via kserve
-platformdirs==4.2.2
+platformdirs==3.11.0
     # via virtualenv
-prometheus-client==0.20.0
+prometheus-client==0.13.1
     # via
     #   kserve
     #   ray
@@ -141,7 +150,9 @@ protobuf==3.20.3
     #   proto-plus
     #   ray
 psutil==5.9.8
-    # via kserve
+    # via
+    #   gpustat
+    #   kserve
 py-spy==0.3.14
     # via ray
 pyasn1==0.6.0
@@ -150,13 +161,10 @@ pyasn1==0.6.0
     #   rsa
 pyasn1-modules==0.4.0
     # via google-auth
-pydantic==2.8.2
+pydantic==1.10.17
     # via
     #   fastapi
-    #   kserve
     #   ray
-pydantic-core==2.20.1
-    # via pydantic
 python-dateutil==2.9.0.post0
     # via
     #   kserve
@@ -164,15 +172,16 @@ python-dateutil==2.9.0.post0
     #   pandas
 python-dotenv==1.0.1
     # via uvicorn
+python-rapidjson==1.18
+    # via tritonclient
 pytz==2024.1
     # via pandas
 pyyaml==6.0.1
     # via
-    #   kserve
     #   kubernetes
     #   ray
     #   uvicorn
-ray[serve]==2.10.0
+ray[serve]==2.4.0
     # via kserve
 referencing==0.35.1
     # via
@@ -187,6 +196,8 @@ requests==2.32.3
     #   requests-oauthlib
 requests-oauthlib==2.0.0
     # via kubernetes
+rfc3986[idna2008]==1.5.0
+    # via httpx
 rpds-py==0.19.0
     # via
     #   jsonschema
@@ -195,6 +206,7 @@ rsa==4.9
     # via google-auth
 six==1.16.0
     # via
+    #   blessed
     #   kserve
     #   kubernetes
     #   opencensus
@@ -204,8 +216,9 @@ smart-open==7.0.4
 sniffio==1.3.1
     # via
     #   anyio
+    #   httpcore
     #   httpx
-starlette==0.36.3
+starlette==0.27.0
     # via
     #   fastapi
     #   ray
@@ -215,29 +228,29 @@ tenacity==8.5.0
     # via -r requirements.in
 timing-asgi==0.3.1
     # via kserve
+tritonclient==2.47.0
+    # via kserve
 typing-extensions==4.12.2
-    # via
-    #   fastapi
-    #   pydantic
-    #   pydantic-core
+    # via pydantic
 tzdata==2024.1
     # via pandas
 urllib3==2.2.2
     # via
     #   kubernetes
     #   requests
-uvicorn[standard]==0.21.1
+    #   tritonclient
+uvicorn[standard]==0.19.0
     # via
     #   kserve
     #   ray
 uvloop==0.19.0
     # via uvicorn
-virtualenv==20.26.3
+virtualenv==20.21.0
     # via ray
 watchfiles==0.22.0
-    # via
-    #   ray
-    #   uvicorn
+    # via uvicorn
+wcwidth==0.2.13
+    # via blessed
 websocket-client==1.8.0
     # via kubernetes
 websockets==12.0
