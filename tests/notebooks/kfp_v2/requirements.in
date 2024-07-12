@@ -1,4 +1,2 @@
-# Fix kfp to a version that is compatible with the v2.0.3
-# pipelines backend
 kfp>=2.4,<3.0
 tenacity
