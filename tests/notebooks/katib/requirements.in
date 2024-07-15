@@ -1,3 +1,3 @@
-# Pinning for katib sdk in 1.8/stable
-kubeflow-katib==0.16.0
+# Pinning for katib sdk in 1.9/stable
+kubeflow-katib==0.17.0
 tenacity

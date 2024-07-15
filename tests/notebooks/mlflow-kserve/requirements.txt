@@ -10,8 +10,6 @@ aiohttp==3.9.5
     #   ray
 aiohttp-cors==0.7.0
     # via ray
-aiorwlock==1.4.0
-    # via ray
 aiosignal==1.3.1
     # via
     #   aiohttp
@@ -20,17 +18,14 @@ alembic==1.13.2
     # via mlflow
 anyio==4.4.0
     # via
-    #   httpcore
+    #   httpx
     #   starlette
     #   watchfiles
 attrs==23.2.0
     # via
     #   aiohttp
     #   jsonschema
-    #   ray
     #   referencing
-blessed==1.20.0
-    # via gpustat
 blinker==1.8.2
     # via flask
 boto3==1.34.143
@@ -81,7 +76,7 @@ docker==6.1.3
     # via mlflow
 entrypoints==0.4
     # via mlflow
-fastapi==0.95.2
+fastapi==0.109.2
     # via
     #   kserve
     #   ray
@@ -110,8 +105,6 @@ google-auth==2.32.0
     #   kubernetes
 googleapis-common-protos==1.63.2
     # via google-api-core
-gpustat==1.1.1
-    # via ray
 greenlet==3.0.3
     # via sqlalchemy
 grpcio==1.51.3
@@ -124,17 +117,17 @@ h11==0.14.0
     # via
     #   httpcore
     #   uvicorn
-httpcore==0.16.3
+httpcore==1.0.5
     # via httpx
 httptools==0.6.1
     # via uvicorn
-httpx==0.23.3
+httpx==0.26.0
     # via kserve
 idna==3.7
     # via
     #   anyio
+    #   httpx
     #   requests
-    #   rfc3986
     #   yarl
 importlib-metadata==5.2.0
     # via mlflow
@@ -156,7 +149,7 @@ jsonschema-specifications==2023.12.1
     # via jsonschema
 kiwisolver==1.4.5
     # via matplotlib
-kserve==0.11.2
+kserve==0.13.0
     # via -r requirements.in
 kubernetes==30.1.0
     # via
@@ -197,13 +190,9 @@ numpy==1.26.4
     #   numba
     #   pandas
     #   pyarrow
-    #   ray
     #   scikit-learn
     #   scipy
     #   shap
-    #   tritonclient
-nvidia-ml-py==12.555.43
-    # via gpustat
 oauthlib==3.2.2
     # via
     #   databricks-cli
@@ -232,7 +221,7 @@ pillow==10.4.0
     # via matplotlib
 platformdirs==3.11.0
     # via virtualenv
-prometheus-client==0.13.1
+prometheus-client==0.20.0
     # via
     #   kserve
     #   ray
@@ -247,9 +236,7 @@ protobuf==3.20.3
     #   proto-plus
     #   ray
 psutil==5.9.8
-    # via
-    #   gpustat
-    #   kserve
+    # via kserve
 py-spy==0.3.14
     # via ray
 pyarrow==10.0.1
@@ -265,6 +252,7 @@ pyasn1-modules==0.4.0
 pydantic==1.10.17
     # via
     #   fastapi
+    #   kserve
     #   ray
 pyjwt==2.8.0
     # via databricks-cli
@@ -280,8 +268,6 @@ python-dateutil==2.9.0.post0
     #   pandas
 python-dotenv==1.0.1
     # via uvicorn
-python-rapidjson==1.18
-    # via tritonclient
 pytz==2022.7.1
     # via
     #   minio
@@ -289,13 +275,14 @@ pytz==2022.7.1
     #   pandas
 pyyaml==6.0.1
     # via
+    #   kserve
     #   kubernetes
     #   mlflow
     #   ray
     #   uvicorn
 querystring-parser==1.2.4
     # via mlflow
-ray[serve]==2.4.0
+ray[serve]==2.10.0
     # via kserve
 referencing==0.35.1
     # via
@@ -313,8 +300,6 @@ requests==2.32.3
     #   requests-oauthlib
 requests-oauthlib==2.0.0
     # via kubernetes
-rfc3986[idna2008]==1.5.0
-    # via httpx
 rpds-py==0.19.0
     # via
     #   jsonschema
@@ -337,7 +322,6 @@ shap==0.46.0
     # via mlflow
 six==1.16.0
     # via
-    #   blessed
     #   databricks-cli
     #   kserve
     #   kubernetes
@@ -353,7 +337,6 @@ smmap==5.0.1
 sniffio==1.3.1
     # via
     #   anyio
-    #   httpcore
     #   httpx
 sqlalchemy==1.4.52
     # via
@@ -361,7 +344,7 @@ sqlalchemy==1.4.52
     #   mlflow
 sqlparse==0.5.0
     # via mlflow
-starlette==0.27.0
+starlette==0.36.3
     # via
     #   fastapi
     #   ray
@@ -377,11 +360,10 @@ timing-asgi==0.3.1
     # via kserve
 tqdm==4.66.4
     # via shap
-tritonclient==2.47.0
-    # via kserve
 typing-extensions==4.12.2
     # via
     #   alembic
+    #   fastapi
     #   pydantic
 urllib3==2.2.2
     # via
@@ -391,8 +373,7 @@ urllib3==2.2.2
     #   kubernetes
     #   minio
     #   requests
-    #   tritonclient
-uvicorn[standard]==0.19.0
+uvicorn[standard]==0.21.1
     # via
     #   kserve
     #   ray
@@ -401,9 +382,9 @@ uvloop==0.19.0
 virtualenv==20.21.0
     # via ray
 watchfiles==0.22.0
-    # via uvicorn
-wcwidth==0.2.13
-    # via blessed
+    # via
+    #   ray
+    #   uvicorn
 websocket-client==1.8.0
     # via
     #   docker
