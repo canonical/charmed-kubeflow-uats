@@ -43,6 +43,10 @@ As mentioned before, when it comes to running the tests, you've got 2 options:
 * Running the `tests` suite directly with `pytest` inside a Jupyter Notebook
 * Running the tests on an existing cluster using the `driver` along with the provided automation
 
+NOTE: Depending on the version of Charmed Kubeflow you want to test, make sure to checkout to the appropriate branch with `git checkout`:
+- Charmed Kubeflow 1.8 -> `track/1.8`
+- Charmed Kubeflow 1.7 -> `track/1.9`
+
 ### Running inside a Notebook
 
 * Create a new Notebook using the `jupyter-scipy` image:
