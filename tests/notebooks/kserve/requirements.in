@@ -1,5 +1,5 @@
-# Pinning for kserve sdk in 1.9
-kserve==0.13.0
+# Pinning for kserve sdk in 1.8/stable
+kserve==0.11.2
 kubernetes
 requests
 tenacity
