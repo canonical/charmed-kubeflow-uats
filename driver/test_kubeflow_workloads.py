@@ -20,7 +20,7 @@ PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 TESTS_LOCAL_RUN = eval(os.environ.get("LOCAL"))
 TESTS_LOCAL_DIR = os.path.abspath(Path("tests"))
 
-TESTS_IMAGE = "kubeflownotebookswg/jupyter-scipy:v1.9.0-rc.2"
+TESTS_IMAGE = "kubeflownotebookswg/jupyter-scipy:v1.9.0"
 
 NAMESPACE = "test-kubeflow"
 PROFILE_RESOURCE = create_global_resource(
