@@ -10,5 +10,5 @@ requests
 scikit-learn<1.2
 tenacity
 # Pinning for kserve sdk in 1.9
-kserve==0.13.0
+kserve==0.13.1
 kubernetes
