@@ -1,7 +1,7 @@
 # Pinning for kserve sdk in 1.9
-kserve==0.13.0
+kserve==0.12.0
 # Pining because kserve 0.13 needs to import RootModel which only exists in >= 2.0
-pydantic>=2.0
+# pydantic>=2.0
 kubernetes
 requests
 tenacity
