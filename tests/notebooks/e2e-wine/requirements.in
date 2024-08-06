@@ -1,5 +1,5 @@
 boto3
-kfp==2.2.0
+kfp==2.8.0
 # pin to <7.0 to avoid breaking changes in sdk
 minio<7.0
 # pin the client to match the version of the deployed MLflow server
