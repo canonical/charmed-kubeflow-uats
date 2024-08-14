@@ -4,7 +4,9 @@
 #
 #    pip-compile requirements.in
 #
-aiohttp==3.9.5
+aiohappyeyeballs==2.3.5
+    # via aiohttp
+aiohttp==3.10.3
     # via
     #   aiohttp-cors
     #   ray
@@ -16,26 +18,32 @@ aiosignal==1.3.1
     #   ray
 alembic==1.13.2
     # via mlflow
+aniso8601==9.0.1
+    # via graphene
+annotated-types==0.7.0
+    # via pydantic
 anyio==4.4.0
     # via
     #   httpx
     #   starlette
     #   watchfiles
-attrs==23.2.0
+attrs==24.2.0
     # via
     #   aiohttp
     #   jsonschema
     #   referencing
 blinker==1.8.2
     # via flask
-boto3==1.34.143
+boto3==1.34.160
     # via -r requirements.in
-botocore==1.34.143
+botocore==1.34.160
     # via
     #   boto3
     #   s3transfer
-cachetools==5.3.3
-    # via google-auth
+cachetools==5.4.0
+    # via
+    #   google-auth
+    #   mlflow-skinny
 certifi==2024.7.4
     # via
     #   httpcore
@@ -47,17 +55,14 @@ charset-normalizer==3.3.2
     # via requests
 click==8.1.7
     # via
-    #   databricks-cli
     #   flask
-    #   mlflow
+    #   mlflow-skinny
     #   ray
     #   uvicorn
 cloudevents==1.11.0
     # via kserve
-cloudpickle==2.2.1
-    # via
-    #   mlflow
-    #   shap
+cloudpickle==3.0.0
+    # via mlflow-skinny
 colorful==0.5.6
     # via ray
 configparser==7.0.0
@@ -66,16 +71,20 @@ contourpy==1.2.1
     # via matplotlib
 cycler==0.12.1
     # via matplotlib
-databricks-cli==0.18.0
-    # via mlflow
+databricks-sdk==0.30.0
+    # via mlflow-skinny
+deprecated==1.2.14
+    # via
+    #   opentelemetry-api
+    #   opentelemetry-semantic-conventions
 deprecation==2.1.0
     # via cloudevents
 distlib==0.3.8
     # via virtualenv
-docker==6.1.3
+docker==7.1.0
     # via mlflow
 entrypoints==0.4
-    # via mlflow
+    # via mlflow-skinny
 fastapi==0.109.2
     # via
     #   kserve
@@ -84,7 +93,7 @@ filelock==3.15.4
     # via
     #   ray
     #   virtualenv
-flask==2.3.3
+flask==3.0.3
     # via mlflow
 fonttools==4.53.1
     # via matplotlib
@@ -96,22 +105,31 @@ frozenlist==1.4.1
 gitdb==4.0.11
     # via gitpython
 gitpython==3.1.43
-    # via mlflow
+    # via mlflow-skinny
 google-api-core==2.19.1
     # via opencensus
-google-auth==2.32.0
+google-auth==2.33.0
     # via
+    #   databricks-sdk
     #   google-api-core
     #   kubernetes
 googleapis-common-protos==1.63.2
     # via google-api-core
+graphene==3.3
+    # via mlflow
+graphql-core==3.2.3
+    # via
+    #   graphene
+    #   graphql-relay
+graphql-relay==3.2.0
+    # via graphene
 greenlet==3.0.3
     # via sqlalchemy
-grpcio==1.51.3
+grpcio==1.65.4
     # via
     #   kserve
     #   ray
-gunicorn==20.1.0
+gunicorn==22.0.0
     # via mlflow
 h11==0.14.0
     # via
@@ -129,8 +147,10 @@ idna==3.7
     #   httpx
     #   requests
     #   yarl
-importlib-metadata==5.2.0
-    # via mlflow
+importlib-metadata==7.2.1
+    # via
+    #   mlflow-skinny
+    #   opentelemetry-api
 itsdangerous==2.2.0
     # via flask
 jinja2==3.1.4
@@ -149,14 +169,12 @@ jsonschema-specifications==2023.12.1
     # via jsonschema
 kiwisolver==1.4.5
     # via matplotlib
-kserve==0.13.0
+kserve==0.13.1
     # via -r requirements.in
 kubernetes==30.1.0
     # via
     #   -r requirements.in
     #   kserve
-llvmlite==0.43.0
-    # via numba
 mako==1.3.5
     # via alembic
 markdown==3.6
@@ -166,20 +184,20 @@ markupsafe==2.1.5
     #   jinja2
     #   mako
     #   werkzeug
-matplotlib==3.9.1
+matplotlib==3.9.2
     # via mlflow
 minio==6.0.2
     # via -r requirements.in
-mlflow==2.1.1
+mlflow==2.15.1
     # via -r requirements.in
+mlflow-skinny==2.15.1
+    # via mlflow
 msgpack==1.0.8
     # via ray
 multidict==6.0.5
     # via
     #   aiohttp
     #   yarl
-numba==0.60.0
-    # via shap
 numpy==1.26.4
     # via
     #   -r requirements.in
@@ -187,39 +205,43 @@ numpy==1.26.4
     #   kserve
     #   matplotlib
     #   mlflow
-    #   numba
     #   pandas
     #   pyarrow
     #   scikit-learn
     #   scipy
-    #   shap
 oauthlib==3.2.2
     # via
-    #   databricks-cli
     #   kubernetes
     #   requests-oauthlib
 opencensus==0.11.4
     # via ray
 opencensus-context==0.1.3
     # via opencensus
-orjson==3.10.6
+opentelemetry-api==1.26.0
+    # via
+    #   mlflow-skinny
+    #   opentelemetry-sdk
+    #   opentelemetry-semantic-conventions
+opentelemetry-sdk==1.26.0
+    # via mlflow-skinny
+opentelemetry-semantic-conventions==0.47b0
+    # via opentelemetry-sdk
+orjson==3.10.7
     # via kserve
-packaging==22.0
+packaging==24.1
     # via
     #   deprecation
-    #   docker
+    #   gunicorn
     #   matplotlib
-    #   mlflow
+    #   mlflow-skinny
     #   ray
-    #   shap
-pandas==1.5.3
+pandas==2.2.2
     # via
     #   kserve
     #   mlflow
-    #   shap
 pillow==10.4.0
     # via matplotlib
-platformdirs==3.11.0
+platformdirs==4.2.2
     # via virtualenv
 prometheus-client==0.20.0
     # via
@@ -232,14 +254,14 @@ protobuf==3.20.3
     #   google-api-core
     #   googleapis-common-protos
     #   kserve
-    #   mlflow
+    #   mlflow-skinny
     #   proto-plus
     #   ray
 psutil==5.9.8
     # via kserve
 py-spy==0.3.14
     # via ray
-pyarrow==10.0.1
+pyarrow==15.0.2
     # via
     #   -r requirements.in
     #   mlflow
@@ -249,13 +271,13 @@ pyasn1==0.6.0
     #   rsa
 pyasn1-modules==0.4.0
     # via google-auth
-pydantic==1.10.17
+pydantic==2.8.2
     # via
     #   fastapi
     #   kserve
     #   ray
-pyjwt==2.8.0
-    # via databricks-cli
+pydantic-core==2.20.1
+    # via pydantic
 pyparsing==3.1.2
     # via matplotlib
 python-dateutil==2.9.0.post0
@@ -268,16 +290,16 @@ python-dateutil==2.9.0.post0
     #   pandas
 python-dotenv==1.0.1
     # via uvicorn
-pytz==2022.7.1
+pytz==2024.1
     # via
     #   minio
-    #   mlflow
+    #   mlflow-skinny
     #   pandas
-pyyaml==6.0.1
+pyyaml==6.0.2
     # via
     #   kserve
     #   kubernetes
-    #   mlflow
+    #   mlflow-skinny
     #   ray
     #   uvicorn
 querystring-parser==1.2.4
@@ -291,16 +313,16 @@ referencing==0.35.1
 requests==2.32.3
     # via
     #   -r requirements.in
-    #   databricks-cli
+    #   databricks-sdk
     #   docker
     #   google-api-core
     #   kubernetes
-    #   mlflow
+    #   mlflow-skinny
     #   ray
     #   requests-oauthlib
 requests-oauthlib==2.0.0
     # via kubernetes
-rpds-py==0.19.0
+rpds-py==0.20.0
     # via
     #   jsonschema
     #   referencing
@@ -312,24 +334,17 @@ scikit-learn==1.1.3
     # via
     #   -r requirements.in
     #   mlflow
-    #   shap
 scipy==1.14.0
     # via
     #   mlflow
     #   scikit-learn
-    #   shap
-shap==0.46.0
-    # via mlflow
 six==1.16.0
     # via
-    #   databricks-cli
     #   kserve
     #   kubernetes
     #   opencensus
     #   python-dateutil
     #   querystring-parser
-slicer==0.0.8
-    # via shap
 smart-open==7.0.4
     # via ray
 smmap==5.0.1
@@ -338,37 +353,37 @@ sniffio==1.3.1
     # via
     #   anyio
     #   httpx
-sqlalchemy==1.4.52
+sqlalchemy==2.0.32
     # via
     #   alembic
     #   mlflow
-sqlparse==0.5.0
-    # via mlflow
+sqlparse==0.5.1
+    # via mlflow-skinny
 starlette==0.36.3
     # via
     #   fastapi
     #   ray
 tabulate==0.9.0
-    # via
-    #   databricks-cli
-    #   kserve
-tenacity==8.5.0
+    # via kserve
+tenacity==9.0.0
     # via -r requirements.in
 threadpoolctl==3.5.0
     # via scikit-learn
 timing-asgi==0.3.1
     # via kserve
-tqdm==4.66.4
-    # via shap
 typing-extensions==4.12.2
     # via
     #   alembic
     #   fastapi
+    #   opentelemetry-sdk
     #   pydantic
+    #   pydantic-core
+    #   sqlalchemy
+tzdata==2024.1
+    # via pandas
 urllib3==2.2.2
     # via
     #   botocore
-    #   databricks-cli
     #   docker
     #   kubernetes
     #   minio
@@ -379,26 +394,23 @@ uvicorn[standard]==0.21.1
     #   ray
 uvloop==0.19.0
     # via uvicorn
-virtualenv==20.21.0
+virtualenv==20.26.3
     # via ray
-watchfiles==0.22.0
+watchfiles==0.23.0
     # via
     #   ray
     #   uvicorn
 websocket-client==1.8.0
-    # via
-    #   docker
-    #   kubernetes
+    # via kubernetes
 websockets==12.0
     # via uvicorn
 werkzeug==3.0.3
     # via flask
 wrapt==1.16.0
-    # via smart-open
+    # via
+    #   deprecated
+    #   smart-open
 yarl==1.9.4
     # via aiohttp
-zipp==3.19.2
+zipp==3.20.0
     # via importlib-metadata
-
-# The following packages are considered to be unsafe in a requirements file:
-# setuptools
