@@ -8,5 +8,5 @@ numpy
 pyarrow
 requests
 # pin to ensure compatibility with the installed mlflow client
-scikit-learn<1.2
+scikit-learn<1.6
 tenacity
