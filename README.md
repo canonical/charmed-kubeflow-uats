@@ -139,6 +139,44 @@ tox -e kubeflow-remote
 tox -e kubeflow-local
 ```
 
+### Run behind proxy
+
+#### Running using Notebook
+To run the tests behind proxy using Notebook:
+1. Edit the PodDefault `tests/proxy-poddefault.yaml` to replace the placeholders for:
+   * `<proxy_address>:<proxy_port>`: The address and port of your proxy server
+   * `<cluster cidr>`: you can get this value by running:
+      ```
+      cat /var/snap/microk8s/current/args/kube-proxy | grep cluster-cidr
+      ```
+   * `<service cluster ip range>`: you can get this value by running:
+      ```
+      cat /var/snap/microk8s/current/args/kube-apiserver | grep service-cluster-ip-range
+      ```
+   
+   * `<nodes internal ip(s)>`: the Internal IP of the nodes where your cluster is running, you can
+   get this value by running:
+      ```
+      microk8s kubectl get nodes -o wide
+      ```
+      It is the `INTERNAL-IP` value
+   * `<hostname>`: the name of your host on which the cluster is deployed, you can use the
+   `hostname` command to get it
+2. Create a Notebook and from the `Advanced Options > Configurations` select `Add proxy settings`
+3. From inside the Notebook, start a new terminal session and clone this repo:
+
+   ```bash
+   git clone https://github.com/canonical/charmed-kubeflow-uats.git
+   ```
+   Open the `charmed-kubeflow-uats/tests` directory and for each `.ipynb` test file there, open it
+   and run the Notebook.
+   
+   Currently, the following tests are supported to run behind proxy:
+   * katib
+   * kserve
+   * kfp_v2
+   * training (except TFJob due to https://github.com/canonical/training-operator/issues/182)
+
 #### Developer Notes
 
 Any environment that can be used to access and configure the Charmed Kubeflow deployment is

@@ -36,11 +36,3 @@ pytest -k "kfp or katib"
 # run any test that doesn't contain 'kserve' in its name
 pytest -k "not kserve"
 ```
-
-## Run behind Proxy
-
-### Running using Notebook
-To run the tests behind proxy using Notebook:
-1. Apply to the Profile's namespace the PodDefault `proxy-poddefault.yaml`
-2. Create a Notebook and from the `Advanced Options > Configurations` select `Add proxy settings`
-3. Run the tests using each Notebook
