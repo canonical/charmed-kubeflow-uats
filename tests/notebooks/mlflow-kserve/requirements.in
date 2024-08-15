@@ -2,13 +2,12 @@ boto3
 # pin to <7.0 to avoid breaking changes in sdk
 minio<7.0
 # pin the client to match the version of the deployed MLflow server
-mlflow==2.1.1
+mlflow==2.15.1
 numpy
 pyarrow
 requests
-# pin to ensure compatibility with the installed mlflow client
-scikit-learn<1.2
+scikit-learn
 tenacity
 # Pinning for kserve sdk in 1.9
-kserve==0.13.0
+kserve==0.13.1
 kubernetes
