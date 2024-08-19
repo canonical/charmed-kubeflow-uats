@@ -171,7 +171,9 @@ To run the tests behind proxy using Notebook:
    ```
    kubectl apply -f ./tests/proxy-poddefault.yaml -n <your_namespace>
    ```
-3. Create a Notebook and from the `Advanced Options > Configurations` select `Add proxy settings`
+3. Create a Notebook and from the `Advanced Options > Configurations` select `Add proxy settings`,
+   then click `Launch` to start the Notebook.
+   Wait for the Notebook to be Ready, then Connect to it.
 4. From inside the Notebook, start a new terminal session and clone this repo:
 
    ```bash
