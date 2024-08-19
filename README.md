@@ -141,7 +141,7 @@ tox -e kubeflow-local
 
 ### Run behind proxy
 #### Prerequistes
-**To run the tests behind proxy using Notebook or using the driver, the following step is neccessary:**
+**To run the tests behind proxy using Notebook or using the driver, the following step is necessary:**
 
 Edit the PodDefault `tests/proxy-poddefault.yaml` to replace the placeholders for:
    * `<proxy_address>:<proxy_port>`: The address and port of your proxy server
