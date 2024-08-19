@@ -140,10 +140,10 @@ tox -e kubeflow-local
 ```
 
 ### Run behind proxy
+#### Prerequistes
+**To run the tests behind proxy using Notebook or using the driver, the following step is neccessary:**
 
-#### Running using Notebook
-To run the tests behind proxy using Notebook:
-1. Edit the PodDefault `tests/proxy-poddefault.yaml` to replace the placeholders for:
+Edit the PodDefault `tests/proxy-poddefault.yaml` to replace the placeholders for:
    * `<proxy_address>:<proxy_port>`: The address and port of your proxy server
    * `<cluster cidr>`: you can get this value by running:
       ```
@@ -162,8 +162,17 @@ To run the tests behind proxy using Notebook:
       It is the `INTERNAL-IP` value
    * `<hostname>`: the name of your host on which the cluster is deployed, you can use the
    `hostname` command to get it
-2. Create a Notebook and from the `Advanced Options > Configurations` select `Add proxy settings`
-3. From inside the Notebook, start a new terminal session and clone this repo:
+
+#### Running using Notebook
+To run the tests behind proxy using Notebook:
+1. Login to the Dashboard and Create a Profile
+2. Apply the PodDefault to your Profile's namespace, make sure you already followed the Prerequisites
+   section to modify the PodDefault. Apply it with:
+   ```
+   kubectl apply -f ./tests/proxy-poddefault.yaml -n <your_namespace>
+   ```
+3. Create a Notebook and from the `Advanced Options > Configurations` select `Add proxy settings`
+4. From inside the Notebook, start a new terminal session and clone this repo:
 
    ```bash
    git clone https://github.com/canonical/charmed-kubeflow-uats.git
