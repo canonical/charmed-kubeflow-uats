@@ -188,6 +188,14 @@ To run the tests behind proxy using Notebook:
    * kfp_v2
    * training (except TFJob due to https://github.com/canonical/training-operator/issues/182)
 
+#### Running using `driver`
+
+After modifying the `PodDefault` from the pre-requisites section, you can pass the `--proxy` flag to the tox command and this should automatically apply the required changes to run behind proxy.
+
+```bash
+tox -e kubeflow-<local|remote> -- --proxy
+```
+
 #### Developer Notes
 
 Any environment that can be used to access and configure the Charmed Kubeflow deployment is

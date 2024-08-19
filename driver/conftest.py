@@ -11,6 +11,12 @@ def pytest_addoption(parser: Parser):
       https://docs.pytest.org/en/7.4.x/reference/reference.html#command-line-flags)
     """
     parser.addoption(
+        "--proxy",
+        help="If passed, a PodDefault with proxy environment variables will be applied to the Kubernetes deployment."
+        " Defaults to False.",
+        action="store_true",
+    )
+    parser.addoption(
         "--filter",
         help="Provide a filter to (de)select tests cases based on their name. The filter follows"
         " the same syntax as the pytest `-k` option, e.g. --filter 'kfp or katib' will run all"
