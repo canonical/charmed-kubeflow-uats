@@ -147,26 +147,31 @@ tox -e kubeflow-local
 Edit the PodDefault `tests/proxy-poddefault.yaml` to replace the placeholders for:
    * `http_proxy` and `https_proxy` - The address and port of your proxy server, format should be `<proxy_address>:<proxy_port>`
    * `no_proxy` - A comma separated list of items that should not be proxied. It is recommended to include the following:
+
      ```
-     <cluster cidr>,<service cluster ip range>,127.0.0.1,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local
-    ```
+      <cluster cidr>,<service cluster ip range>,127.0.0.1,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local
+     ```
 
     where,
 
      * `<cluster cidr>`: you can get this value by running:
+
         ```
         cat /var/snap/microk8s/current/args/kube-proxy | grep cluster-cidr
         ```
      * `<service cluster ip range>`: you can get this value by running:
+
         ```
         cat /var/snap/microk8s/current/args/kube-apiserver | grep service-cluster-ip-range
         ```
    
      * `<nodes internal ip(s)>`: the Internal IP of the nodes where your cluster is running, you can get this value by running:
+
         ```
         microk8s kubectl get nodes -o wide
         ```
         It is the `INTERNAL-IP` value
+
      * `<hostname>`: the name of your host on which the cluster is deployed, you can use the `hostname` command to get it
 
 #### Running using Notebook
