@@ -10,16 +10,15 @@ def pytest_addoption(parser: Parser):
     * Add a `--filter` option to (de)select test cases based on their name (see also
       https://docs.pytest.org/en/7.4.x/reference/reference.html#command-line-flags)
     """
-    # We know we have to receive https_proxy, http_proxy, and no_proxy
     parser.addoption(
         "--proxy",
-        nargs="3",
+        nargs="*",
         help="Set a number of key-value pairs for the proxy environment variables."
         " Example: "
         "--proxy http_proxy='proxy:port' https_proxy='proxy:port' no_proxy=<comma separated of no proxy>'"
         " If used, a PodDefault will be rendered and applied to the Kubernetes deployment."
         " It is not used by default.",
-        action="append",
+        action="store",
     )
     parser.addoption(
         "--filter",

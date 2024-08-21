@@ -5,6 +5,7 @@ import logging
 import os
 import subprocess
 from pathlib import Path
+from typing import Dict
 
 import pytest
 from lightkube import ApiError, Client, codecs
@@ -105,7 +106,8 @@ def create_poddefaults_on_proxy(request, lightkube_client):
     else:
         log.info("Adding PodDefault with proxy settings.")
         poddefault_resource = codecs.load_all_yaml(
-            PODDEFAULT_WITH_PROXY_PATH.read_text(), context=proxy_context(request)
+            PODDEFAULT_WITH_PROXY_PATH.read_text(),
+            context=proxy_context(request),
         )
         # Using the first item of the list of poddefault_resource. It is a one item list.
         lightkube_client.create(poddefault_resource[0], namespace=NAMESPACE)
@@ -182,7 +184,7 @@ def teardown_module():
     delete_job(JOB_NAME, NAMESPACE)
 
 
-def proxy_context(request):
+def proxy_context(request) -> Dict[str, str]:
     """Return a dictionary with proxy environment variables from user input."""
     proxy_context = {}
     for proxy in request.config.getoption("proxy"):
