@@ -99,9 +99,9 @@ def create_profile(lightkube_client):
 @pytest.fixture(scope="function")
 def create_poddefaults_on_proxy(request, lightkube_client):
     """Create PodDefault with proxy env variables for the Notebook inside the Job."""
-    # Simply yield None if the proxy flag is not set
+    # Simply yield if the proxy flag is not set
     if not request.config.getoption("proxy"):
-        yield None
+        yield
     else:
         log.info("Adding PodDefault with proxy settings.")
         poddefault_resource = codecs.load_all_yaml(
@@ -187,5 +187,5 @@ def proxy_context(request):
     proxy_context = {}
     for proxy in request.config.getoption("proxy"):
         key, value = proxy.split("=")
-        proxy_context["key"] = value
+        proxy_context[key] = value
     return proxy_context
