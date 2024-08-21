@@ -153,26 +153,26 @@ Edit the PodDefault `tests/proxy-poddefault.yaml` to replace the placeholders fo
 
 where,
 
-    * `<cluster cidr>`: you can get this value by running:
+  * `<cluster cidr>`: you can get this value by running:
 
-      ```
-      cat /var/snap/microk8s/current/args/kube-proxy | grep cluster-cidr
-      ```
-  
-    * `<service cluster ip range>`: you can get this value by running:
-  
-      ```
-      cat /var/snap/microk8s/current/args/kube-apiserver | grep service-cluster-ip-range
-      ```
-     
-    * `<nodes internal ip(s)>`: the Internal IP of the nodes where your cluster is running, you can get this value by running:
-  
-      ```
-      microk8s kubectl get nodes -o wide
-      ```
-      It is the `INTERNAL-IP` value
-  
-    * `<hostname>`: the name of your host on which the cluster is deployed, you can use the `hostname` command to get it
+    ```
+    cat /var/snap/microk8s/current/args/kube-proxy | grep cluster-cidr
+    ```
+
+  * `<service cluster ip range>`: you can get this value by running:
+
+    ```
+    cat /var/snap/microk8s/current/args/kube-apiserver | grep service-cluster-ip-range
+    ```
+   
+  * `<nodes internal ip(s)>`: the Internal IP of the nodes where your cluster is running, you can get this value by running:
+
+    ```
+    microk8s kubectl get nodes -o wide
+    ```
+    It is the `INTERNAL-IP` value
+
+  * `<hostname>`: the name of your host on which the cluster is deployed, you can use the `hostname` command to get it
 
 #### Running using Notebook
 To run the tests behind proxy using Notebook:
