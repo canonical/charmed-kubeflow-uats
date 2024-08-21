@@ -1,0 +1,45 @@
+apiVersion: kubeflow.org/v1alpha1
+kind: PodDefault
+metadata:
+  name: notebook-proxy
+spec:
+  desc: Add proxy settings
+  env:
+  - name: HTTP_PROXY
+    value: {{ http_proxy }}
+  - name: http_proxy
+    value: {{ http_proxy }}
+  - name: HTTPS_PROXY
+    value: {{ https_proxy }}
+  - name: https_proxy
+    value: {{ https_proxy }}
+  - name: NO_PROXY
+    value: {{ no_proxy }}
+  - name: no_proxy
+    value: {{ no_proxy }}
+  _example_env:
+    ################################
+    #                              #
+    #    EXAMPLE CONFIGURATION     #
+    #                              #
+    ################################
+
+    # This is not actually functional, just serves as an example for how to configure
+    # the values of proxy and which ones have to be included to make things work properly.
+    # If you are running the UATs directly in a Notebook, please modify the above env block
+    # with the values that fit your specific configuration.
+  - name: HTTP_PROXY
+    value: <http_proxy_address>:<proxy_port>
+  - name: http_proxy
+    value: <http_proxy_address>:<proxy_port>
+  - name: HTTPS_PROXY
+    value: <https_proxy_address>:<proxy_port>
+  - name: https_proxy
+    value: <https_proxy_address>:<proxy_port>
+  - name: NO_PROXY
+    value: <cluster cidr>,<service cluster ip range>,127.0.0.1,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local
+  - name: no_proxy
+    value: <cluster cidr>,<service cluster ip range>,127.0.0.1,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local
+  selector:
+    matchLabels:
+      notebook-proxy: "true"

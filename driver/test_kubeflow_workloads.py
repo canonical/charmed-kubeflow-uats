@@ -44,7 +44,7 @@ PODDEFAULT_RESOURCE = create_namespaced_resource(
     kind="poddefault",
     plural="poddefaults",
 )
-PODDEFAULT_WITH_PROXY_PATH = Path("tests") / "proxy-poddefault.yaml"
+PODDEFAULT_WITH_PROXY_PATH = Path("tests") / "proxy-poddefault.yaml.j2"
 PODDEFAULT_WITH_PROXY_NAME = "notebook-proxy"
 
 
@@ -104,7 +104,9 @@ def create_poddefaults_on_proxy(request, lightkube_client):
         yield None
     else:
         log.info("Adding PodDefault with proxy settings.")
-        poddefault_resource = codecs.load_all_yaml(PODDEFAULT_WITH_PROXY_PATH.read_text())
+        poddefault_resource = codecs.load_all_yaml(
+            PODDEFAULT_WITH_PROXY_PATH.read_text(), context=proxy_context(request)
+        )
         # Using the first item of the list of poddefault_resource. It is a one item list.
         lightkube_client.create(poddefault_resource[0], namespace=NAMESPACE)
 
@@ -178,3 +180,12 @@ def teardown_module():
     """Cleanup resources."""
     log.info(f"Deleting Job {NAMESPACE}/{JOB_NAME}...")
     delete_job(JOB_NAME, NAMESPACE)
+
+
+def proxy_context(request):
+    """Return a dictionary with proxy environment variables from user input."""
+    proxy_context = {}
+    for proxy in request.config.getoption("proxy"):
+        key, value = proxy.split("=")
+        proxy_context["key"] = value
+    return proxy_context

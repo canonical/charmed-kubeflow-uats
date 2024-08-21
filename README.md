@@ -140,28 +140,34 @@ tox -e kubeflow-local
 ```
 
 ### Run behind proxy
+
 #### Prerequistes
 **To run the tests behind proxy using Notebook or using the driver, the following step is necessary:**
 
 Edit the PodDefault `tests/proxy-poddefault.yaml` to replace the placeholders for:
-   * `<proxy_address>:<proxy_port>`: The address and port of your proxy server
-   * `<cluster cidr>`: you can get this value by running:
-      ```
-      cat /var/snap/microk8s/current/args/kube-proxy | grep cluster-cidr
-      ```
-   * `<service cluster ip range>`: you can get this value by running:
-      ```
-      cat /var/snap/microk8s/current/args/kube-apiserver | grep service-cluster-ip-range
-      ```
+   * `http_proxy` and `https_proxy` - The address and port of your proxy server, format should be `<proxy_address>:<proxy_port>`
+   * `no_proxy` - A comma separated list of items that should not be proxied. It is recommended to include the following:
+     ```
+     <cluster cidr>,<service cluster ip range>,127.0.0.1,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local
+    ```
+
+    where,
+
+     * `<cluster cidr>`: you can get this value by running:
+        ```
+        cat /var/snap/microk8s/current/args/kube-proxy | grep cluster-cidr
+        ```
+     * `<service cluster ip range>`: you can get this value by running:
+        ```
+        cat /var/snap/microk8s/current/args/kube-apiserver | grep service-cluster-ip-range
+        ```
    
-   * `<nodes internal ip(s)>`: the Internal IP of the nodes where your cluster is running, you can
-   get this value by running:
-      ```
-      microk8s kubectl get nodes -o wide
-      ```
-      It is the `INTERNAL-IP` value
-   * `<hostname>`: the name of your host on which the cluster is deployed, you can use the
-   `hostname` command to get it
+     * `<nodes internal ip(s)>`: the Internal IP of the nodes where your cluster is running, you can get this value by running:
+        ```
+        microk8s kubectl get nodes -o wide
+        ```
+        It is the `INTERNAL-IP` value
+     * `<hostname>`: the name of your host on which the cluster is deployed, you can use the `hostname` command to get it
 
 #### Running using Notebook
 To run the tests behind proxy using Notebook:
@@ -190,10 +196,10 @@ To run the tests behind proxy using Notebook:
 
 #### Running using `driver`
 
-After modifying the `PodDefault` from the pre-requisites section, you can pass the `--proxy` flag to the tox command and this should automatically apply the required changes to run behind proxy.
+You can pass the `--proxy` flag and set the values for proxies to the tox command and this should automatically apply the required changes to run behind proxy.
 
 ```bash
-tox -e kubeflow-<local|remote> -- --proxy
+tox -e kubeflow-<local|remote> -- --proxy http_proxy="http_proxy:port" https_proxy="https_proxy:port" no_proxy="<cluster cidr>,<service cluster ip range>,127.0.0.1,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local"
 ```
 
 #### Developer Notes
