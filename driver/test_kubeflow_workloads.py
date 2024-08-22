@@ -46,7 +46,6 @@ PODDEFAULT_RESOURCE = create_namespaced_resource(
     plural="poddefaults",
 )
 PODDEFAULT_WITH_PROXY_PATH = Path("tests") / "proxy-poddefault.yaml.j2"
-PODDEFAULT_WITH_PROXY_NAME = "notebook-proxy"
 
 
 @pytest.fixture(scope="session")
@@ -117,7 +116,7 @@ def create_poddefaults_on_proxy(request, lightkube_client):
         # delete the PodDefault at the end of the module tests
         log.info(f"Deleting PodDefault {PODDEFAULT_WITH_PROXY_NAME}...")
         lightkube_client.delete(
-            PODDEFAULT_RESOURCE, name=PODDEFAULT_WITH_PROXY_NAME, namespace=NAMESPACE
+            PODDEFAULT_RESOURCE, namespace=NAMESPACE
         )
 
 

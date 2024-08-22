@@ -141,8 +141,9 @@ tox -e kubeflow-local
 
 ### Run behind proxy
 
-#### Prerequistes
-**To run the tests behind proxy using Notebook or using the driver, the following step is necessary:**
+#### Running using Notebook
+
+##### Prerequistes
 
 Edit the PodDefault `tests/proxy-poddefault.yaml` to replace the placeholders for:
 
@@ -174,7 +175,7 @@ where,
 
   * `<hostname>`: the name of your host on which the cluster is deployed, you can use the `hostname` command to get it
 
-#### Running using Notebook
+
 To run the tests behind proxy using Notebook:
 1. Login to the Dashboard and Create a Profile
 2. Apply the PodDefault to your Profile's namespace, make sure you already followed the Prerequisites
