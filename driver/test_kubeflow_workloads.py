@@ -114,10 +114,8 @@ def create_poddefaults_on_proxy(request, lightkube_client):
         yield
 
         # delete the PodDefault at the end of the module tests
-        log.info(f"Deleting PodDefault {PODDEFAULT_WITH_PROXY_NAME}...")
-        lightkube_client.delete(
-            PODDEFAULT_RESOURCE, namespace=NAMESPACE
-        )
+        log.info("Deleting PodDefault...")
+        lightkube_client.delete(PODDEFAULT_RESOURCE, namespace=NAMESPACE)
 
 
 @pytest.mark.abort_on_fail
