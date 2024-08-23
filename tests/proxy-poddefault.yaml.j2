@@ -37,9 +37,9 @@ spec:
   - name: https_proxy
     value: <https_proxy_address>:<proxy_port>
   - name: NO_PROXY
-    value: <cluster cidr>,<service cluster ip range>,127.0.0.1,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local
+    value: <cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local
   - name: no_proxy
-    value: <cluster cidr>,<service cluster ip range>,127.0.0.1,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local
+    value: <cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local
   selector:
     matchLabels:
       notebook-proxy: "true"

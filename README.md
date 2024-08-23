@@ -150,7 +150,7 @@ Edit the PodDefault `tests/proxy-poddefault.yaml` to replace the placeholders fo
 * `http_proxy` and `https_proxy` - The address and port of your proxy server, format should be `<proxy_address>:<proxy_port>`
 * `no_proxy` - A comma separated list of items that should not be proxied. It is recommended to include the following:
 
-`<cluster cidr>,<service cluster ip range>,127.0.0.1,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local`
+`<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local`
 
 where,
 
@@ -174,6 +174,8 @@ where,
     It is the `INTERNAL-IP` value
 
   * `<hostname>`: the name of your host on which the cluster is deployed, you can use the `hostname` command to get it
+
+  * `localhost` and `127.0.0.1` are recommended to avoid proxying requests to `localhost`
 
 
 To run the tests behind proxy using Notebook:
@@ -205,7 +207,7 @@ To run the tests behind proxy using Notebook:
 You can pass the `--proxy` flag and set the values for proxies to the tox command and this should automatically apply the required changes to run behind proxy.
 
 ```bash
-tox -e kubeflow-<local|remote> -- --proxy http_proxy="http_proxy:port" https_proxy="https_proxy:port" no_proxy="<cluster cidr>,<service cluster ip range>,127.0.0.1,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local"
+tox -e kubeflow-<local|remote> -- --proxy http_proxy="http_proxy:port" https_proxy="https_proxy:port" no_proxy="<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local"
 ```
 
 #### Developer Notes
