@@ -12,7 +12,7 @@ def pytest_addoption(parser: Parser):
     """
     parser.addoption(
         "--proxy",
-        nargs="3",
+        nargs=3,
         metavar=("http_proxy", "https_proxy", "no_proxy"),
         help="Set a number of key-value pairs for the proxy environment variables."
         " Example: "
