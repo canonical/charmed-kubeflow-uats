@@ -11,6 +11,17 @@ def pytest_addoption(parser: Parser):
       https://docs.pytest.org/en/7.4.x/reference/reference.html#command-line-flags)
     """
     parser.addoption(
+        "--proxy",
+        nargs=3,
+        metavar=("http_proxy", "https_proxy", "no_proxy"),
+        help="Set a number of key-value pairs for the proxy environment variables."
+        " Example: "
+        "--proxy http_proxy='proxy:port' https_proxy='proxy:port' no_proxy=<comma separated of no proxy>'"
+        " If used, a PodDefault will be rendered and applied to the Kubernetes deployment."
+        " It is not used by default.",
+        action="store",
+    )
+    parser.addoption(
         "--filter",
         help="Provide a filter to (de)select tests cases based on their name. The filter follows"
         " the same syntax as the pytest `-k` option, e.g. --filter 'kfp or katib' will run all"

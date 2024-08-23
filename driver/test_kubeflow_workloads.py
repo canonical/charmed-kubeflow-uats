@@ -5,10 +5,15 @@ import logging
 import os
 import subprocess
 from pathlib import Path
+from typing import Dict
 
 import pytest
 from lightkube import ApiError, Client, codecs
-from lightkube.generic_resource import create_global_resource, load_in_cluster_generic_resources
+from lightkube.generic_resource import (
+    create_global_resource,
+    create_namespaced_resource,
+    load_in_cluster_generic_resources,
+)
 from utils import assert_namespace_active, delete_job, fetch_job_logs, wait_for_job
 
 log = logging.getLogger(__name__)
@@ -33,6 +38,14 @@ PROFILE_RESOURCE = create_global_resource(
 JOB_NAME = "test-kubeflow"
 
 PYTEST_CMD_BASE = "pytest"
+
+PODDEFAULT_RESOURCE = create_namespaced_resource(
+    group="kubeflow.org",
+    version="v1alpha1",
+    kind="poddefault",
+    plural="poddefaults",
+)
+PODDEFAULT_WITH_PROXY_PATH = Path("tests") / "proxy-poddefault.yaml.j2"
 
 
 @pytest.fixture(scope="session")
@@ -83,6 +96,33 @@ def create_profile(lightkube_client):
     lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE)
 
 
+@pytest.fixture(scope="function")
+def create_poddefaults_on_proxy(request, lightkube_client):
+    """Create PodDefault with proxy env variables for the Notebook inside the Job."""
+    # Simply yield if the proxy flag is not set
+    if not request.config.getoption("proxy"):
+        yield
+    else:
+        log.info("Adding PodDefault with proxy settings.")
+        poddefault_resource = codecs.load_all_yaml(
+            PODDEFAULT_WITH_PROXY_PATH.read_text(),
+            context=proxy_context(request),
+        )
+        # Using the first item of the list of poddefault_resource. It is a one item list.
+        lightkube_client.create(poddefault_resource[0], namespace=NAMESPACE)
+
+        yield
+
+        # delete the PodDefault at the end of the module tests
+        log.info("Deleting PodDefault...")
+        poddefault_resource = codecs.load_all_yaml(
+            PODDEFAULT_WITH_PROXY_PATH.read_text(),
+            context=proxy_context(request),
+        )
+        poddefault_name = poddefault_resource[0].metadata.name
+        lightkube_client.delete(PODDEFAULT_RESOURCE, name=poddefault_name, namespace=NAMESPACE)
+
+
 @pytest.mark.abort_on_fail
 async def test_create_profile(lightkube_client, create_profile):
     """Test Profile creation.
@@ -105,7 +145,9 @@ async def test_create_profile(lightkube_client, create_profile):
     assert_namespace_active(lightkube_client, NAMESPACE)
 
 
-def test_kubeflow_workloads(lightkube_client, pytest_cmd, tests_checked_out_commit):
+def test_kubeflow_workloads(
+    lightkube_client, pytest_cmd, tests_checked_out_commit, request, create_poddefaults_on_proxy
+):
     """Run a K8s Job to execute the notebook tests."""
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
     resources = list(
@@ -118,9 +160,11 @@ def test_kubeflow_workloads(lightkube_client, pytest_cmd, tests_checked_out_comm
                 "tests_image": TESTS_IMAGE,
                 "tests_remote_commit": tests_checked_out_commit,
                 "pytest_cmd": pytest_cmd,
+                "proxy": True if request.config.getoption("proxy") else False,
             },
         )
     )
+
     assert len(resources) == 1, f"Expected 1 Job, got {len(resources)}!"
     lightkube_client.create(resources[0], namespace=NAMESPACE)
 
@@ -140,3 +184,12 @@ def teardown_module():
     """Cleanup resources."""
     log.info(f"Deleting Job {NAMESPACE}/{JOB_NAME}...")
     delete_job(JOB_NAME, NAMESPACE)
+
+
+def proxy_context(request) -> Dict[str, str]:
+    """Return a dictionary with proxy environment variables from user input."""
+    proxy_context = {}
+    for proxy in request.config.getoption("proxy"):
+        key, value = proxy.split("=")
+        proxy_context[key] = value
+    return proxy_context
