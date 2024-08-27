@@ -200,7 +200,7 @@ To run the tests behind proxy using Notebook:
    * katib
    * kserve
    * kfp_v2
-   * training (except TFJob due to https://github.com/canonical/training-operator/issues/182)
+   * training
 
 #### Running using `driver`
 
