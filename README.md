@@ -141,6 +141,31 @@ tox -e kubeflow-local
 
 ### Run behind proxy
 
+#### Prerequisites for KServe UATs
+
+To be able to run the KServe UATs behind proxy, first you need to configure `kserve-controller`
+and `knative-serving` charms to function behind proxy.
+
+> [!NOTE]  
+> For information on how to fill out the proxy config values, see the `Running using Notebook > Prerequisites` section below.
+
+1. Set the `http-proxy`, `https-proxy`, and `no-proxy` configs in `kserve-controller` charm
+```
+juju config kserve-controller http-proxy=<proxy_address>:<proxy_port> https-proxy=<proxy_address>:<proxy_port> no-proxy=<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local
+```
+
+2. Set the `http-proxy`, `https-proxy`, and `no-proxy` configs in `knative-serving` charm
+```
+juju config knative-serving http-proxy=<proxy_address>:<proxy_port> https-proxy=<proxy_address>:<proxy_port> no-proxy=<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local
+```
+
+For Example:
+```
+juju config knative-serving http-proxy=http://10.0.13.50:3128/ https-proxy=http://10.0.13.50:3128/ no-proxy=10.1.0.0/16,10.152.183.0/24,127.0.0.1,localhost,10.0.2.0/24,ip-10-0-2-157,.svc,.local
+
+juju config kserve-controller http-proxy=http://10.0.13.50:3128/ https-proxy=http://10.0.13.50:3128/ no-proxy=10.1.0.0/16,10.152.183.0/24,127.0.0.1,localhost,10.0.2.0/24,ip-10-0-2-157,.svc,.local
+```
+
 #### Running using Notebook
 
 ##### Prerequistes
