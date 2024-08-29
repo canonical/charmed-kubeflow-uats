@@ -151,7 +151,7 @@ and `knative-serving` charms to function behind proxy.
 
 1. Set the `http-proxy`, `https-proxy`, and `no-proxy` configs in `kserve-controller` charm
 ```
-juju config kserve-controller http-proxy=<proxy_address>:<proxy_port> https-proxy=<proxy_address>:<proxy_port> no-proxy=<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local
+juju config kserve-controller http-proxy=<proxy_address>:<proxy_port> https-proxy=<proxy_address>:<proxy_port> no-proxy=<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local,.kubeflow
 ```
 
 2. Set the `http-proxy`, `https-proxy`, and `no-proxy` configs in `knative-serving` charm
@@ -161,7 +161,7 @@ juju config knative-serving http-proxy=<proxy_address>:<proxy_port> https-proxy=
 
 For Example:
 ```
-juju config knative-serving http-proxy=http://10.0.13.50:3128/ https-proxy=http://10.0.13.50:3128/ no-proxy=10.1.0.0/16,10.152.183.0/24,127.0.0.1,localhost,10.0.2.0/24,ip-10-0-2-157,.svc,.local
+juju config knative-serving http-proxy=http://10.0.13.50:3128/ https-proxy=http://10.0.13.50:3128/ no-proxy=10.1.0.0/16,10.152.183.0/24,127.0.0.1,localhost,10.0.2.0/24,ip-10-0-2-157,.svc,.local,.kubeflow
 
 juju config kserve-controller http-proxy=http://10.0.13.50:3128/ https-proxy=http://10.0.13.50:3128/ no-proxy=10.1.0.0/16,10.152.183.0/24,127.0.0.1,localhost,10.0.2.0/24,ip-10-0-2-157,.svc,.local
 ```
@@ -170,12 +170,12 @@ juju config kserve-controller http-proxy=http://10.0.13.50:3128/ https-proxy=htt
 
 ##### Prerequistes
 
-Edit the PodDefault `tests/proxy-poddefault.yaml` to replace the placeholders for:
+Edit the [PodDefault](tests/proxy-poddefault.yaml.j2) to replace the placeholders for:
 
 * `http_proxy` and `https_proxy` - The address and port of your proxy server, format should be `<proxy_address>:<proxy_port>`
 * `no_proxy` - A comma separated list of items that should not be proxied. It is recommended to include the following:
 
-`<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local`
+`<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local,.kubeflow`
 
 where,
 
@@ -201,6 +201,8 @@ where,
   * `<hostname>`: the name of your host on which the cluster is deployed, you can use the `hostname` command to get it
 
   * `localhost` and `127.0.0.1` are recommended to avoid proxying requests to `localhost`
+
+  * `.kubeflow`: is needed in the `no-proxy` values to allow communication with the minio service.
 
 
 To run the tests behind proxy using Notebook:
@@ -232,7 +234,7 @@ To run the tests behind proxy using Notebook:
 You can pass the `--proxy` flag and set the values for proxies to the tox command and this should automatically apply the required changes to run behind proxy.
 
 ```bash
-tox -e kubeflow-<local|remote> -- --proxy http_proxy="http_proxy:port" https_proxy="https_proxy:port" no_proxy="<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local"
+tox -e kubeflow-<local|remote> -- --proxy http_proxy="http_proxy:port" https_proxy="https_proxy:port" no_proxy="<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local,.kubeflow"
 ```
 
 #### Developer Notes
