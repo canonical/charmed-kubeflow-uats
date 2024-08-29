@@ -161,9 +161,9 @@ juju config knative-serving http-proxy=<proxy_address>:<proxy_port> https-proxy=
 
 For Example:
 ```
-juju config knative-serving http-proxy=http://10.0.13.50:3128/ https-proxy=http://10.0.13.50:3128/ no-proxy=10.1.0.0/16,10.152.183.0/24,127.0.0.1,localhost,10.0.2.0/24,ip-10-0-2-157,.svc,.local,.kubeflow
+juju config kserve-controller http-proxy=http://10.0.13.50:3128/ https-proxy=http://10.0.13.50:3128/ no-proxy=10.1.0.0/16,10.152.183.0/24,127.0.0.1,localhost,10.0.2.0/24,ip-10-0-2-157,.svc,.local,.kubeflow
 
-juju config kserve-controller http-proxy=http://10.0.13.50:3128/ https-proxy=http://10.0.13.50:3128/ no-proxy=10.1.0.0/16,10.152.183.0/24,127.0.0.1,localhost,10.0.2.0/24,ip-10-0-2-157,.svc,.local
+juju config knative-serving http-proxy=http://10.0.13.50:3128/ https-proxy=http://10.0.13.50:3128/ no-proxy=10.1.0.0/16,10.152.183.0/24,127.0.0.1,localhost,10.0.2.0/24,ip-10-0-2-157,.svc,.local
 ```
 
 #### Running using Notebook
