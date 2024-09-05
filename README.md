@@ -143,7 +143,7 @@ tox -e kubeflow-local
 
 #### Prerequisites for KServe UATs
 
-To be able to run the KServe UATs behind proxy, first you need to configure `kserve-controller`
+To be able to run UATs requiring KServe (e2e-wine, kserve, mlflow-kserve) behind proxy, first you need to configure `kserve-controller`
 and `knative-serving` charms to function behind proxy.
 
 > [!NOTE]  
@@ -224,9 +224,12 @@ To run the tests behind proxy using Notebook:
    and run the Notebook.
    
    Currently, the following tests are supported to run behind proxy:
+   * e2e-wine
    * katib
-   * kserve
    * kfp_v2
+   * kserve
+   * mlflow-kserve
+   * mlflow-minio
    * training
 
 #### Running using `driver`
