@@ -9,7 +9,7 @@ from lightkube import ApiError, Client
 from lightkube.resources.batch_v1 import Job
 from lightkube.resources.core_v1 import Namespace
 
-from driver.test_kubeflow_workloads import PROFILE_RESOURCE
+from test_kubeflow_workloads import PROFILE_RESOURCE
 
 log = logging.getLogger(__name__)
 
