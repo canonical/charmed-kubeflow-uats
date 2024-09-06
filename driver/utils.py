@@ -5,9 +5,11 @@ import logging
 import subprocess
 
 import tenacity
-from lightkube import Client
+from lightkube import ApiError, Client
 from lightkube.resources.batch_v1 import Job
 from lightkube.resources.core_v1 import Namespace
+
+from driver.test_kubeflow_workloads import PROFILE_RESOURCE
 
 log = logging.getLogger(__name__)
 
@@ -95,3 +97,26 @@ def delete_job(job_name, namespace, lightkube_client=None):
     """Delete a Kubernetes Job."""
     client = lightkube_client or Client(trust_env=False)
     client.delete(Job, name=job_name, namespace=namespace)
+
+
+@tenacity.retry(
+    wait=tenacity.wait_exponential(multiplier=2, min=1, max=10),
+    stop=tenacity.stop_after_attempt(10),
+    reraise=True,
+)
+def assert_profile_deleted(client, profile_name, logger: logging.Logger):
+    """Assert that the Profile is deleted.
+
+    Retries multiple times to allow for the Profile to be deleted.
+    """
+    logger.info(f"Waiting for Profile {profile_name} to be deleted.")
+    deleted = False
+    try:
+        client.get(PROFILE_RESOURCE, profile_name)
+    except ApiError as error:
+        logger.info(f"Unable to get Profile {profile_name} (status: {error.status.code})")
+        if error.status.code != 404:
+            raise
+        deleted = True
+
+    assert deleted, f"Waited too long for Profile {profile_name} to be deleted!"
