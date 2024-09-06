@@ -99,12 +99,6 @@ def fetch_job_logs(job_name, namespace, tests_local_run):
     subprocess.check_call(command)
 
 
-def delete_job(job_name, namespace, lightkube_client=None):
-    """Delete a Kubernetes Job."""
-    client = lightkube_client or Client(trust_env=False)
-    client.delete(Job, name=job_name, namespace=namespace)
-
-
 @tenacity.retry(
     wait=tenacity.wait_exponential(multiplier=2, min=1, max=10),
     stop=tenacity.stop_after_attempt(10),

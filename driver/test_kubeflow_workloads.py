@@ -15,13 +15,7 @@ from lightkube.generic_resource import (
     load_in_cluster_generic_resources,
 )
 from lightkube.types import CascadeType
-from utils import (
-    assert_namespace_active,
-    assert_profile_deleted,
-    delete_job,
-    fetch_job_logs,
-    wait_for_job,
-)
+from utils import assert_namespace_active, assert_profile_deleted, fetch_job_logs, wait_for_job
 
 log = logging.getLogger(__name__)
 
@@ -186,12 +180,6 @@ def test_kubeflow_workloads(
     finally:
         log.info("Fetching Job logs...")
         fetch_job_logs(JOB_NAME, NAMESPACE, TESTS_LOCAL_RUN)
-
-
-def teardown_module():
-    """Cleanup resources."""
-    log.info(f"Deleting Job {NAMESPACE}/{JOB_NAME}...")
-    delete_job(JOB_NAME, NAMESPACE)
 
 
 def proxy_context(request) -> Dict[str, str]:
