@@ -14,6 +14,7 @@ from lightkube.generic_resource import (
     create_namespaced_resource,
     load_in_cluster_generic_resources,
 )
+from lightkube.types import CascadeType
 from utils import assert_namespace_active, delete_job, fetch_job_logs, wait_for_job
 
 log = logging.getLogger(__name__)
@@ -93,7 +94,7 @@ def create_profile(lightkube_client):
 
     # delete the Profile at the end of the module tests
     log.info(f"Deleting Profile {NAMESPACE}...")
-    lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE)
+    lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE, cascade=CascadeType.FOREGROUND)
 
 
 @pytest.fixture(scope="function")
