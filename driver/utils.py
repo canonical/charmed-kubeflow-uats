@@ -6,10 +6,16 @@ import subprocess
 
 import tenacity
 from lightkube import ApiError, Client
+from lightkube.generic_resource import create_global_resource
 from lightkube.resources.batch_v1 import Job
 from lightkube.resources.core_v1 import Namespace
 
-from test_kubeflow_workloads import PROFILE_RESOURCE
+PROFILE_RESOURCE = create_global_resource(
+    group="kubeflow.org",
+    version="v1",
+    kind="profile",
+    plural="profiles",
+)
 
 log = logging.getLogger(__name__)
 
