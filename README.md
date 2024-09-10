@@ -14,6 +14,23 @@ that users can run directly from inside a Notebook with `pytest`, as well as a `
 automates the execution on an existing Kubeflow cluster. More details on running the tests can be
 found in the [Run the tests](#run-the-tests) section.
 
+## Content
+* [Prerequisites](#prerequisites)
+* [Run the tests](#run-the-tests)
+   * [From inside a notebook](#running-inside-a-notebook)
+   * [Using the `driver` ](#running-from-a-configured-management-environment-using-the-driver)
+      * [Using a remote commit](#run-tests-from-a-remote-commit)
+      * [Using a local copy](#run-tests-from-local-copy)
+      * [A subset of UATs](#run-a-subset-of-uats)
+      * [Kubeflow UATs](#run-kubeflow-uats)
+   * [Behind proxy](#run-behind-proxy)
+      * [Prerequisites for KServe UATs](#prerequisites-for-kserve-uats)
+      * [From inside a notebook](#running-using-notebook)
+      * [Using the `driver`](#running-using-driver)
+   * [Developer notes](#developer-notes)
+      * [Limitations](#limitations)
+
+
 ## Prerequisites
 
 Executing the UATs requires a deployed Kubeflow cluster. That said, the deployment and
