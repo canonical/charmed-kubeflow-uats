@@ -4,6 +4,7 @@
 import logging
 import os
 import subprocess
+import time
 from pathlib import Path
 from typing import Dict
 
@@ -143,6 +144,22 @@ async def test_create_profile(lightkube_client, create_profile):
     assert profile_created, f"Profile {NAMESPACE} not found!"
 
     assert_namespace_active(lightkube_client, NAMESPACE)
+
+    # Sync of PodDefaults to the namespace can take up to 40 seconds
+    # Wait here is necessary to allow the creation of PodDefaults before Job is created
+    sleep_time_seconds = 40
+    log.info(
+        f"Sleeping for {sleep_time_seconds}s to allow the creation of PodDefaults in {NAMESPACE} namespace.."
+    )
+    time.sleep(sleep_time_seconds)
+
+    # Print the names of PodDefaults in the namespace
+    poddefaults_created_list = lightkube_client.list(PODDEFAULT_RESOURCE, namespace=NAMESPACE)
+    if poddefaults_created_list:
+        poddefaults_created_names = [pd.metadata.name for pd in poddefaults_created_list]
+        log.info(f"PodDefaults in {NAMESPACE} namespace are {poddefaults_created_names}.")
+    else:
+        log.warn(f"No PodDefaults found in {NAMESPACE} namespace.")
 
 
 def test_kubeflow_workloads(
