@@ -14,7 +14,13 @@ from lightkube.generic_resource import (
     create_namespaced_resource,
     load_in_cluster_generic_resources,
 )
-from utils import assert_namespace_active, delete_job, fetch_job_logs, wait_for_job
+from utils import (
+    assert_namespace_active,
+    assert_poddefaults_created_in_namespace,
+    delete_job,
+    fetch_job_logs,
+    wait_for_job,
+)
 
 log = logging.getLogger(__name__)
 
@@ -46,6 +52,12 @@ PODDEFAULT_RESOURCE = create_namespaced_resource(
     plural="poddefaults",
 )
 PODDEFAULT_WITH_PROXY_PATH = Path("tests") / "proxy-poddefault.yaml.j2"
+
+REQUIRED_PODDEFAULTS_NAMES = [
+    "access-ml-pipeline",
+    "mlflow-server-access-minio",
+    "mlflow-server-minio",
+]
 
 
 @pytest.fixture(scope="session")
@@ -143,6 +155,9 @@ async def test_create_profile(lightkube_client, create_profile):
     assert profile_created, f"Profile {NAMESPACE} not found!"
 
     assert_namespace_active(lightkube_client, NAMESPACE)
+    assert_poddefaults_created_in_namespace(
+        lightkube_client, NAMESPACE, REQUIRED_PODDEFAULTS_NAMES
+    )
 
 
 def test_kubeflow_workloads(
