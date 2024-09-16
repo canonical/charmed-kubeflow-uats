@@ -48,6 +48,8 @@ PODDEFAULT_RESOURCE = create_namespaced_resource(
 )
 PODDEFAULT_WITH_PROXY_PATH = Path("tests") / "proxy-poddefault.yaml.j2"
 
+KFP_PODDEFAULT_NAME = "access-ml-pipeline"
+
 
 @pytest.fixture(scope="session")
 def pytest_filter(request):
@@ -153,13 +155,18 @@ async def test_create_profile(lightkube_client, create_profile):
     )
     time.sleep(sleep_time_seconds)
 
-    # Print the names of PodDefaults in the namespace
+    # Assert PodDefaults are found in the test namespace
     poddefaults_created_list = lightkube_client.list(PODDEFAULT_RESOURCE, namespace=NAMESPACE)
-    if poddefaults_created_list:
-        poddefaults_created_names = [pd.metadata.name for pd in poddefaults_created_list]
-        log.info(f"PodDefaults in {NAMESPACE} namespace are {poddefaults_created_names}.")
-    else:
-        log.warn(f"No PodDefaults found in {NAMESPACE} namespace.")
+    assert poddefaults_created_list is not None, f"No PodDefaults found in {NAMESPACE} namespace"
+    poddefaults_created_names = [pd.metadata.name for pd in poddefaults_created_list]
+
+    # Print the names of PodDefaults in the namespace
+    log.info(f"PodDefaults in {NAMESPACE} namespace are {poddefaults_created_names}.")
+
+    # Abort if KFP PodDefault is not found in the namespace
+    assert (
+        KFP_PODDEFAULT_NAME in poddefaults_created_names
+    ), f"PodDefault {KFP_PODDEFAULT_NAME} not found in {NAMESPACE} namespace"
 
 
 def test_kubeflow_workloads(
