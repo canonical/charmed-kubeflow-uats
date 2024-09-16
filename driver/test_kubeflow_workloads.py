@@ -15,7 +15,13 @@ from lightkube.generic_resource import (
     create_namespaced_resource,
     load_in_cluster_generic_resources,
 )
-from utils import assert_namespace_active, delete_job, fetch_job_logs, wait_for_job
+from utils import (
+    assert_namespace_active,
+    assert_poddefault_created_in_namespace,
+    delete_job,
+    fetch_job_logs,
+    wait_for_job,
+)
 
 log = logging.getLogger(__name__)
 
@@ -147,26 +153,23 @@ async def test_create_profile(lightkube_client, create_profile):
 
     assert_namespace_active(lightkube_client, NAMESPACE)
 
-    # Sync of PodDefaults to the namespace can take up to 40 seconds
+    # Wait until KFP PodDefault is created in the namespace
+    assert_poddefault_created_in_namespace(lightkube_client, KFP_PODDEFAULT_NAME, NAMESPACE)
+
+    # Sync of other PodDefaults to the namespace can take up to 10 seconds
     # Wait here is necessary to allow the creation of PodDefaults before Job is created
-    sleep_time_seconds = 40
+    sleep_time_seconds = 10
     log.info(
         f"Sleeping for {sleep_time_seconds}s to allow the creation of PodDefaults in {NAMESPACE} namespace.."
     )
     time.sleep(sleep_time_seconds)
 
-    # Assert PodDefaults are found in the test namespace
+    # Get PodDefaults in the test namespace
     poddefaults_created_list = lightkube_client.list(PODDEFAULT_RESOURCE, namespace=NAMESPACE)
-    assert poddefaults_created_list is not None, f"No PodDefaults found in {NAMESPACE} namespace"
     poddefaults_created_names = [pd.metadata.name for pd in poddefaults_created_list]
 
-    # Print the names of PodDefaults in the namespace
+    # Print the names of PodDefaults in the test namespace
     log.info(f"PodDefaults in {NAMESPACE} namespace are {poddefaults_created_names}.")
-
-    # Abort if KFP PodDefault is not found in the namespace
-    assert (
-        KFP_PODDEFAULT_NAME in poddefaults_created_names
-    ), f"PodDefault {KFP_PODDEFAULT_NAME} not found in {NAMESPACE} namespace"
 
 
 def test_kubeflow_workloads(
