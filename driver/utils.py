@@ -5,7 +5,7 @@ import logging
 import subprocess
 
 import tenacity
-from lightkube import Client
+from lightkube import ApiError, Client
 from lightkube.generic_resource import create_namespaced_resource
 from lightkube.resources.batch_v1 import Job
 from lightkube.resources.core_v1 import Namespace
@@ -55,9 +55,9 @@ def assert_poddefault_created_in_namespace(
 
     Retries multiple times to allow for the PodDefault to be synced to the namespace.
     """
-
-    pod_default = client.get(PODDEFAULT_RESOURCE, name, namespace=namespace)
-    if pod_default is None:
+    try:
+        pod_default = client.get(PODDEFAULT_RESOURCE, name, namespace=namespace)
+    except ApiError:
         log.info(f"Waiting for PodDefault {name} to be created in namespace {namespace}..")
     assert pod_default is not None, f"Waited too long for PodDefault {name} to be created."
 
