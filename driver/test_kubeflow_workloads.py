@@ -165,11 +165,11 @@ async def test_create_profile(lightkube_client, create_profile):
     time.sleep(sleep_time_seconds)
 
     # Get PodDefaults in the test namespace
-    poddefaults_created_list = lightkube_client.list(PODDEFAULT_RESOURCE, namespace=NAMESPACE)
-    poddefaults_created_names = [pd.metadata.name for pd in poddefaults_created_list]
+    created_poddefaults_list = lightkube_client.list(PODDEFAULT_RESOURCE, namespace=NAMESPACE)
+    created_poddefaults_names = [pd.metadata.name for pd in created_poddefaults_list]
 
     # Print the names of PodDefaults in the test namespace
-    log.info(f"PodDefaults in {NAMESPACE} namespace are {poddefaults_created_names}.")
+    log.info(f"PodDefaults in {NAMESPACE} namespace are {created_poddefaults_names}.")
 
 
 def test_kubeflow_workloads(
