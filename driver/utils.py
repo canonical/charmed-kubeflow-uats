@@ -114,9 +114,12 @@ def assert_profile_deleted(client, profile_name, logger: logging.Logger):
     try:
         client.get(PROFILE_RESOURCE, profile_name)
     except ApiError as error:
-        logger.info(f"Unable to get Profile {profile_name} (status: {error.status.code})")
         if error.status.code != 404:
+            logger.info(f"Unable to get Profile {profile_name} (status: {error.status.code})")
             raise
-        deleted = True
+        else:
+            deleted = True
+    else:
+        logger.info(f"Waiting for Profile {profile_name} to be deleted..")
 
     assert deleted, f"Waited too long for Profile {profile_name} to be deleted!"
