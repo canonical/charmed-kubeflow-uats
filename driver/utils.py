@@ -109,7 +109,6 @@ def assert_profile_deleted(client, profile_name, logger: logging.Logger):
 
     Retries multiple times to allow for the Profile to be deleted.
     """
-    logger.info(f"Waiting for Profile {profile_name} to be deleted.")
     deleted = False
     try:
         client.get(PROFILE_RESOURCE, profile_name)
