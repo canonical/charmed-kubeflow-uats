@@ -55,6 +55,7 @@ def assert_poddefault_created_in_namespace(
 
     Retries multiple times to allow for the PodDefault to be synced to the namespace.
     """
+    pod_default = None
     try:
         pod_default = client.get(PODDEFAULT_RESOURCE, name, namespace=namespace)
     except ApiError:
