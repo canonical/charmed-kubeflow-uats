@@ -14,7 +14,8 @@ from lightkube.generic_resource import (
     create_namespaced_resource,
     load_in_cluster_generic_resources,
 )
-from utils import assert_namespace_active, delete_job, fetch_job_logs, wait_for_job
+from lightkube.types import CascadeType
+from utils import assert_namespace_active, assert_profile_deleted, fetch_job_logs, wait_for_job
 
 log = logging.getLogger(__name__)
 
@@ -93,7 +94,8 @@ def create_profile(lightkube_client):
 
     # delete the Profile at the end of the module tests
     log.info(f"Deleting Profile {NAMESPACE}...")
-    lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE)
+    lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE, cascade=CascadeType.FOREGROUND)
+    assert_profile_deleted(lightkube_client, NAMESPACE, log)
 
 
 @pytest.fixture(scope="function")
@@ -178,12 +180,6 @@ def test_kubeflow_workloads(
     finally:
         log.info("Fetching Job logs...")
         fetch_job_logs(JOB_NAME, NAMESPACE, TESTS_LOCAL_RUN)
-
-
-def teardown_module():
-    """Cleanup resources."""
-    log.info(f"Deleting Job {NAMESPACE}/{JOB_NAME}...")
-    delete_job(JOB_NAME, NAMESPACE)
 
 
 def proxy_context(request) -> Dict[str, str]:
