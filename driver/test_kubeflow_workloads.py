@@ -9,7 +9,8 @@ from pathlib import Path
 import pytest
 from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import create_global_resource, load_in_cluster_generic_resources
-from utils import assert_namespace_active, delete_job, fetch_job_logs, wait_for_job
+from lightkube.types import CascadeType
+from utils import assert_namespace_active, assert_profile_deleted, fetch_job_logs, wait_for_job
 
 log = logging.getLogger(__name__)
 
@@ -80,7 +81,8 @@ def create_profile(lightkube_client):
 
     # delete the Profile at the end of the module tests
     log.info(f"Deleting Profile {NAMESPACE}...")
-    lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE)
+    lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE, cascade=CascadeType.FOREGROUND)
+    assert_profile_deleted(lightkube_client, NAMESPACE, log)
 
 
 @pytest.mark.abort_on_fail
@@ -134,9 +136,3 @@ def test_kubeflow_workloads(lightkube_client, pytest_cmd, tests_checked_out_comm
     finally:
         log.info("Fetching Job logs...")
         fetch_job_logs(JOB_NAME, NAMESPACE, TESTS_LOCAL_RUN)
-
-
-def teardown_module():
-    """Cleanup resources."""
-    log.info(f"Deleting Job {NAMESPACE}/{JOB_NAME}...")
-    delete_job(JOB_NAME, NAMESPACE)
