@@ -18,9 +18,8 @@ from lightkube.generic_resource import (
 from lightkube.types import CascadeType
 from utils import (
     assert_namespace_active,
-    assert_profile_deleted,
     assert_poddefault_created_in_namespace,
-    delete_job,
+    assert_profile_deleted,
     fetch_job_logs,
     wait_for_job,
 )
