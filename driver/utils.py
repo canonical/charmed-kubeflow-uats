@@ -5,11 +5,19 @@ import logging
 import subprocess
 
 import tenacity
-from lightkube import Client
+from lightkube import ApiError, Client
+from lightkube.generic_resource import create_namespaced_resource
 from lightkube.resources.batch_v1 import Job
 from lightkube.resources.core_v1 import Namespace
 
 log = logging.getLogger(__name__)
+
+PODDEFAULT_RESOURCE = create_namespaced_resource(
+    group="kubeflow.org",
+    version="v1alpha1",
+    kind="poddefault",
+    plural="poddefaults",
+)
 
 
 @tenacity.retry(
@@ -31,6 +39,28 @@ def assert_namespace_active(
 
     log.info(f"Waiting for namespace {namespace} to become 'Active': phase == {phase}")
     assert phase == "Active", f"Waited too long for namespace {namespace}!"
+
+
+@tenacity.retry(
+    wait=tenacity.wait_exponential(multiplier=2, min=1, max=10),
+    stop=tenacity.stop_after_attempt(15),
+    reraise=True,
+)
+def assert_poddefault_created_in_namespace(
+    client: Client,
+    name: str,
+    namespace: str,
+):
+    """Test that the given namespace contains the PodDefault required.
+
+    Retries multiple times to allow for the PodDefault to be synced to the namespace.
+    """
+    pod_default = None
+    try:
+        pod_default = client.get(PODDEFAULT_RESOURCE, name, namespace=namespace)
+    except ApiError:
+        log.info(f"Waiting for PodDefault {name} to be created in namespace {namespace}..")
+    assert pod_default is not None, f"Waited too long for PodDefault {name} to be created."
 
 
 def _log_before_sleep(retry_state):
