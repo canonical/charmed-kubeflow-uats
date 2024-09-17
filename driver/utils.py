@@ -118,7 +118,7 @@ def assert_profile_deleted(client, profile_name, logger: logging.Logger):
             raise
         else:
             deleted = True
-    else:
-        logger.info(f"Waiting for Profile {profile_name} to be deleted..")
+
+    logger.info(f"Waiting for Profile {profile_name} to be deleted..")
 
     assert deleted, f"Waited too long for Profile {profile_name} to be deleted!"
