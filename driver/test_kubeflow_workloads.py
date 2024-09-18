@@ -135,7 +135,7 @@ def create_poddefaults_on_proxy(request, lightkube_client):
 
 
 @pytest.mark.abort_on_fail
-async def test_create_profile(lightkube_client, create_profile):
+async def test_create_profile(ops_test, lightkube_client, create_profile):
     """Test Profile creation.
 
     This test relies on the create_profile fixture, which handles the Profile creation and
@@ -175,7 +175,12 @@ async def test_create_profile(lightkube_client, create_profile):
 
 
 def test_kubeflow_workloads(
-    lightkube_client, pytest_cmd, tests_checked_out_commit, request, create_poddefaults_on_proxy
+    ops_test,
+    lightkube_client,
+    pytest_cmd,
+    tests_checked_out_commit,
+    request,
+    create_poddefaults_on_proxy,
 ):
     """Run a K8s Job to execute the notebook tests."""
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
