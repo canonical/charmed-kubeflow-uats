@@ -135,7 +135,7 @@ def create_poddefaults_on_proxy(request, lightkube_client):
 
 
 @pytest.mark.dependency()
-async def test_create_profile(ops_test, lightkube_client, create_profile):
+async def test_create_profile(lightkube_client, create_profile):
     """Test Profile creation.
 
     This test relies on the create_profile fixture, which handles the Profile creation and
@@ -176,7 +176,6 @@ async def test_create_profile(ops_test, lightkube_client, create_profile):
 
 @pytest.mark.dependency(depends=["test_create_profile"])
 def test_kubeflow_workloads(
-    ops_test,
     lightkube_client,
     pytest_cmd,
     tests_checked_out_commit,
