@@ -134,8 +134,8 @@ def create_poddefaults_on_proxy(request, lightkube_client):
         lightkube_client.delete(PODDEFAULT_RESOURCE, name=poddefault_name, namespace=NAMESPACE)
 
 
-@pytest.mark.dependency()
-async def test_create_profile(lightkube_client, create_profile):
+@pytest.mark.abort_on_fail
+async def test_create_profile(ops_test, lightkube_client, create_profile):
     """Test Profile creation.
 
     This test relies on the create_profile fixture, which handles the Profile creation and
@@ -174,8 +174,8 @@ async def test_create_profile(lightkube_client, create_profile):
     log.info(f"PodDefaults in {NAMESPACE} namespace are {created_poddefaults_names}.")
 
 
-@pytest.mark.dependency(depends=["test_create_profile"])
 def test_kubeflow_workloads(
+    ops_test,
     lightkube_client,
     pytest_cmd,
     tests_checked_out_commit,
