@@ -2,4 +2,5 @@ juju<4.0
 lightkube
 pytest
 pytest-operator
+pytest-dependency
 tenacity
