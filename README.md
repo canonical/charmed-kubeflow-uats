@@ -227,7 +227,7 @@ To run the tests behind proxy using Notebook:
 2. Apply the PodDefault to your Profile's namespace, make sure you already followed the Prerequisites
    section to modify the PodDefault. Apply it with:
    ```
-   kubectl apply -f ./tests/proxy-poddefault.yaml -n <your_namespace>
+   microk8s kubectl apply -f ./tests/proxy-poddefault.yaml -n <your_namespace>
    ```
 3. Create a Notebook and from the `Advanced Options > Configurations` select `Add proxy settings`,
    then click `Launch` to start the Notebook.
