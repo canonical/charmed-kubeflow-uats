@@ -245,6 +245,7 @@ To run the tests behind proxy using Notebook:
    * katib
    * kfp_v2
    * kserve
+   * mlflow
    * mlflow-kserve
    * mlflow-minio
    * training
