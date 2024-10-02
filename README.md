@@ -51,7 +51,7 @@ start with [this guide](https://charmed-kubeflow.io/docs/get-started-with-charme
 
 The UATs include tests that assume MLFlow is installed alongside Kubeflow, which will otherwise
 fail. For instructions on deploying MLFlow you can start with [this
-guide](https://discourse.charmhub.io/t/deploying-charmed-mlflow-v2-and-kubeflow-to-eks/10973),
+guide](https://documentation.ubuntu.com/charmed-mlflow/en/latest/tutorial/mlflow-kubeflow/),
 ignoring the EKS specific steps.
 
 ## Run the tests
@@ -154,6 +154,19 @@ dedicated `kubeflow` tox test environment:
 tox -e kubeflow-remote
 # run tests from the local copy of the repo
 tox -e kubeflow-local
+```
+
+#### Run MlFlow UATs
+
+In order to only run the tests that test integration with MLFlow, you can use the
+dedicated `mlflow` tox test environment:
+
+```bash
+# assumes an existing `kubeflow` Juju model
+# run tests from the checked out commit after fetching them remotely
+tox -e mlflow-remote
+# run tests from the local copy of the repo
+tox -e mlflow-local
 ```
 
 ### Run behind proxy
