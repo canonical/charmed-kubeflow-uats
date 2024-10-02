@@ -23,6 +23,7 @@ found in the [Run the tests](#run-the-tests) section.
       * [Using a local copy](#run-tests-from-local-copy)
       * [A subset of UATs](#run-a-subset-of-uats)
       * [Kubeflow UATs](#run-kubeflow-uats)
+      * [MLflow UATs](#run-mlflow-uats)
    * [Behind proxy](#run-behind-proxy)
       * [Prerequisites for KServe UATs](#prerequisites-for-kserve-uats)
       * [From inside a notebook](#running-using-notebook)
@@ -44,13 +45,13 @@ very least) of the following pieces:
     * EKS cluster
     * AKS cluster <!-- codespell-ignore -->
 * **Charmed Kubeflow** deployed on top of it
-* **MLFlow (optional)** deployed alongside Kubeflow
+* **MLflow (optional)** deployed alongside Kubeflow
 
 For instructions on deploying and getting started with Charmed Kubeflow, we recommend that you
 start with [this guide](https://charmed-kubeflow.io/docs/get-started-with-charmed-kubeflow).
 
-The UATs include tests that assume MLFlow is installed alongside Kubeflow, which will otherwise
-fail. For instructions on deploying MLFlow you can start with [this
+The UATs include tests that assume MLflow is installed alongside Kubeflow, which will otherwise
+fail. For instructions on deploying MLflow you can start with [this
 guide](https://documentation.ubuntu.com/charmed-mlflow/en/latest/tutorial/mlflow-kubeflow/),
 ignoring the EKS specific steps.
 
@@ -145,7 +146,7 @@ You can read more about the options provided by Pytest in the corresponding sect
 
 #### Run Kubeflow UATs
 
-In order to only run the Kubeflow-specific tests (i.e. no MLFlow integration) you can use the
+In order to only run the Kubeflow-specific tests (i.e. no MLflow integration) you can use the
 dedicated `kubeflow` tox test environment:
 
 ```bash
@@ -156,9 +157,9 @@ tox -e kubeflow-remote
 tox -e kubeflow-local
 ```
 
-#### Run MlFlow UATs
+#### Run Mlflow UATs
 
-In order to only run the tests that test integration with MLFlow, you can use the
+In order to only run the tests that test integration with MLflow, you can use the
 dedicated `mlflow` tox test environment:
 
 ```bash
