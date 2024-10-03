@@ -23,6 +23,7 @@ found in the [Run the tests](#run-the-tests) section.
       * [Using a local copy](#run-tests-from-local-copy)
       * [A subset of UATs](#run-a-subset-of-uats)
       * [Kubeflow UATs](#run-kubeflow-uats)
+      * [MLflow UATs](#run-mlflow-uats)
    * [Behind proxy](#run-behind-proxy)
       * [Prerequisites for KServe UATs](#prerequisites-for-kserve-uats)
       * [From inside a notebook](#running-using-notebook)
@@ -44,14 +45,14 @@ very least) of the following pieces:
     * EKS cluster
     * AKS cluster <!-- codespell-ignore -->
 * **Charmed Kubeflow** deployed on top of it
-* **MLFlow (optional)** deployed alongside Kubeflow
+* **MLflow (optional)** deployed alongside Kubeflow
 
 For instructions on deploying and getting started with Charmed Kubeflow, we recommend that you
 start with [this guide](https://charmed-kubeflow.io/docs/get-started-with-charmed-kubeflow).
 
-The UATs include tests that assume MLFlow is installed alongside Kubeflow, which will otherwise
-fail. For instructions on deploying MLFlow you can start with [this
-guide](https://discourse.charmhub.io/t/deploying-charmed-mlflow-v2-and-kubeflow-to-eks/10973),
+The UATs include tests that assume MLflow is installed alongside Kubeflow, which will otherwise
+fail. For instructions on deploying MLflow you can start with [this
+guide](https://documentation.ubuntu.com/charmed-mlflow/en/latest/tutorial/mlflow-kubeflow/),
 ignoring the EKS specific steps.
 
 ## Run the tests
@@ -145,7 +146,7 @@ You can read more about the options provided by Pytest in the corresponding sect
 
 #### Run Kubeflow UATs
 
-In order to only run the Kubeflow-specific tests (i.e. no MLFlow integration) you can use the
+In order to only run the Kubeflow-specific tests (i.e. no MLflow integration) you can use the
 dedicated `kubeflow` tox test environment:
 
 ```bash
@@ -154,6 +155,19 @@ dedicated `kubeflow` tox test environment:
 tox -e kubeflow-remote
 # run tests from the local copy of the repo
 tox -e kubeflow-local
+```
+
+#### Run Mlflow UATs
+
+In order to only run the tests that test integration with MLflow, you can use the
+dedicated `mlflow` tox test environment:
+
+```bash
+# assumes an existing `kubeflow` Juju model
+# run tests from the checked out commit after fetching them remotely
+tox -e mlflow-remote
+# run tests from the local copy of the repo
+tox -e mlflow-local
 ```
 
 ### Run behind proxy
@@ -227,7 +241,7 @@ To run the tests behind proxy using Notebook:
 2. Apply the PodDefault to your Profile's namespace, make sure you already followed the Prerequisites
    section to modify the PodDefault. Apply it with:
    ```
-   kubectl apply -f ./tests/proxy-poddefault.yaml -n <your_namespace>
+   microk8s kubectl apply -f ./tests/proxy-poddefault.yaml -n <your_namespace>
    ```
 3. Create a Notebook and from the `Advanced Options > Configurations` select `Add proxy settings`,
    then click `Launch` to start the Notebook.
@@ -245,6 +259,7 @@ To run the tests behind proxy using Notebook:
    * katib
    * kfp_v2
    * kserve
+   * mlflow
    * mlflow-kserve
    * mlflow-minio
    * training
