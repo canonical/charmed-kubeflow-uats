@@ -33,7 +33,8 @@ PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 TESTS_LOCAL_RUN = eval(os.environ.get("LOCAL"))
 TESTS_LOCAL_DIR = os.path.abspath(Path("tests"))
 
-TESTS_IMAGE = "kubeflownotebookswg/jupyter-scipy:v1.9.0"
+TESTS_IMAGE_CPU = "kubeflownotebookswg/jupyter-scipy:v1.9.0"
+TESTS_IMAGE_GPU = "kubeflownotebookswg/jupyter-tensorflow-cuda-full:v1.9.0"
 
 NAMESPACE = "test-kubeflow"
 PROFILE_RESOURCE = create_global_resource(
@@ -64,6 +65,11 @@ def pytest_filter(request):
     filter = request.config.getoption("filter")
     return f"-k '{filter}'" if filter else ""
 
+@pytest.fixture(scope="session")
+def use_gpu_image(request):
+    """Retrieve use-gpu-image from Pytest invocation."""
+    print(request.config.getoption("--use-gpu-image"))
+    return True if request.config.getoption("--use-gpu-image") else False
 
 @pytest.fixture(scope="session")
 def tests_checked_out_commit(request):
@@ -181,6 +187,7 @@ def test_kubeflow_workloads(
     tests_checked_out_commit,
     request,
     create_poddefaults_on_proxy,
+    use_gpu_image,
 ):
     """Run a K8s Job to execute the notebook tests."""
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
@@ -191,10 +198,11 @@ def test_kubeflow_workloads(
                 "job_name": JOB_NAME,
                 "tests_local_run": TESTS_LOCAL_RUN,
                 "tests_local_dir": TESTS_LOCAL_DIR,
-                "tests_image": TESTS_IMAGE,
+                "tests_image": TESTS_IMAGE_GPU if use_gpu_image else TESTS_IMAGE_CPU,
                 "tests_remote_commit": tests_checked_out_commit,
                 "pytest_cmd": pytest_cmd,
                 "proxy": True if request.config.getoption("proxy") else False,
+                "use_gpu_image": use_gpu_image,
             },
         )
     )

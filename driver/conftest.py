@@ -29,3 +29,9 @@ def pytest_addoption(parser: Parser):
         " any test that doesn't contain 'kserve' in its name. Essentially, the option simulates"
         " the behaviour of running `pytest -k '<filter>'` directly on the test suite.",
     )
+    parser.addoption(
+        "--use-gpu-image",
+        action="store_true",
+        default=False,
+        help="Enable running tests on a GPU by using a tensorflow image",
+    )
