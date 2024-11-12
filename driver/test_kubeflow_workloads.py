@@ -46,7 +46,7 @@ PROFILE_RESOURCE = create_global_resource(
 
 JOB_NAME = "test-kubeflow"
 
-PYTEST_CMD_BASE = "pytest"
+PYTEST_CMD_BASE = "pytest -s"
 
 PODDEFAULT_RESOURCE = create_namespaced_resource(
     group="kubeflow.org",
@@ -82,10 +82,6 @@ def pytest_cmd(pytest_filter, include_gpu_tests):
     """Format the Pytest command."""
     cmd = f"{PYTEST_CMD_BASE} {pytest_filter}" if pytest_filter else PYTEST_CMD_BASE
     cmd = f"{cmd} --include-gpu-tests" if include_gpu_tests else cmd
-    #################################
-    print("cmd:")
-    print(cmd)
-    #################################
     return cmd
 
 

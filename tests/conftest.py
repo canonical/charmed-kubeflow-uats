@@ -1,8 +1,8 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import os
 from _pytest.config.argparsing import Parser
-
 
 def pytest_addoption(parser: Parser):
     """Add pytest options.
@@ -16,3 +16,6 @@ def pytest_addoption(parser: Parser):
         help="Include GPU tests under `gpu` directory and enable them by using a tensorflow image"
          " and scheduling the pod on a node with a GPU",
     )
+
+def pytest_configure(config):
+    os.environ["include_gpu_tests"] = str(config.getoption('--include-gpu-tests')) 
