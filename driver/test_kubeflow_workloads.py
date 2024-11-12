@@ -66,10 +66,9 @@ def pytest_filter(request):
     return f"-k '{filter}'" if filter else ""
 
 @pytest.fixture(scope="session")
-def use_gpu_image(request):
-    """Retrieve use-gpu-image from Pytest invocation."""
-    print(request.config.getoption("--use-gpu-image"))
-    return True if request.config.getoption("--use-gpu-image") else False
+def include_gpu_tests(request):
+    """Retrieve include-gpu-tests from Pytest invocation."""
+    return True if request.config.getoption("--include-gpu-tests") else False
 
 @pytest.fixture(scope="session")
 def tests_checked_out_commit(request):
@@ -79,9 +78,15 @@ def tests_checked_out_commit(request):
 
 
 @pytest.fixture(scope="session")
-def pytest_cmd(pytest_filter):
+def pytest_cmd(pytest_filter, include_gpu_tests):
     """Format the Pytest command."""
-    return f"{PYTEST_CMD_BASE} {pytest_filter}" if pytest_filter else PYTEST_CMD_BASE
+    cmd = f"{PYTEST_CMD_BASE} {pytest_filter}" if pytest_filter else PYTEST_CMD_BASE
+    cmd = f"{cmd} --include-gpu-tests" if include_gpu_tests else cmd
+    #################################
+    print("cmd:")
+    print(cmd)
+    #################################
+    return cmd
 
 
 @pytest.fixture(scope="module")
@@ -187,7 +192,7 @@ def test_kubeflow_workloads(
     tests_checked_out_commit,
     request,
     create_poddefaults_on_proxy,
-    use_gpu_image,
+    include_gpu_tests,
 ):
     """Run a K8s Job to execute the notebook tests."""
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
@@ -198,11 +203,11 @@ def test_kubeflow_workloads(
                 "job_name": JOB_NAME,
                 "tests_local_run": TESTS_LOCAL_RUN,
                 "tests_local_dir": TESTS_LOCAL_DIR,
-                "tests_image": TESTS_IMAGE_GPU if use_gpu_image else TESTS_IMAGE_CPU,
+                "tests_image": TESTS_IMAGE_GPU if include_gpu_tests else TESTS_IMAGE_CPU,
                 "tests_remote_commit": tests_checked_out_commit,
                 "pytest_cmd": pytest_cmd,
                 "proxy": True if request.config.getoption("proxy") else False,
-                "use_gpu_image": use_gpu_image,
+                "include_gpu_tests": include_gpu_tests,
             },
         )
     )

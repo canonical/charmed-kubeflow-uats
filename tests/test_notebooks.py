@@ -15,18 +15,31 @@ from utils import (
     save_notebook,
 )
 
-EXAMPLES_DIR = "notebooks"
-NOTEBOOKS = discover_notebooks(EXAMPLES_DIR)
 
 log = logging.getLogger(__name__)
 
+@pytest.fixture(scope="session")
+def notebooks(request) -> dict:
+    """Define notebooks to be executed."""
+    examples_dir_cpu = "notebooks/cpu"
+    examples_dir_gpu = "notebooks/gpu"
+    notebooks_cpu = discover_notebooks(examples_dir_cpu)
+    print("notebooks_cpu:")
+    print(notebooks_cpu)
+    print("notebooks_gpu:")
+    print(notebooks_gpu)
+    notebooks_gpu = discover_notebooks(examples_dir_gpu)
+    notebooks = { **notebooks_cpu, **notebooks_gpu} if request.config.getoption("--include-gpu-tests") else notebooks_cpu
+    print("notebooks:")
+    print(notebooks)
+    return notebooks
 
 @pytest.mark.ipynb
 @pytest.mark.parametrize(
     # notebook - ipynb file to execute
     "test_notebook",
-    NOTEBOOKS.values(),
-    ids=NOTEBOOKS.keys(),
+    notebooks.values(),
+    ids=notebooks.keys(),
 )
 def test_notebook(test_notebook):
     """Test Notebook Generic Wrapper."""

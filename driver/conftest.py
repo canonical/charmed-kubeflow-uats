@@ -30,8 +30,9 @@ def pytest_addoption(parser: Parser):
         " the behaviour of running `pytest -k '<filter>'` directly on the test suite.",
     )
     parser.addoption(
-        "--use-gpu-image",
+        "--include-gpu-tests",
         action="store_true",
         default=False,
-        help="Enable running tests on a GPU by using a tensorflow image",
+        help="Include GPU tests under `gpu` directory and enable them by using a tensorflow image"
+         " and scheduling the pod on a node with a GPU",
     )
