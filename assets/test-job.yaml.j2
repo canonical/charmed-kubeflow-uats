@@ -26,11 +26,6 @@ spec:
       containers:
         - name: {{ job_name }}
           image: {{ tests_image }}
-          {% if include_gpu_tests %}
-          resources:
-            limits:
-              nvidia.com/gpu: 1
-          {% endif %}
           command:
             - bash
             - -c

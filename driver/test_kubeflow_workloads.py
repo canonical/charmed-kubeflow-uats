@@ -33,8 +33,7 @@ PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 TESTS_LOCAL_RUN = eval(os.environ.get("LOCAL"))
 TESTS_LOCAL_DIR = os.path.abspath(Path("tests"))
 
-TESTS_IMAGE_CPU = "kubeflownotebookswg/jupyter-scipy:v1.9.0"
-TESTS_IMAGE_GPU = "kubeflownotebookswg/jupyter-tensorflow-cuda-full:v1.9.0"
+TESTS_IMAGE = "kubeflownotebookswg/jupyter-scipy:v1.9.0"
 
 NAMESPACE = "test-kubeflow"
 PROFILE_RESOURCE = create_global_resource(
@@ -199,11 +198,10 @@ def test_kubeflow_workloads(
                 "job_name": JOB_NAME,
                 "tests_local_run": TESTS_LOCAL_RUN,
                 "tests_local_dir": TESTS_LOCAL_DIR,
-                "tests_image": TESTS_IMAGE_GPU if include_gpu_tests else TESTS_IMAGE_CPU,
+                "tests_image": TESTS_IMAGE,
                 "tests_remote_commit": tests_checked_out_commit,
                 "pytest_cmd": pytest_cmd,
                 "proxy": True if request.config.getoption("proxy") else False,
-                "include_gpu_tests": include_gpu_tests,
             },
         )
     )
