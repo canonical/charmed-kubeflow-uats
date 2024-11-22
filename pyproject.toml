@@ -28,7 +28,7 @@ description = "kubeflow-uat"
 authors = []
 
 [tool.poetry.dependencies]
-python = "^3.12"
+python = ">=3.10"
 juju = "<4.0"
 lightkube = ">=0.15"
 # pytest is transitive dependencies of other packages
