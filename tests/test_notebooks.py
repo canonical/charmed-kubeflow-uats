@@ -15,8 +15,12 @@ from utils import (
     save_notebook,
 )
 
-EXAMPLES_DIR = "notebooks"
-NOTEBOOKS = discover_notebooks(EXAMPLES_DIR)
+EXAMPLES_DIR = {"cpu": "notebooks/cpu", "gpu": "notebooks/gpu"}
+INCLUDE_GPU_TESTS = os.getenv("include_gpu_tests").lower() == "true"
+
+NOTEBOOKS = discover_notebooks(EXAMPLES_DIR["cpu"])
+if INCLUDE_GPU_TESTS:
+    NOTEBOOKS.update(discover_notebooks(EXAMPLES_DIR["gpu"]))
 
 log = logging.getLogger(__name__)
 

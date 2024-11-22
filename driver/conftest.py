@@ -7,8 +7,12 @@ from _pytest.config.argparsing import Parser
 def pytest_addoption(parser: Parser):
     """Add pytest options.
 
+    * Add a `--proxy` option that enables setting `http_proxy`, `https_proxy` and
+      `no_proxy` environment variables.
     * Add a `--filter` option to (de)select test cases based on their name (see also
       https://docs.pytest.org/en/7.4.x/reference/reference.html#command-line-flags)
+    * Add an `--include-gpu-tests` flag to include the tests under the `gpu` directory
+      in the executed tests.
     """
     parser.addoption(
         "--proxy",
@@ -28,4 +32,10 @@ def pytest_addoption(parser: Parser):
         " tests containing 'kfp' or 'katib' in their name, whereas --filter 'not kserve' will run"
         " any test that doesn't contain 'kserve' in its name. Essentially, the option simulates"
         " the behaviour of running `pytest -k '<filter>'` directly on the test suite.",
+    )
+    parser.addoption(
+        "--include-gpu-tests",
+        action="store_true",
+        help="Defines whether to include the tests under the `gpu` directory in the executed tests."
+        "By default, it is set to False.",
     )
