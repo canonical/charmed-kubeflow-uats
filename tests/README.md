@@ -36,3 +36,10 @@ pytest -k "kfp or katib"
 # run any test that doesn't contain 'kserve' in its name
 pytest -k "not kserve"
 ```
+
+### NVIDIA GPU tests
+By default, [GPU UATs](./notebooks/gpu/) are not included when running `pytest` since they require a cluster with a GPU. In order to include those, use the `--include-gpu-tests` flag, e.g.
+
+```
+pytest --include-gpu-tests
+```

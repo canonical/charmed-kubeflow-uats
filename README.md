@@ -24,6 +24,7 @@ found in the [Run the tests](#run-the-tests) section.
       * [A subset of UATs](#run-a-subset-of-uats)
       * [Kubeflow UATs](#run-kubeflow-uats)
       * [MLflow UATs](#run-mlflow-uats)
+      * [Include NVIDIA GPU UATs](#include-nvidia-gpu-uats)
    * [Behind proxy](#run-behind-proxy)
       * [Prerequisites for KServe UATs](#prerequisites-for-kserve-uats)
       * [From inside a notebook](#running-using-notebook)
@@ -169,6 +170,19 @@ tox -e mlflow-remote
 # run tests from the local copy of the repo
 tox -e mlflow-local
 ```
+
+#### Include NVIDIA GPU UATs
+
+By default, [GPU UATs](./tests/notebooks/gpu/) are not included in any of the `tox` environments since they require a cluster with a GPU. In order to include those, use the `--include-gpu-tests` flag, e.g.
+
+```bash
+# run all tests defined by tox environment `kubeflow` plus those under the 'gpu' directory
+tox -e kubeflow-remote -- --include-gpu-tests
+# run all tests containing 'kfp' in their name (both cpu and gpu ones)
+tox -e uats-local -- --include-gpu-tests --filter "kfp"
+```
+
+As shown in the example above, tests under the `gpu` directory follow the same filters with the rest of the tests.
 
 ### Run behind proxy
 

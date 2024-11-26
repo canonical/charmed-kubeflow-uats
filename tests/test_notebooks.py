@@ -44,6 +44,13 @@ def test_notebook(test_notebook):
     )
     ep.skip_cells_with_tag = "pytest-skip"
 
+    if INCLUDE_GPU_TESTS:
+        log.info(
+            "Note that only CPU tests will be run. In order to run tests that use an NVIDIA GPU,"
+            "use the `--include-gpu-tests` flag e.g. `tox -e kubeflow-local -- --include-gpu-tests`."
+            "To learn more, use `--help` or refer to the repository's README file."
+        )
+
     try:
         log.info(f"Running {os.path.basename(test_notebook)}...")
         output_notebook, _ = ep.preprocess(notebook, {"metadata": {"path": "./"}})

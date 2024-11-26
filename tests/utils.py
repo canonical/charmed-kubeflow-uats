@@ -3,6 +3,7 @@
 
 import os
 import subprocess
+from typing import Dict
 
 import nbformat
 
@@ -17,7 +18,7 @@ def format_error_message(traceback: list):
     return "".join(traceback[-2:])
 
 
-def discover_notebooks(directory):
+def discover_notebooks(directory) -> Dict[str, str]:
     """Return a dictionary of notebooks in the provided directory.
 
     The dictionary contains a mapping between the notebook names (in alphabetical order) and the
