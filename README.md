@@ -179,7 +179,7 @@ By default, [GPU UATs](./tests/notebooks/gpu/) are not included in any of the `t
 # run all tests defined by tox environment `kubeflow` plus those under the 'gpu' directory
 tox -e kubeflow-remote -- --include-gpu-tests
 # run all tests containing 'kfp' in their name (both cpu and gpu ones)
-tox -e uats-local -- --include-gpu-tests --filter "kfp"
+tox -e uats-remote -- --include-gpu-tests --filter "kfp"
 ```
 
 As shown in the example above, tests under the `gpu` directory follow the same filters with the rest of the tests.
