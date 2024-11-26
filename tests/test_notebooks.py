@@ -48,7 +48,7 @@ def test_notebook(test_notebook):
         log.info(
             "Note that only CPU tests will be run. In order to run tests that use an NVIDIA GPU,"
             "use the `--include-gpu-tests` flag e.g. `tox -e kubeflow-local -- --include-gpu-tests`."
-            "To learn more, use `--help` or refer to the repository's README file."
+            " To learn more, use `--help` or refer to the repository's README file."
         )
 
     try:
