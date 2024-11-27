@@ -44,7 +44,7 @@ def test_notebook(test_notebook):
     )
     ep.skip_cells_with_tag = "pytest-skip"
 
-    if INCLUDE_GPU_TESTS:
+    if not INCLUDE_GPU_TESTS:
         log.info(
             "Note that only CPU tests will be run. In order to run tests that use an NVIDIA GPU,"
             "use the `--include-gpu-tests` flag e.g. `tox -e kubeflow-local -- --include-gpu-tests`."
