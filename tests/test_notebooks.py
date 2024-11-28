@@ -15,8 +15,12 @@ from utils import (
     save_notebook,
 )
 
-EXAMPLES_DIR = "notebooks"
-NOTEBOOKS = discover_notebooks(EXAMPLES_DIR)
+EXAMPLES_DIR = {"cpu": "notebooks/cpu", "gpu": "notebooks/gpu"}
+INCLUDE_GPU_TESTS = os.getenv("include_gpu_tests").lower() == "true"
+
+NOTEBOOKS = discover_notebooks(EXAMPLES_DIR["cpu"])
+if INCLUDE_GPU_TESTS:
+    NOTEBOOKS.update(discover_notebooks(EXAMPLES_DIR["gpu"]))
 
 log = logging.getLogger(__name__)
 
@@ -39,6 +43,13 @@ def test_notebook(test_notebook):
         timeout=-1, kernel_name="python3", on_notebook_start=install_python_requirements
     )
     ep.skip_cells_with_tag = "pytest-skip"
+
+    if not INCLUDE_GPU_TESTS:
+        log.info(
+            "Note that only CPU tests will be run. In order to run tests that use an NVIDIA GPU,"
+            "use the `--include-gpu-tests` flag e.g. `tox -e kubeflow-local -- --include-gpu-tests`."
+            " To learn more, use `--help` or refer to the repository's README file."
+        )
 
     try:
         log.info(f"Running {os.path.basename(test_notebook)}...")
