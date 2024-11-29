@@ -66,6 +66,12 @@ def pytest_filter(request):
 
 
 @pytest.fixture(scope="session")
+def include_gpu_tests(request):
+    """Retrieve the `--include-gpu-tests` flag from Pytest invocation."""
+    return True if request.config.getoption("--include-gpu-tests") else False
+
+
+@pytest.fixture(scope="session")
 def tests_checked_out_commit(request):
     """Retrieve active git commit."""
     head = subprocess.check_output(["git", "rev-parse", "HEAD"])
@@ -73,9 +79,14 @@ def tests_checked_out_commit(request):
 
 
 @pytest.fixture(scope="session")
-def pytest_cmd(pytest_filter):
+def pytest_cmd(pytest_filter, include_gpu_tests):
     """Format the Pytest command."""
-    return f"{PYTEST_CMD_BASE} {pytest_filter}" if pytest_filter else PYTEST_CMD_BASE
+    cmd = PYTEST_CMD_BASE
+    if pytest_filter:
+        cmd += f" {pytest_filter}"
+    if include_gpu_tests:
+        cmd += " --include-gpu-tests"
+    return cmd
 
 
 @pytest.fixture(scope="module")
