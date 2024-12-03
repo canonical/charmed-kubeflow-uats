@@ -1,4 +1,4 @@
 # pin to the latest <2.0 version to ensure compatibility
 # with the KFP API server version deployed in CKF 1.7
-kfp==1.8.22
+kfp==2.10.1
 tenacity
