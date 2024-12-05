@@ -15,11 +15,48 @@ log_cli_level = "INFO"
 # Formatting tools configuration
 [tool.black]
 line-length = 99
-target-version = ["py38"]
+target-version = ["py312"]
 
 [tool.isort]
 line_length = 99
 profile = "black"
+
+[tool.poetry]
+name = "kubeflow-uat"
+version = "1.0"
+description = "kubeflow-uat"
+authors = []
+
+[tool.poetry.dependencies]
+python = ">=3.10"
+juju = "<4.0"
+lightkube = "*"
+# pytest is transitive dependencies of other packages
+# pytest = "^7.4"
+pytest-operator = "*"
+pytest-dependency = "*"
+tenacity = "*"
+
+[tool.poetry.group.fmt]
+optional = true
+
+[tool.poetry.group.fmt.dependencies]
+black = {extras=["jupyter"], version="*"}
+isort = "*"
+
+[tool.poetry.group.lint]
+optional = true
+
+[tool.poetry.group.lint.dependencies]
+black = {extras=["jupyter"], version="*"}
+codespell = "*"
+# Flake is transitive dependencies of other packages
+# flake8 = ">=6.0"
+flake8-builtins = "*"
+flake8-copyright = "*"
+isort = "*"
+pep8-naming = "*"
+pyproject-flake8 = ">=6.0.0"
 
 # Linting tools configuration
 [tool.flake8]
