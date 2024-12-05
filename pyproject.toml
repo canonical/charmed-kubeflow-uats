@@ -56,7 +56,7 @@ flake8-builtins = "*"
 flake8-copyright = "*"
 isort = "*"
 pep8-naming = "*"
-pyproject-flake8 = "*"
+pyproject-flake8 = ">=6.0.0"
 
 # Linting tools configuration
 [tool.flake8]
