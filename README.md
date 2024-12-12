@@ -213,7 +213,7 @@ juju config knative-serving http-proxy=http://10.0.13.50:3128/ https-proxy=http:
 
 #### Running using Notebook
 
-##### Prerequistes
+##### Prerequisites
 
 Edit the [PodDefault](tests/proxy-poddefault.yaml.j2) to replace the placeholders for:
 
