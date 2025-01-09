@@ -3,9 +3,10 @@
 
 import logging
 import subprocess
+from typing import Dict
 
 import tenacity
-from lightkube import ApiError, Client
+from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import create_global_resource, create_namespaced_resource
 from lightkube.resources.batch_v1 import Job
 from lightkube.resources.core_v1 import Namespace
@@ -151,3 +152,41 @@ def assert_profile_deleted(client, profile_name, logger: logging.Logger):
     logger.info(f"Waiting for Profile {profile_name} to be deleted..")
 
     assert deleted, f"Waited too long for Profile {profile_name} to be deleted!"
+
+
+def context_from(argument: str, request) -> Dict[str, str]:
+    """Return a dictionary with key-value entries from the CLI argument."""
+    context = {}
+    for pair in request.config.getoption(argument):
+        key, value = pair.split("=")
+        context[key] = value
+    return context
+
+
+def create_poddefault(
+    poddefault_path: str, poddefault_context: Dict[str, str], namespace: str, lightkube_client
+):
+    """Apply the PodDefault from the path after rendering it with the passed context.
+
+    Apply the PodDefault from the path after rendering it with the passed context.
+    Once execution is complete, delete the created poddefault.
+    """
+    poddefault_resource = codecs.load_all_yaml(
+        poddefault_path.read_text(),
+        poddefault_context,
+    )
+    poddefault_name = poddefault_resource[0].metadata.name
+    log.info(f"Adding {poddefault_name} PodDefault...")
+    # Using the first item of the list of poddefault_resource. It is a one item list.
+    lightkube_client.create(poddefault_resource[0], namespace=namespace)
+
+    yield
+
+    # delete the PodDefault at the end of the module tests
+    poddefault_resource = codecs.load_all_yaml(
+        poddefault_path.read_text(),
+        poddefault_context,
+    )
+    poddefault_name = poddefault_resource[0].metadata.name
+    log.info(f"Deleting {poddefault_name} PodDefault...")
+    lightkube_client.delete(PODDEFAULT_RESOURCE, name=poddefault_name, namespace=namespace)
