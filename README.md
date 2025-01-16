@@ -177,7 +177,6 @@ tox -e mlflow-local
 ### NVIDIA GPU UAT
 
 #### Run NVIDIA GPU UAT from inside a notebook
-In order to run the NVIDIA GPU UAT from inside a notebook, follow the same steps described in the [From inside a notebook](#running-inside-a-notebook) section above. However, make sure to follow the prerequisites if needed.
 
 ##### Prerequisites
 If a [taint](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) is used to prevent scheduling unintended workload to GPU nodes, a toleration is needed in order to enable GPU tests to schedule workloads. To ensure that pods created by GPU tests have the proper toleration:
@@ -195,6 +194,8 @@ If a [taint](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-t
 
 If no taint is used, there are no prerequisites.
 
+##### Steps
+In order to run the NVIDIA GPU UAT from inside a notebook, follow the same steps described in the [From inside a notebook](#running-inside-a-notebook) section above.
 
 #### Run NVIDIA GPU UAT using the driver
 
@@ -214,10 +215,16 @@ As shown in the example above, tests under the `gpu` directory follow the same f
 If a [taint](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) is used to prevent scheduling unintended workload to GPU nodes, a toleration is needed in order to enable GPU tests to schedule workloads. This is achieved via the `--toleration` argument which enables passing the sub-arguments `key, operator, value, effect, seconds`. For example:
 
 ```bash
-tox -e uats-remote -- --include-gpu-tests --toleration key="MyKey" value="gpu" effect="NoSchedule"
+#  Here's an example taint the GPU node may have
+#  taints:
+#     effect: NoSchedule
+#     key: MyKey
+#     value: MyValue
+
+tox -e uats-remote -- --include-gpu-tests --toleration key="MyKey" value="MyValue" effect="NoSchedule"
 ```
 
-Since most fields are optional, ensure that that the toleration passed is a valid one by consulting relevant [Kubernetes docs](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling).
+The driver will populate the [PodDefault](./assets/gpu-toleration-poddefault.yaml.j2) with the passed toleration values and apply it, ensuring that the toleration is added to workload pods requiring a GPU. Since most fields are optional, make sure that the toleration passed is a valid one by consulting relevant [Kubernetes docs](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling).
 
 
 ### Run behind proxy

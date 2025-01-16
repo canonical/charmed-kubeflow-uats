@@ -44,14 +44,12 @@ def pytest_addoption(parser: Parser):
     parser.addoption(
         "--toleration",
         nargs="+",
-        help="Set a number of key-value pairs for the toleration needed to access a GPU node. The"
-        " toleration is set to pods with label enable-gpu='true'."
+        help="Set a number of key-value pairs for the toleration needed to access a GPU node. With the"
+        " use of a PodDefault, the toleration is set to pods that have the label enable-gpu='true'."
         " Example:"
         " --toleration key='key1' operator='Equal' value='value1' effect='NoSchedule' seconds='3600'."
         " Since most fields are optional, ensure that that the toleration passed is a valid one by"
-        " consulting relevant Kubernetes docs "
-        " https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling."
-        " If used, a PodDefault will be rendered and applied to any pod with the label enable-gpu= 'true'."
-        " It is not used by default.",
+        " consulting relevant Kubernetes docs:\n"
+        " https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling.",
         action="store",
     )
