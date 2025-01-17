@@ -6,7 +6,6 @@ import os
 import subprocess
 import time
 from pathlib import Path
-from typing import Dict
 
 import pytest
 from lightkube import ApiError, Client, codecs
@@ -20,6 +19,8 @@ from utils import (
     assert_namespace_active,
     assert_poddefault_created_in_namespace,
     assert_profile_deleted,
+    context_from,
+    create_poddefault,
     fetch_job_logs,
     wait_for_job,
 )
@@ -54,6 +55,7 @@ PODDEFAULT_RESOURCE = create_namespaced_resource(
     plural="poddefaults",
 )
 PODDEFAULT_WITH_PROXY_PATH = Path("tests") / "proxy-poddefault.yaml.j2"
+PODDEFAULT_WITH_TOLERATION_PATH = Path("assets") / "gpu-toleration-poddefault.yaml.j2"
 
 KFP_PODDEFAULT_NAME = "access-ml-pipeline"
 
@@ -119,30 +121,30 @@ def create_profile(lightkube_client):
 
 
 @pytest.fixture(scope="function")
-def create_poddefaults_on_proxy(request, lightkube_client):
+def create_poddefault_on_proxy(request, lightkube_client):
     """Create PodDefault with proxy env variables for the Notebook inside the Job."""
     # Simply yield if the proxy flag is not set
     if not request.config.getoption("proxy"):
         yield
     else:
-        log.info("Adding PodDefault with proxy settings.")
-        poddefault_resource = codecs.load_all_yaml(
-            PODDEFAULT_WITH_PROXY_PATH.read_text(),
-            context=proxy_context(request),
+        yield from create_poddefault(
+            PODDEFAULT_WITH_PROXY_PATH, context_from("proxy", request), NAMESPACE, lightkube_client
         )
-        # Using the first item of the list of poddefault_resource. It is a one item list.
-        lightkube_client.create(poddefault_resource[0], namespace=NAMESPACE)
 
+
+@pytest.fixture(scope="function")
+def create_poddefault_on_toleration(request, lightkube_client):
+    """Create PodDefault with toleration for workload pods created by GPU tests."""
+    # Simply yield if the proxy flag is not set
+    if not request.config.getoption("toleration"):
         yield
-
-        # delete the PodDefault at the end of the module tests
-        log.info("Deleting PodDefault...")
-        poddefault_resource = codecs.load_all_yaml(
-            PODDEFAULT_WITH_PROXY_PATH.read_text(),
-            context=proxy_context(request),
+    else:
+        yield from create_poddefault(
+            PODDEFAULT_WITH_TOLERATION_PATH,
+            context_from("toleration", request),
+            NAMESPACE,
+            lightkube_client,
         )
-        poddefault_name = poddefault_resource[0].metadata.name
-        lightkube_client.delete(PODDEFAULT_RESOURCE, name=poddefault_name, namespace=NAMESPACE)
 
 
 @pytest.mark.dependency()
@@ -191,7 +193,8 @@ def test_kubeflow_workloads(
     pytest_cmd,
     tests_checked_out_commit,
     request,
-    create_poddefaults_on_proxy,
+    create_poddefault_on_proxy,
+    create_poddefault_on_toleration,
 ):
     """Run a K8s Job to execute the notebook tests."""
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
@@ -223,12 +226,3 @@ def test_kubeflow_workloads(
     finally:
         log.info("Fetching Job logs...")
         fetch_job_logs(JOB_NAME, NAMESPACE, TESTS_LOCAL_RUN)
-
-
-def proxy_context(request) -> Dict[str, str]:
-    """Return a dictionary with proxy environment variables from user input."""
-    proxy_context = {}
-    for proxy in request.config.getoption("proxy"):
-        key, value = proxy.split("=")
-        proxy_context[key] = value
-    return proxy_context

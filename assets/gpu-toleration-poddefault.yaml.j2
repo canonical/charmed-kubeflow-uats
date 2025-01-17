@@ -1,0 +1,38 @@
+apiVersion: kubeflow.org/v1alpha1
+kind: PodDefault
+metadata:
+  name: gpu-toleration
+spec:
+  desc: Add toleration to pods with label enable-gpu = 'true' in order to enable GPU access.
+  tolerations:
+    -
+      {% if key %}
+      key: {{ key }}
+      {% endif %}
+      {% if operator %} 
+      operator: {{ operator }}
+      {% endif %}
+      {% if value %} 
+      value: {{ value }}
+      {% endif %}
+      {% if effect %} 
+      effect: {{ effect }}
+      {% endif %}
+      {% if seconds %} 
+      tolerationSeconds: {{ seconds }}
+      {% endif %}
+  _example_toleration:
+    ################################
+    #                              #
+    #    EXAMPLE CONFIGURATION     #
+    #                              #
+    ################################
+    # This just serves as an example for how to configure the values of a toleration
+    # In order to ensure the toleration is valid, please consult Kubernetes documentation
+    # https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling
+    - key: "MyKey"
+      operator: "Exists"
+      effect: "NoSchedule"
+  selector:
+    matchLabels:
+      enable-gpu: "true"

@@ -24,7 +24,9 @@ found in the [Run the tests](#run-the-tests) section.
       * [A subset of UATs](#run-a-subset-of-uats)
       * [Kubeflow UATs](#run-kubeflow-uats)
       * [MLflow UATs](#run-mlflow-uats)
-      * [Include NVIDIA GPU UATs](#include-nvidia-gpu-uats)
+   * [NVIDIA GPU UAT](#nvidia-gpu-uat)
+      * [From inside a notebook](#run-nvidia-gpu-uat-from-inside-a-notebook)
+      * [Using the `driver`](#run-nvidia-gpu-uat-using-the-driver)
    * [Behind proxy](#run-behind-proxy)
       * [Prerequisites for KServe UATs](#prerequisites-for-kserve-uats)
       * [From inside a notebook](#running-using-notebook)
@@ -72,7 +74,7 @@ NOTE: Depending on the version of Charmed Kubeflow you want to test, make sure t
    * Navigate to `Advanced options` > `Configurations`
    * Select all available configurations in order for Kubeflow integrations to work as expected
    * Launch the Notebook and wait for it to be created
-* Start a new terminal session and clone this repo locally:
+* From inside the Notebook, start a new terminal session and clone this repo locally:
 
    ```bash
    git clone https://github.com/canonical/charmed-kubeflow-uats.git
@@ -82,8 +84,9 @@ NOTE: Depending on the version of Charmed Kubeflow you want to test, make sure t
    ```bash
    cd charmed-kubeflow-uats/tests
    ```
-* Follow the instructions of the provided [README.md](tests/README.md) to execute the test suite
-  with `pytest`
+* There are two options here:
+   1. Follow the instructions of the provided [README.md](tests/README.md) to execute the test suite with `pytest`
+   2. For each `.ipynb` test file of interest, open it and run the Notebook.
 
 ### Running from a configured management environment using the `driver`
 
@@ -171,7 +174,30 @@ tox -e mlflow-remote
 tox -e mlflow-local
 ```
 
-#### Include NVIDIA GPU UATs
+### NVIDIA GPU UAT
+
+#### Run NVIDIA GPU UAT from inside a notebook
+
+##### Prerequisites
+If a [taint](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) is used to prevent scheduling unintended workload to GPU nodes, a toleration is needed in order to enable GPU tests to schedule workloads. To ensure that pods created by GPU tests have the proper toleration:
+1. Edit the [PodDefault](./assets/gpu-toleration-poddefault.yaml.j2) to replace the placeholder under `tolerations` with your own toleration e.g.
+```
+  tolerations:
+    - key: "MyKey"
+      value: "gpu"
+      effect: "NoSchedule"
+```
+2. Apply the PodDefault to the namespace where you 'll be running the tests in.
+   ```
+   kubectl apply -f ./assets/gpu-toleration-poddefault.yaml.j2 -n <your_namespace>
+   ```
+
+If no taint is used, there are no prerequisites.
+
+##### Steps
+In order to run the NVIDIA GPU UAT from inside a notebook, follow the same steps described in the [From inside a notebook](#running-inside-a-notebook) section above.
+
+#### Run NVIDIA GPU UAT using the driver
 
 By default, [GPU UATs](./tests/notebooks/gpu/) are not included in any of the `tox` environments since they require a cluster with a GPU. In order to include those, use the `--include-gpu-tests` flag, e.g.
 
@@ -183,6 +209,23 @@ tox -e uats-remote -- --include-gpu-tests --filter "kfp"
 ```
 
 As shown in the example above, tests under the `gpu` directory follow the same filters with the rest of the tests.
+
+##### Taints and tolerations
+
+If a [taint](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) is used to prevent scheduling unintended workload to GPU nodes, a toleration is needed in order to enable GPU tests to schedule workloads. This is achieved via the `--toleration` argument which enables passing the sub-arguments `key, operator, value, effect, seconds`. For example:
+
+```bash
+#  Here's an example taint the GPU node may have
+#  taints:
+#     effect: NoSchedule
+#     key: MyKey
+#     value: MyValue
+
+tox -e uats-remote -- --include-gpu-tests --toleration key="MyKey" value="MyValue" effect="NoSchedule"
+```
+
+The driver will populate the [PodDefault](./assets/gpu-toleration-poddefault.yaml.j2) with the passed toleration values and apply it, ensuring that the toleration is added to workload pods requiring a GPU. Since most fields are optional, make sure that the toleration passed is a valid one by consulting relevant [Kubernetes docs](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling).
+
 
 ### Run behind proxy
 
@@ -257,26 +300,9 @@ To run the tests behind proxy using Notebook:
    ```
    microk8s kubectl apply -f ./tests/proxy-poddefault.yaml -n <your_namespace>
    ```
-3. Create a Notebook and from the `Advanced Options > Configurations` select `Add proxy settings`,
-   then click `Launch` to start the Notebook.
-   Wait for the Notebook to be Ready, then Connect to it.
-4. From inside the Notebook, start a new terminal session and clone this repo:
-
-   ```bash
-   git clone https://github.com/canonical/charmed-kubeflow-uats.git
-   ```
-   Open the `charmed-kubeflow-uats/tests` directory and for each `.ipynb` test file there, open it
-   and run the Notebook.
+3. Continue as described in the [Running inside a Notebook](#running-inside-a-notebook) section above.
    
-   Currently, the following tests are supported to run behind proxy:
-   * e2e-wine
-   * katib
-   * kfp_v2
-   * kserve
-   * mlflow
-   * mlflow-kserve
-   * mlflow-minio
-   * training
+   Currently, all tests are supported to run behind proxy except kfp-v1.
 
 #### Running using `driver`
 

@@ -13,6 +13,8 @@ def pytest_addoption(parser: Parser):
       https://docs.pytest.org/en/7.4.x/reference/reference.html#command-line-flags)
     * Add an `--include-gpu-tests` flag to include the tests under the `gpu` directory
       in the executed tests.
+    * Add a `--toleration` option that enables setting a `toleration` entry for pods
+      with the enable-gpu = 'true' label.
     """
     parser.addoption(
         "--proxy",
@@ -38,4 +40,16 @@ def pytest_addoption(parser: Parser):
         action="store_true",
         help="Defines whether to include the tests under the `gpu` directory in the executed tests."
         "By default, it is set to False.",
+    )
+    parser.addoption(
+        "--toleration",
+        nargs="+",
+        help="Set a number of key-value pairs for the toleration needed to access a GPU node. With the"
+        " use of a PodDefault, the toleration is set to pods that have the label enable-gpu='true'."
+        " Example:"
+        " --toleration key='key1' operator='Equal' value='value1' effect='NoSchedule' seconds='3600'."
+        " Since most fields are optional, ensure that that the toleration passed is a valid one by"
+        " consulting relevant Kubernetes docs:\n"
+        " https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling.",
+        action="store",
     )
