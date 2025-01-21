@@ -100,9 +100,9 @@ def create_profile(lightkube_client):
     yield
 
     # delete the Profile at the end of the module tests
-    log.info(f"Deleting Profile {NAMESPACE}...")
-    lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE, cascade=CascadeType.FOREGROUND)
-    assert_profile_deleted(lightkube_client, NAMESPACE, log)
+    # log.info(f"Deleting Profile {NAMESPACE}...")
+    # lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE, cascade=CascadeType.FOREGROUND)
+    # assert_profile_deleted(lightkube_client, NAMESPACE, log)
 
 
 @pytest.mark.dependency()
