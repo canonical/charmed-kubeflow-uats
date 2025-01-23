@@ -1,6 +1,7 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import pytest
 from _pytest.config.argparsing import Parser
 
 
@@ -52,4 +53,9 @@ def pytest_addoption(parser: Parser):
         " consulting relevant Kubernetes docs:\n"
         " https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling.",
         action="store",
+    )
+    parser.addoption(
+        "--kubeflow-model",
+        default="kubeflow",
+        help="Provide the name of the namespace/juju model where kubeflow is deployed.",
     )

@@ -3,6 +3,7 @@
 
 import logging
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
@@ -15,6 +16,7 @@ from lightkube.generic_resource import (
     load_in_cluster_generic_resources,
 )
 from lightkube.types import CascadeType
+from pytest_operator.plugin import ops_test
 from utils import (
     assert_namespace_active,
     assert_poddefault_created_in_namespace,
@@ -59,6 +61,8 @@ PODDEFAULT_WITH_TOLERATION_PATH = Path("assets") / "gpu-toleration-poddefault.ya
 
 KFP_PODDEFAULT_NAME = "access-ml-pipeline"
 
+CHARMS = {"kubeflow-dashboard": "1.8/.*"}
+
 
 @pytest.fixture(scope="session")
 def pytest_filter(request):
@@ -71,6 +75,13 @@ def pytest_filter(request):
 def include_gpu_tests(request):
     """Retrieve the `--include-gpu-tests` flag from Pytest invocation."""
     return True if request.config.getoption("--include-gpu-tests") else False
+
+
+@pytest.fixture(scope="session")
+def kubeflow_model(request, ops_test):
+    """Retrieve name of the model where Kubeflow is deployed."""
+    model_name = request.config.getoption("--kubeflow-model")
+    return model_name if model_name else ops_test.model.name
 
 
 @pytest.fixture(scope="session")
@@ -145,6 +156,25 @@ def create_poddefault_on_toleration(request, lightkube_client):
             NAMESPACE,
             lightkube_client,
         )
+
+
+async def test_bundle_correctness(ops_test, kubeflow_model):
+
+    model = await ops_test.track_model("kubeflow", model_name=kubeflow_model, use_existing=True)
+    status = await model.get_status()
+
+    # Check that the version is the one expected by this set of tests
+    for name, channel_regex in CHARMS.items():
+        assert re.compile(channel_regex).match(status["applications"][name]["charm-channel"])
+
+    # Check that everything is active/idle
+    await ops_test.model.wait_for_idle(
+        apps=list(status["applications"]),
+        timeout=3600,
+        idle_period=30,
+        status="active",
+        raise_on_error=True,
+    )
 
 
 @pytest.mark.dependency()
