@@ -158,6 +158,7 @@ def create_poddefault_on_toleration(request, lightkube_client):
         )
 
 
+@pytest.mark.abort_on_fail
 async def test_bundle_correctness(ops_test, kubeflow_model):
 
     model = await ops_test.track_model("kubeflow", model_name=kubeflow_model, use_existing=True)
