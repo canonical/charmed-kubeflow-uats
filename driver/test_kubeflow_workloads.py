@@ -61,37 +61,62 @@ PODDEFAULT_WITH_TOLERATION_PATH = Path("assets") / "gpu-toleration-poddefault.ya
 
 KFP_PODDEFAULT_NAME = "access-ml-pipeline"
 
-CHARMS = {"kubeflow-dashboard": "1.8/.*"}
+CHARMS = {
+    "admission-webhook"          : "1.8/.*",
+    "jupyter-controller"         : "1.8/.*",
+    "jupyter-ui"                 : "1.8/.*",
+    "katib-controller"           : "0.16/.*",
+    "katib-db-manager"           : "0.16/.*",
+    "katib-ui"                   : "0.16/.*",
+    "kfp-api"                    : "2.0/.*",
+    "kfp-metadata-writer"        : "2.0/.*",
+    "kfp-persistence"            : "2.0/.*",
+    "kfp-profile-controller"     : "2.0/.*",
+    "kfp-schedwf"                : "2.0/.*",
+    "kfp-ui"                     : "2.0/.*",
+    "kfp-viewer"                 : "2.0/.*",
+    "kfp-viz"                    : "2.0/.*",
+    "knative-eventing"           : "1.10/.*",
+    "knative-operator"           : "1.10/.*",
+    "knative-serving"            : "1.10/.*",
+    "kubeflow-dashboard"         : "1.8/.*",
+    "kubeflow-profiles"          : "1.8/.*",
+    "kubeflow-roles"             : "1.8/.*",
+    "kubeflow-volumes"           : "1.8/.*",
+    "pvcviewer-operator"         : "1.8/.*",
+    "tensorboard-controller"     : "1.8/.*",
+    "tensorboards-web-app"       : "1.8/.*",
+}
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def pytest_filter(request):
     """Retrieve filter from Pytest invocation."""
     filter = request.config.getoption("filter")
     return f"-k '{filter}'" if filter else ""
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def include_gpu_tests(request):
     """Retrieve the `--include-gpu-tests` flag from Pytest invocation."""
     return True if request.config.getoption("--include-gpu-tests") else False
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def kubeflow_model(request, ops_test):
     """Retrieve name of the model where Kubeflow is deployed."""
     model_name = request.config.getoption("--kubeflow-model")
     return model_name if model_name else ops_test.model.name
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def tests_checked_out_commit(request):
     """Retrieve active git commit."""
     head = subprocess.check_output(["git", "rev-parse", "HEAD"])
     return head.decode("UTF-8").rstrip()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def pytest_cmd(pytest_filter, include_gpu_tests):
     """Format the Pytest command."""
     cmd = PYTEST_CMD_BASE
