@@ -16,7 +16,6 @@ from lightkube.generic_resource import (
     load_in_cluster_generic_resources,
 )
 from lightkube.types import CascadeType
-from pytest_operator.plugin import ops_test
 from utils import (
     assert_namespace_active,
     assert_poddefault_created_in_namespace,
