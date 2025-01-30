@@ -9,6 +9,8 @@ import time
 from pathlib import Path
 
 import pytest
+import requests
+import yaml
 from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import (
     create_global_resource,
@@ -60,32 +62,20 @@ PODDEFAULT_WITH_TOLERATION_PATH = Path("assets") / "gpu-toleration-poddefault.ya
 
 KFP_PODDEFAULT_NAME = "access-ml-pipeline"
 
-CHARMS = {
-    "admission-webhook": "1.9/.*",
-    "jupyter-controller": "1.9/.*",
-    "jupyter-ui": "1.9/.*",
-    "katib-controller": "0.17/.*",
-    "katib-db-manager": "0.17/.*",
-    "katib-ui": "0.17/.*",
-    "kfp-api": "2.3/.*",
-    "kfp-metadata-writer": "2.3/.*",
-    "kfp-persistence": "2.3/.*",
-    "kfp-profile-controller": "2.3/.*",
-    "kfp-schedwf": "2.3/.*",
-    "kfp-ui": "2.3/.*",
-    "kfp-viewer": "2.3/.*",
-    "kfp-viz": "2.3/.*",
-    "knative-eventing": "1.12/.*",
-    "knative-operator": "1.12/.*",
-    "knative-serving": "1.12/.*",
-    "kubeflow-dashboard": "1.9/.*",
-    "kubeflow-profiles": "1.9/.*",
-    "kubeflow-roles": "1.9/.*",
-    "kubeflow-volumes": "1.9/.*",
-    "pvcviewer-operator": "1.9/.*",
-    "tensorboard-controller": "1.9/.*",
-    "tensorboards-web-app": "1.9/.*",
-}
+BUNDLE_URL = "https://raw.githubusercontent.com/canonical/bundle-kubeflow/refs/heads/main/releases/1.9/stable/bundle.yaml"
+
+
+@pytest.fixture(scope="module")
+def charm_list(tmp_path):
+    if not (response := requests.get(BUNDLE_URL)) or (response.status_code != 200):
+        return {}
+
+    bundle = yaml.safe_load(response.content.decode("utf-8"))
+
+    return {
+        app_name: charm["channel"].split("/")[0] + "/*"
+        for app_name, charm in bundle["applications"].items()
+    }
 
 
 @pytest.fixture(scope="module")
@@ -183,13 +173,13 @@ def create_poddefault_on_toleration(request, lightkube_client):
 
 
 @pytest.mark.abort_on_fail
-async def test_bundle_correctness(ops_test, kubeflow_model):
+async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
 
     model = await ops_test.track_model("kubeflow", model_name=kubeflow_model, use_existing=True)
     status = await model.get_status()
 
     # Check that the version is the one expected by this set of tests
-    for name, channel_regex in CHARMS.items():
+    for name, channel_regex in charm_list.items():
         assert re.compile(channel_regex).match(status["applications"][name]["charm-channel"])
 
     # Check that everything is active/idle
