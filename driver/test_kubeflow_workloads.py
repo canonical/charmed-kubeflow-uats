@@ -66,7 +66,7 @@ BUNDLE_URL = "https://raw.githubusercontent.com/canonical/bundle-kubeflow/refs/h
 
 
 @pytest.fixture(scope="module")
-def charm_list(tmp_path):
+def charm_list():
     if not (response := requests.get(BUNDLE_URL)) or (response.status_code != 200):
         return {}
 
