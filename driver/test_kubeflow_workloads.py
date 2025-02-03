@@ -3,11 +3,14 @@
 
 import logging
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
 
 import pytest
+import requests
+import yaml
 from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import (
     create_global_resource,
@@ -59,28 +62,50 @@ PODDEFAULT_WITH_TOLERATION_PATH = Path("assets") / "gpu-toleration-poddefault.ya
 
 KFP_PODDEFAULT_NAME = "access-ml-pipeline"
 
+BUNDLE_URL = "https://raw.githubusercontent.com/canonical/bundle-kubeflow/refs/heads/main/releases/1.9/stable/bundle.yaml"
 
-@pytest.fixture(scope="session")
+
+@pytest.fixture(scope="module")
+def charm_list():
+    if not (response := requests.get(BUNDLE_URL)) or (response.status_code != 200):
+        return {}
+
+    bundle = yaml.safe_load(response.content.decode("utf-8"))
+
+    return {
+        app_name: charm["channel"].split("/")[0] + "/*"
+        for app_name, charm in bundle["applications"].items()
+    }
+
+
+@pytest.fixture(scope="module")
 def pytest_filter(request):
     """Retrieve filter from Pytest invocation."""
     filter = request.config.getoption("filter")
     return f"-k '{filter}'" if filter else ""
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def include_gpu_tests(request):
     """Retrieve the `--include-gpu-tests` flag from Pytest invocation."""
     return True if request.config.getoption("--include-gpu-tests") else False
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
+def kubeflow_model(request, ops_test):
+    """Retrieve name of the model where Kubeflow is deployed."""
+    model_name = request.config.getoption("--kubeflow-model")
+    return model_name if model_name else ops_test.model.name
+
+
+@pytest.fixture(scope="module")
 def tests_checked_out_commit(request):
     """Retrieve active git commit."""
     head = subprocess.check_output(["git", "rev-parse", "HEAD"])
     return head.decode("UTF-8").rstrip()
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def pytest_cmd(pytest_filter, include_gpu_tests):
     """Format the Pytest command."""
     cmd = PYTEST_CMD_BASE
@@ -145,6 +170,26 @@ def create_poddefault_on_toleration(request, lightkube_client):
             NAMESPACE,
             lightkube_client,
         )
+
+
+@pytest.mark.abort_on_fail
+async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
+
+    model = await ops_test.track_model("kubeflow", model_name=kubeflow_model, use_existing=True)
+    status = await model.get_status()
+
+    # Check that the version is the one expected by this set of tests
+    for name, channel_regex in charm_list.items():
+        assert re.compile(channel_regex).match(status["applications"][name]["charm-channel"])
+
+    # Check that everything is active/idle
+    await ops_test.model.wait_for_idle(
+        apps=list(status["applications"]),
+        timeout=3600,
+        idle_period=30,
+        status="active",
+        raise_on_error=True,
+    )
 
 
 @pytest.mark.dependency()

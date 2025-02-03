@@ -53,3 +53,8 @@ def pytest_addoption(parser: Parser):
         " https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling.",
         action="store",
     )
+    parser.addoption(
+        "--kubeflow-model",
+        default="kubeflow",
+        help="Provide the name of the namespace/juju model where kubeflow is deployed.",
+    )
