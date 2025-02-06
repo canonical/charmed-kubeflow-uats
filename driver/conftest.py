@@ -18,3 +18,8 @@ def pytest_addoption(parser: Parser):
         " any test that doesn't contain 'kserve' in its name. Essentially, the option simulates"
         " the behaviour of running `pytest -k '<filter>'` directly on the test suite.",
     )
+    parser.addoption(
+        "--kubeflow-model",
+        default="kubeflow",
+        help="Provide the name of the namespace/juju model where kubeflow is deployed.",
+    )
