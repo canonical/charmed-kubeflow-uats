@@ -62,12 +62,12 @@ PODDEFAULT_WITH_TOLERATION_PATH = Path("assets") / "gpu-toleration-poddefault.ya
 
 KFP_PODDEFAULT_NAME = "access-ml-pipeline"
 
-BUNDLE_URL = "https://raw.githubusercontent.com/canonical/bundle-kubeflow/refs/heads/main/releases/1.9/stable/bundle.yaml"
-
 
 @pytest.fixture(scope="module")
-def charm_list():
-    if not (response := requests.get(BUNDLE_URL)) or (response.status_code != 200):
+def charm_list(request):
+    url = request.config.getoption("--bundle-url")
+
+    if not url or not (response := requests.get(url)) or (response.status_code != 200):
         return {}
 
     bundle = yaml.safe_load(response.content.decode("utf-8"))
