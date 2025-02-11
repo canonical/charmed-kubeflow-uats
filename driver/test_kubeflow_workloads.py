@@ -175,12 +175,18 @@ def create_poddefault_on_toleration(request, lightkube_client):
 @pytest.mark.abort_on_fail
 async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
 
+    if not charm_list:
+        pytest.skip("charm_list empty. Cannot test bundle correctness")
+
     model = await ops_test.track_model("kubeflow", model_name=kubeflow_model, use_existing=True)
     status = await model.get_status()
 
     # Check that the version is the one expected by this set of tests
     for name, channel_regex in charm_list.items():
-        assert re.compile(channel_regex).match(status["applications"][name]["charm-channel"])
+        app_channel = status["applications"][name]["charm-channel"]
+        assert re.compile(channel_regex).match(
+            app_channel
+        ), f"failing correctness check. Expected: {channel_regex} Found: {app_channel}"
 
     # Check that everything is active/idle
     await ops_test.model.wait_for_idle(
