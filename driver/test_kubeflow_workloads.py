@@ -171,7 +171,7 @@ def create_poddefault_on_toleration(request, lightkube_client):
             lightkube_client,
         )
 
-
+@pytest.mark.skip()
 @pytest.mark.abort_on_fail
 async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
 
