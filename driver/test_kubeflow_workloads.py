@@ -67,10 +67,22 @@ KFP_PODDEFAULT_NAME = "access-ml-pipeline"
 def charm_list(request):
     url = request.config.getoption("--bundle-url")
 
-    if not url or not (response := requests.get(url)) or (response.status_code != 200):
+    if not url:
         return {}
 
-    bundle = yaml.safe_load(response.content.decode("utf-8"))
+    if url.startswith("http"):
+        if not (response := requests.get(url)) or (response.status_code != 200):
+            logging.warning(f"Bundle file {url} could not be downloaded")
+            return {}
+
+        bundle = yaml.safe_load(response.content.decode("utf-8"))
+    else:
+        if not (filename := re.compile("^file:").sub("", url)) or not Path(filename).exists():
+            logging.warning(f"Bundle file {filename} does not exist")
+            return {}
+
+        with open(filename, "r") as fid:
+            bundle = yaml.safe_load(fid)
 
     return {
         app_name: charm["channel"].split("/")[0] + "/*"
