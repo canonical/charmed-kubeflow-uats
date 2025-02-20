@@ -65,8 +65,14 @@ As mentioned before, when it comes to running the tests, you've got 2 options:
 * Running the tests on an existing cluster using the `driver` along with the provided automation
 
 NOTE: Depending on the version of Charmed Kubeflow you want to test, make sure to checkout to the appropriate branch with `git checkout`:
+- Charmed Kubeflow 1.9 -> `track/1.9`
 - Charmed Kubeflow 1.8 -> `track/1.8`
 - Charmed Kubeflow 1.7 -> `track/1.7`
+
+As part of the tests, the UATs checks that the version of the applications are the ones expected for the various tracks. The different branches
+above points to a different bundle URL from the [bundle-kubeflow](https://github.com/canonical/bundle-kubeflow) repository to compare the 
+channel in the deployment being tested. `main` branch also provides ability to specify the URL of the bundle to be used to checking by providing
+the `--bundle-url` argument for the tox entrypoints.
 
 ### Running inside a Notebook
 
@@ -147,6 +153,17 @@ tox -e uats-local -- --filter "kfp or katib"
 This simulates the behaviour of running `pytest -k "some filter"` directly on the test suite.
 You can read more about the options provided by Pytest in the corresponding section of the
 [documentation](https://docs.pytest.org/en/7.4.x/reference/reference.html#command-line-flags).
+
+#### Specify a different bundle url
+
+To provide a different bundle URL to be used to check that the deployment has the correct channel version, 
+use the `--bundle-url` flag, e.g.
+
+```bash
+tox -e uats-remote -- --bundle-url <my-bundle-url>
+```
+
+This flag is currently only provided on main branches. 
 
 #### Run Kubeflow UATs
 
