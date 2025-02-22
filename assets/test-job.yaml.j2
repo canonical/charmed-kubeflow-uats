@@ -41,6 +41,17 @@ spec:
               # Kill Istio Sidecar after workload completes to have the Job status properly updated
               # https://github.com/istio/istio/issues/6324
               x=$(echo $?);
+              
+              echo "=============="
+              echo "Notebooks logs"
+              echo "=============="
+              FILES=$(find . -name "nb.log")
+              for FILE in $FILES;
+              do 
+                echo "==> File: $FILE"
+                cat $FILE
+              done
+              
               curl -fsI -X POST http://localhost:15020/quitquitquit >/dev/null && exit $x;
           volumeMounts:
             - name: test-volume
