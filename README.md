@@ -22,6 +22,7 @@ found in the [Run the tests](#run-the-tests) section.
       * [Using a remote commit](#run-tests-from-a-remote-commit)
       * [Using a local copy](#run-tests-from-local-copy)
       * [A subset of UATs](#run-a-subset-of-uats)
+      * [Specify a different bundle url](#specify-a-different-bundle-url)
       * [Kubeflow UATs](#run-kubeflow-uats)
       * [MLflow UATs](#run-mlflow-uats)
    * [NVIDIA GPU UAT](#nvidia-gpu-uat)
@@ -68,6 +69,7 @@ NOTE: Depending on the version of Charmed Kubeflow you want to test, make sure t
 - Charmed Kubeflow 1.9 -> `track/1.9`
 - Charmed Kubeflow 1.8 -> `track/1.8`
 - Charmed Kubeflow 1.7 -> `track/1.7`
+`main` branch is generally used for testing against the `latest/edge` track of the bundle.   
 
 As part of the tests, the UATs checks that the version of the applications are the ones expected for the various tracks. The different branches
 above point to a different bundle URL from the [bundle-kubeflow](https://github.com/canonical/bundle-kubeflow) repository to compare the 
@@ -156,14 +158,16 @@ You can read more about the options provided by Pytest in the corresponding sect
 
 #### Specify a different bundle url
 
-To provide a different bundle URL to be used to check that the deployment has the correct channel version, 
+To provide a different bundle to be used to check that the deployment has the correct channel version, 
 use the `--bundle-url` flag, e.g.
 
 ```bash
-tox -e uats-remote -- --bundle-url <my-bundle-url>
+tox -e uats-remote -- --bundle <my-bundle>
 ```
 
-This flag is currently only provided on main branches. 
+The `<my-bundle>` can be replaced by either a URL, e.g. `http://...`, or a local file, `file:/path/to/file`. Note that the local file path must be accessible when running the tests. 
+
+This flag is currently only provided on main branch and tracks 1.9+. 
 
 #### Run Kubeflow UATs
 

@@ -65,7 +65,7 @@ KFP_PODDEFAULT_NAME = "access-ml-pipeline"
 
 @pytest.fixture(scope="module")
 def charm_list(request):
-    url = request.config.getoption("--bundle-url")
+    url = request.config.getoption("--bundle")
 
     if not url:
         return {}
@@ -186,6 +186,13 @@ def create_poddefault_on_toleration(request, lightkube_client):
 
 @pytest.mark.abort_on_fail
 async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
+    """Test that the correct bundle is selected.
+
+    Tests are specific to each Charmed Kubeflow version release. This test makes sure that
+    the correct version of the bundle, consistent with the tests, is specified. In order to
+    check the correctness, we use a YAML bundle that is pulled from the correct URL in the
+    bundle-kubeflow repository. This value can be overridden using the `--bundle` argument. 
+    """
 
     if not charm_list:
         pytest.skip("charm_list empty. Cannot test bundle correctness")
