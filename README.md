@@ -70,8 +70,8 @@ NOTE: Depending on the version of Charmed Kubeflow you want to test, make sure t
 - Charmed Kubeflow 1.7 -> `track/1.7`
 
 As part of the tests, the UATs checks that the version of the applications are the ones expected for the various tracks. The different branches
-above points to a different bundle URL from the [bundle-kubeflow](https://github.com/canonical/bundle-kubeflow) repository to compare the 
-channel in the deployment being tested. `main` branch also provides ability to specify the URL of the bundle to be used to checking by providing
+above point to a different bundle URL from the [bundle-kubeflow](https://github.com/canonical/bundle-kubeflow) repository to compare the 
+channels in the deployment being tested. `main` branch also provides ability to specify the URL of the bundle to be used for checking by providing
 the `--bundle-url` argument for the tox entrypoints.
 
 ### Running inside a Notebook
