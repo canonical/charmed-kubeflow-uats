@@ -191,7 +191,7 @@ async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
     Tests are specific to each Charmed Kubeflow version release. This test makes sure that
     the correct version of the bundle, consistent with the tests, is specified. In order to
     check the correctness, we use a YAML bundle that is pulled from the correct URL in the
-    bundle-kubeflow repository. This value can be overridden using the `--bundle` argument. 
+    bundle-kubeflow repository. This value can be overridden using the `--bundle` argument.
     """
 
     if not charm_list:
