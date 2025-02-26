@@ -62,15 +62,27 @@ PODDEFAULT_WITH_TOLERATION_PATH = Path("assets") / "gpu-toleration-poddefault.ya
 
 KFP_PODDEFAULT_NAME = "access-ml-pipeline"
 
-BUNDLE_URL = "https://raw.githubusercontent.com/canonical/bundle-kubeflow/refs/heads/main/releases/1.9/stable/bundle.yaml"
-
 
 @pytest.fixture(scope="module")
-def charm_list():
-    if not (response := requests.get(BUNDLE_URL)) or (response.status_code != 200):
+def charm_list(request):
+    url = request.config.getoption("--bundle")
+
+    if not url:
         return {}
 
-    bundle = yaml.safe_load(response.content.decode("utf-8"))
+    if url.startswith("http"):
+        if not (response := requests.get(url)) or (response.status_code != 200):
+            logging.warning(f"Bundle file {url} could not be downloaded")
+            return {}
+
+        bundle = yaml.safe_load(response.content.decode("utf-8"))
+    else:
+        if not (filename := re.compile("^file:").sub("", url)) or not Path(filename).exists():
+            logging.warning(f"Bundle file {filename} does not exist")
+            return {}
+
+        with open(filename, "r") as fid:
+            bundle = yaml.safe_load(fid)
 
     return {
         app_name: charm["channel"].split("/")[0] + "/*"
@@ -174,13 +186,26 @@ def create_poddefault_on_toleration(request, lightkube_client):
 
 @pytest.mark.abort_on_fail
 async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
+    """Test that the correct bundle is selected.
+
+    Tests are specific to each Charmed Kubeflow version release. This test makes sure that
+    the correct version of the bundle, consistent with the tests, is specified. In order to
+    check the correctness, we use a YAML bundle that is pulled from the correct URL in the
+    bundle-kubeflow repository. This value can be overridden using the `--bundle` argument.
+    """
+
+    if not charm_list:
+        pytest.skip("charm_list empty. Cannot test bundle correctness")
 
     model = await ops_test.track_model("kubeflow", model_name=kubeflow_model, use_existing=True)
     status = await model.get_status()
 
     # Check that the version is the one expected by this set of tests
     for name, channel_regex in charm_list.items():
-        assert re.compile(channel_regex).match(status["applications"][name]["charm-channel"])
+        app_channel = status["applications"][name]["charm-channel"]
+        assert re.compile(channel_regex).match(
+            app_channel
+        ), f"Failed bundle correctness check. Expected: {channel_regex} Found: {app_channel}"
 
     # Check that everything is active/idle
     await ops_test.model.wait_for_idle(
