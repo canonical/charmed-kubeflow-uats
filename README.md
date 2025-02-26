@@ -72,9 +72,9 @@ NOTE: Depending on the version of Charmed Kubeflow you want to test, make sure t
 `main` branch is generally used for testing against the `latest/edge` track of the bundle.   
 
 As part of the tests, the UATs checks that the version of the applications are the ones expected for the various tracks. The different branches
-above point to a different bundle URL from the [bundle-kubeflow](https://github.com/canonical/bundle-kubeflow) repository to compare the 
-channels in the deployment being tested. `main` branch also provides ability to specify the URL of the bundle to be used for checking by providing
-the `--bundle-url` argument for the tox entrypoints.
+above point to a different bundle from the [bundle-kubeflow](https://github.com/canonical/bundle-kubeflow) repository to compare the 
+channels in the deployment being tested. `main` branch also provides ability to specify the of the bundle to be used for checking by providing
+the `--bundle` argument for the tox entrypoints.
 
 ### Running inside a Notebook
 
