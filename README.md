@@ -69,6 +69,7 @@ NOTE: Depending on the version of Charmed Kubeflow you want to test, make sure t
 - Charmed Kubeflow 1.9 -> `track/1.9`
 - Charmed Kubeflow 1.8 -> `track/1.8`
 - Charmed Kubeflow 1.7 -> `track/1.7`
+
 `main` branch is generally used for testing against the `latest/edge` track of the bundle.   
 
 As part of the tests, the UATs checks that the version of the applications are the ones expected for the various tracks. The different branches
