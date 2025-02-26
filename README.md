@@ -159,7 +159,7 @@ You can read more about the options provided by Pytest in the corresponding sect
 #### Specify a different bundle url
 
 To provide a different bundle to be used to check that the deployment has the correct channel version, 
-use the `--bundle-url` flag, e.g.
+use the `--bundle` flag, e.g.
 
 ```bash
 tox -e uats-remote -- --bundle <my-bundle>
