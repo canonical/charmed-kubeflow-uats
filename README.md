@@ -156,7 +156,7 @@ This simulates the behaviour of running `pytest -k "some filter"` directly on th
 You can read more about the options provided by Pytest in the corresponding section of the
 [documentation](https://docs.pytest.org/en/7.4.x/reference/reference.html#command-line-flags).
 
-#### Specify a different bundle url
+#### Specify a different bundle
 
 To provide a different bundle to be used to check that the deployment has the correct channel version, 
 use the `--bundle` flag, e.g.
