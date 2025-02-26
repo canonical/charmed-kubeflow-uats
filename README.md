@@ -22,7 +22,7 @@ found in the [Run the tests](#run-the-tests) section.
       * [Using a remote commit](#run-tests-from-a-remote-commit)
       * [Using a local copy](#run-tests-from-local-copy)
       * [A subset of UATs](#run-a-subset-of-uats)
-      * [Specify a different bundle url](#specify-a-different-bundle-url)
+      * [Specify a different bundle](#specify-a-different-bundle)
       * [Kubeflow UATs](#run-kubeflow-uats)
       * [MLflow UATs](#run-mlflow-uats)
    * [NVIDIA GPU UAT](#nvidia-gpu-uat)
