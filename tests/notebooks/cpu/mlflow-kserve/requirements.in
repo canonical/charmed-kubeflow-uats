@@ -9,5 +9,5 @@ requests
 scikit-learn
 tenacity
 # Pinning for kserve sdk in 1.9
-kserve==0.13.1
+kserve==0.14.1
 kubernetes
