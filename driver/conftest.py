@@ -5,6 +5,7 @@ from _pytest.config.argparsing import Parser
 
 BUNDLE_URL = "https://raw.githubusercontent.com/canonical/bundle-kubeflow/refs/heads/main/releases/1.9/stable/bundle.yaml"
 
+
 def pytest_addoption(parser: Parser):
     """Add pytest options.
 
