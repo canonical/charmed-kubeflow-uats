@@ -59,6 +59,8 @@ fail. For instructions on deploying MLflow you can start with [this
 guide](https://documentation.ubuntu.com/charmed-mlflow/en/latest/tutorial/mlflow-kubeflow/),
 ignoring the EKS specific steps.
 
+The tests are orchestrated by tox, that needs to be installed on the system. Tox will in turn run the `pytest` script that is stored in the `driver` folder. `tox` will be taking care of creating the python environment needed to run the driver scripts. However the scripts also depends on `pytest-operator`, which requires `juju` and `charmcraft` to be installed as well. Please refer to their respective documentation for more details on how to install these tools on various environments, i.e. the [how to manage Juju](https://canonical-juju.readthedocs-hosted.com/en/3.6/user/howto/manage-juju/) and the [setup charmcraft](https://canonical-charmcraft.readthedocs-hosted.com/en/stable/howto/set-up-charmcraft/) user guides.
+
 ## Run the tests
 
 As mentioned before, when it comes to running the tests, you've got 2 options:
