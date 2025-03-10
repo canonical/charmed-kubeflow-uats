@@ -1,3 +1,2 @@
-# Pinning to 1.6.0 because of the breaking change with the imports in 1.7.0 https://github.com/canonical/charmed-kubeflow-uats/issues/84
-kubeflow-training==1.6.0
+kubeflow-training==1.9.0
 tenacity
