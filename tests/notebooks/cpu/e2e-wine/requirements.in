@@ -1,4 +1,5 @@
 boto3
+# pin the highest kfp version
 kfp==2.12.1
 # pin to <7.0 to avoid breaking changes in sdk
 minio<7.0

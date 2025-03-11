@@ -1,2 +1,3 @@
-kfp>=2.4,<3.0
+# pin the highest kfp version
+kfp==2.12.1
 tenacity
