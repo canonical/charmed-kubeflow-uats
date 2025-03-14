@@ -111,7 +111,7 @@ To run the tests, Python >=3.10 and Tox must be installed on your system. You ca
 ```bash
 sudo add-apt-repository ppa:deadsnakes/ppa -y
 sudo apt update -y
-sudo apt install python3.10 python3.10-distutils python3.8-venv -y
+sudo apt install python3.10 python3.10-distutils -y
 ```
 
 First, create a virtual environment with Python 3.10 and install Tox:
