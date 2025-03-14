@@ -56,8 +56,16 @@ start with [this guide](https://charmed-kubeflow.io/docs/get-started-with-charme
 
 The UATs include tests that assume MLflow is installed alongside Kubeflow, which will otherwise
 fail. For instructions on deploying MLflow you can start with [this
-guide](https://documentation.ubuntu.com/charmed-mlflow/en/latest/tutorial/mlflow-kubeflow/),
-ignoring the EKS specific steps.
+guide](https://documentation.ubuntu.com/charmed-mlflow/en/latest/tutorial/mlflow-kubeflow/)].
+
+When running tests using the driver (see [Using the `driver` ](#running-from-a-configured-management-environment-using-the-driver)), the following are required:
+
+- Python >=3.10
+- Tox
+- Juju (required by `pytest-operator`)
+- charmcraft (required by `pytest-operator`)
+
+Please refer to the respective documentation for more details on how to install these tools on various environments, i.e. the [how to manage Juju](https://canonical-juju.readthedocs-hosted.com/en/latest/user/howto/manage-juju/) and the [setup charmcraft](https://canonical-charmcraft.readthedocs-hosted.com/en/stable/howto/set-up-charmcraft/) user guides.
 
 ## Run the tests
 
@@ -70,12 +78,11 @@ NOTE: Depending on the version of Charmed Kubeflow you want to test, make sure t
 - Charmed Kubeflow 1.8 -> `track/1.8`
 - Charmed Kubeflow 1.7 -> `track/1.7`
 
-`main` branch is generally used for testing against the `latest/edge` track of the bundle.   
+The `main` branch is generally used for testing against the `latest/edge` track of the bundle.   
 
 As part of the tests, the UATs checks that the version of the applications are the ones expected for the various tracks. The different branches
 above point to a different bundle from the [bundle-kubeflow](https://github.com/canonical/bundle-kubeflow) repository to compare the 
-channels in the deployment being tested. `main` branch also provides ability to specify the of the bundle to be used for checking by providing
-the `--bundle` argument for the tox entrypoints.
+channels in the deployment being tested. The `main` branch allows you to specify the URL of the bundle used for checking by passing the --bundle argument to the tox entrypoints.
 
 ### Running inside a Notebook
 
@@ -99,18 +106,18 @@ the `--bundle` argument for the tox entrypoints.
 
 ### Running from a configured management environment using the `driver`
 
-To run the tests, Python 3.8 and Tox must be installed on your system. If your default Python version is higher than 3.8, you can set up Python 3.8 with the following commands:
+To run the tests, Python >=3.10 and Tox must be installed on your system. You can set up Python 3.10 with the following commands:
 
 ```bash
 sudo add-apt-repository ppa:deadsnakes/ppa -y
 sudo apt update -y
-sudo apt install python3.8 python3.8-distutils python3.8-venv -y
+sudo apt install python3.10 python3.10-distutils python3.8-venv -y
 ```
 
-Next, create a virtual environment with Python 3.8 and install Tox:
+First, create a virtual environment with Python 3.10 and install Tox:
 
 ```bash
-python3.8 -m venv venv
+python3.10 -m venv venv
 source venv/bin/activate
 pip install tox
 ```
