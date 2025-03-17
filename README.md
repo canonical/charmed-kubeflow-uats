@@ -58,7 +58,7 @@ The UATs include tests that assume MLflow is installed alongside Kubeflow, which
 fail. For instructions on deploying MLflow you can start with [this
 guide](https://documentation.ubuntu.com/charmed-mlflow/en/latest/tutorial/mlflow-kubeflow/)].
 
-When running tests using the driver (see [Using the `driver` ](#running-from-a-configured-management-environment-using-the-driver)), the following are required:
+When running tests using the driver (see [Using the `driver` ](#running-from-a-configured-management-environment-using-the-driver)), the environment executing the UATs must meet the following requirements:
 
 - Python >=3.10
 - Tox
