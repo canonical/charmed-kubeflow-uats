@@ -62,8 +62,8 @@ When running tests using the driver (see [Using the `driver` ](#running-from-a-c
 
 - Python >=3.10
 - Tox
-- Juju (required by `pytest-operator`)
-- charmcraft (required by `pytest-operator`)
+- Juju >=3.6 (required by `pytest-operator`)
+- charmcraft >=3.4.3 (required by `pytest-operator`)
 
 Please refer to the respective documentation for more details on how to install these tools on various environments, i.e. the [how to manage Juju](https://canonical-juju.readthedocs-hosted.com/en/latest/user/howto/manage-juju/) and the [setup charmcraft](https://canonical-charmcraft.readthedocs-hosted.com/en/stable/howto/set-up-charmcraft/) user guides.
 
