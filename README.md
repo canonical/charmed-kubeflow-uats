@@ -106,18 +106,18 @@ channels in the deployment being tested. The `main` branch allows you to specify
 
 ### Running from a configured management environment using the `driver`
 
-To run the tests, Python >=3.10 and Tox must be installed on your system. You can set up Python 3.10 with the following commands:
+To run the tests, Python >=3.10 and Tox must be installed on your system. You can set up Python 3.12 with the following commands:
 
 ```bash
 sudo add-apt-repository ppa:deadsnakes/ppa -y
 sudo apt update -y
-sudo apt install python3.10 python3.10-distutils -y
+sudo apt install python3.12 python3.12-distutils -y
 ```
 
-First, create a virtual environment with Python 3.10 and install Tox:
+First, create a virtual environment with Python 3.12 and install Tox:
 
 ```bash
-python3.10 -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate
 pip install tox
 ```
