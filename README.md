@@ -74,9 +74,10 @@ As mentioned before, when it comes to running the tests, you've got 2 options:
 * Running the tests on an existing cluster using the `driver` along with the provided automation
 
 NOTE: Depending on the version of Charmed Kubeflow you want to test, make sure to checkout to the appropriate branch with `git checkout`:
+- Charmed Kubeflow 1.10 -> `track/1.10`
 - Charmed Kubeflow 1.9 -> `track/1.9`
 - Charmed Kubeflow 1.8 -> `track/1.8`
-- Charmed Kubeflow 1.7 -> `track/1.7`
+- Charmed Kubeflow 1.7 -> `track/1.7` (Deprecated)
 
 The `main` branch is generally used for testing against the `latest/edge` track of the bundle.   
 
