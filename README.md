@@ -283,6 +283,19 @@ juju config kserve-controller http-proxy=http://10.0.13.50:3128/ https-proxy=htt
 juju config knative-serving http-proxy=http://10.0.13.50:3128/ https-proxy=http://10.0.13.50:3128/ no-proxy=10.1.0.0/16,10.152.183.0/24,127.0.0.1,localhost,10.0.2.0/24,ip-10-0-2-157,.svc,.local
 ```
 
+A helpful set of commands to achieve this in a Microk8s deployment is:
+```shell
+HTTP_PROXY=<http-proxy>
+HTTPS_PROXY=<https-proxy>
+CLUSTER_CIDR=$(cat /var/snap/microk8s/current/args/kube-proxy | grep cluster-cidr | sed 's/^[^=]*=//')
+SERVICE_CLUSTER_IP_RANGE=$(cat /var/snap/microk8s/current/args/kube-apiserver | grep service-cluster-ip-range | sed 's/^[^=]*=//')
+NODE_INTERNAL_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+
+juju config kserve-controller http-proxy=$HTTP_PROXY https-proxy=$HTTPS_PROXY no-proxy=$CLUSTER_CIDR,$SERVICE_CLUSTER_IP_RANGE,127.0.0.1,localhost,$NODE_INTERNAL_IP/24,$HOSTNAME,.svc,.local,.kubeflow
+
+juju config knative-serving http-proxy=$HTTP_PROXY https-proxy=$HTTPS_PROXY no-proxy=$CLUSTER_CIDR,$SERVICE_CLUSTER_IP_RANGE,127.0.0.1,localhost,$NODE_INTERNAL_IP/24,$HOSTNAME,.svc,.local
+```
+
 #### Running using Notebook
 
 ##### Prerequisites
@@ -339,6 +352,11 @@ You can pass the `--proxy` flag and set the values for proxies to the tox comman
 
 ```bash
 tox -e kubeflow-<local|remote> -- --proxy http_proxy="http_proxy:port" https_proxy="https_proxy:port" no_proxy="<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local,.kubeflow"
+```
+
+Again, if the environment variables were set when configuring KServe and KNative, the following helpful command can be used in a Microk8s deployment:
+```shell
+tox -e kubeflow-<local|remote> -- --proxy http_proxy=$HTTP_PROXY https_proxy=$HTTPS_PROXY no_proxy="$CLUSTER_CIDR,$SERVICE_CLUSTER_IP_RANGE,127.0.0.1,localhost,$NODE_INTERNAL_IP/24,$HOSTNAME,.svc,.local,.kubeflow"
 ```
 
 #### Developer Notes
