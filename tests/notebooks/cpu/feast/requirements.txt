@@ -39,7 +39,7 @@ feast[postgres]==0.49.0
     # via -r requirements.in
 fsspec==2025.5.1
     # via dask
-greenlet==3.2.2
+greenlet==3.2.3
     # via sqlalchemy
 gunicorn==23.0.0
     # via
@@ -132,7 +132,7 @@ referencing==0.36.2
     # via
     #   jsonschema
     #   jsonschema-specifications
-requests==2.32.3
+requests==2.32.4
     # via feast
 rpds-py==0.25.1
     # via
@@ -190,5 +190,5 @@ watchfiles==1.0.5
     # via uvicorn
 websockets==15.0.1
     # via uvicorn
-zipp==3.22.0
+zipp==3.23.0
     # via importlib-metadata
