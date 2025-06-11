@@ -207,9 +207,9 @@ async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
             app_channel
         ), f"Failed bundle correctness check. Expected: {channel_regex} Found: {app_channel}"
 
-    # Check that everything is active/idle
+    # Check that every charm of the bundle is active/idle
     await ops_test.model.wait_for_idle(
-        apps=list(status["applications"]),
+        apps=list(charm_list),
         timeout=3600,
         idle_period=30,
         status="active",
