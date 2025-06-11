@@ -25,6 +25,7 @@ found in the [Run the tests](#run-the-tests) section.
       * [Specify a different bundle](#specify-a-different-bundle)
       * [Kubeflow UATs](#run-kubeflow-uats)
       * [MLflow UATs](#run-mlflow-uats)
+      * [Feast UATs](#run-feast-uats)
    * [NVIDIA GPU UAT](#nvidia-gpu-uat)
       * [From inside a notebook](#run-nvidia-gpu-uat-from-inside-a-notebook)
       * [Using the `driver`](#run-nvidia-gpu-uat-using-the-driver)
@@ -201,6 +202,19 @@ dedicated `mlflow` tox test environment:
 tox -e mlflow-remote
 # run tests from the local copy of the repo
 tox -e mlflow-local
+```
+
+#### Run Feast UATs
+
+In order to only run the tests that test integration with Feast, you can use the
+dedicated `feast` tox test environment:
+
+```bash
+# assumes an existing `kubeflow` Juju model
+# run tests from the checked out commit after fetching them remotely
+tox -e feast-remote
+# run tests from the local copy of the repo
+tox -e feast-local
 ```
 
 ### NVIDIA GPU UAT
