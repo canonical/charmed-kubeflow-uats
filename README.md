@@ -62,7 +62,7 @@ guide](https://documentation.ubuntu.com/charmed-mlflow/en/latest/tutorial/mlflow
 
 When running tests using the driver (see [Using the `driver` ](#running-from-a-configured-management-environment-using-the-driver)), the environment executing the UATs must meet the following requirements:
 
-- Python >=3.10
+- Python >=3.12
 - Tox
 - Juju >=3.6 (required by `pytest-operator`)
 - charmcraft >=3.4.3 (required by `pytest-operator`)
@@ -108,7 +108,7 @@ channels in the deployment being tested. The `main` branch allows you to specify
 
 ### Running from a configured management environment using the `driver`
 
-To run the tests, Python >=3.10 and Tox must be installed on your system. You can set up Python 3.12 with the following commands:
+To run the tests, Python >=3.12 and Tox must be installed on your system. You can set up Python 3.12 with the following commands:
 
 ```bash
 sudo add-apt-repository ppa:deadsnakes/ppa -y
