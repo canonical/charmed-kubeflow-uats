@@ -30,7 +30,8 @@ found in the [Run the tests](#run-the-tests) section.
       * [From inside a notebook](#run-nvidia-gpu-uat-from-inside-a-notebook)
       * [Using the `driver`](#run-nvidia-gpu-uat-using-the-driver)
    * [Behind proxy](#run-behind-proxy)
-      * [Prerequisites for KServe UATs](#prerequisites-for-kserve-uats)
+      * [Prerequisites](#prerequisites-2)
+        * [Running the KServe UATs](#running-the-kserve-uats)
       * [From inside a notebook](#running-using-notebook)
       * [Using the `driver`](#running-using-driver)
    * [Developer notes](#developer-notes)
@@ -272,36 +273,8 @@ The driver will populate the [PodDefault](./assets/gpu-toleration-poddefault.yam
 
 ### Run behind proxy
 
-#### Prerequisites for KServe UATs
-
-To be able to run UATs requiring KServe (e2e-wine, kserve, mlflow-kserve) behind proxy, first you need to configure `kserve-controller`
-and `knative-serving` charms to function behind proxy.
-
-> [!NOTE]  
-> For information on how to fill out the proxy config values, see the `Running using Notebook > Prerequisites` section below.
-
-1. Set the `http-proxy`, `https-proxy`, and `no-proxy` configs in `kserve-controller` charm
-```
-juju config kserve-controller http-proxy=<proxy_address>:<proxy_port> https-proxy=<proxy_address>:<proxy_port> no-proxy=<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local,.kubeflow
-```
-
-2. Set the `http-proxy`, `https-proxy`, and `no-proxy` configs in `knative-serving` charm
-```
-juju config knative-serving http-proxy=<proxy_address>:<proxy_port> https-proxy=<proxy_address>:<proxy_port> no-proxy=<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local
-```
-
-For Example:
-```
-juju config kserve-controller http-proxy=http://10.0.13.50:3128/ https-proxy=http://10.0.13.50:3128/ no-proxy=10.1.0.0/16,10.152.183.0/24,127.0.0.1,localhost,10.0.2.0/24,ip-10-0-2-157,.svc,.local,.kubeflow
-
-juju config knative-serving http-proxy=http://10.0.13.50:3128/ https-proxy=http://10.0.13.50:3128/ no-proxy=10.1.0.0/16,10.152.183.0/24,127.0.0.1,localhost,10.0.2.0/24,ip-10-0-2-157,.svc,.local
-```
-
-#### Running using Notebook
-
-##### Prerequisites
-
-Edit the [PodDefault](tests/proxy-poddefault.yaml.j2) to replace the placeholders for:
+#### Prerequisites
+In order to run any UAT behind a proxy, you 'll need first to define the following environment variables:
 
 * `http_proxy` and `https_proxy` - The address and port of your proxy server, format should be `<proxy_address>:<proxy_port>`
 * `no_proxy` - A comma separated list of items that should not be proxied. It is recommended to include the following:
@@ -310,24 +283,24 @@ Edit the [PodDefault](tests/proxy-poddefault.yaml.j2) to replace the placeholder
 
 where,
 
-  * `<cluster cidr>`: you can get this value by running:
+  * `<cluster cidr>`: In a Microk8s cluster, you can get this value by running:
 
-    ```
-    cat /var/snap/microk8s/current/args/kube-proxy | grep cluster-cidr
+    ```shell
+    cat /var/snap/microk8s/current/args/kube-proxy | grep cluster-cidr | sed 's/^[^=]*=//'
     ```
 
-  * `<service cluster ip range>`: you can get this value by running:
+  * `<service cluster ip range>`: In a Microk8s cluster, you can get this value by running:
 
+    ```shell
+    cat /var/snap/microk8s/current/args/kube-apiserver | grep service-cluster-ip-range | sed 's/^[^=]*=//'
     ```
-    cat /var/snap/microk8s/current/args/kube-apiserver | grep service-cluster-ip-range
-    ```
-   
-  * `<nodes internal ip(s)>`: the Internal IP of the nodes where your cluster is running, you can get this value by running:
 
+  * `<nodes internal ip(s)>`: the Internal IP of the nodes where your cluster is running. For a **single-node cluster**, you can get this value by running:
+
+    ```shell
+    kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}'
     ```
-    microk8s kubectl get nodes -o wide
-    ```
-    It is the `INTERNAL-IP` value
+    For a multi-node cluster, use is the `INTERNAL-IP` values of each node.
 
   * `<hostname>`: the name of your host on which the cluster is deployed, you can use the `hostname` command to get it
 
@@ -335,24 +308,51 @@ where,
 
   * `.kubeflow`: is needed in the `no-proxy` values to allow communication with the minio service.
 
+To get all of those together (in a Microk8s cluster), run:
+```shell
+HTTP_PROXY=<http-proxy>
+HTTPS_PROXY=<https-proxy>
+CLUSTER_CIDR=$(cat /var/snap/microk8s/current/args/kube-proxy | grep cluster-cidr | sed 's/^[^=]*=//')
+SERVICE_CLUSTER_IP_RANGE=$(cat /var/snap/microk8s/current/args/kube-apiserver | grep service-cluster-ip-range | sed 's/^[^=]*=//')
+NODE_INTERNAL_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+HOSTNAME=$(hostname)
+```
 
-To run the tests behind proxy using Notebook:
+
+##### Running the KServe UATs
+
+To be able to run UATs requiring KServe (e2e-wine, kserve, mlflow-kserve) behind proxy, first you need to configure `kserve-controller`
+and `knative-serving` charms to function behind proxy. Given that the environment variables were set during [Prerequisites](#prerequisites-2):
+
+1. Set the `http-proxy`, `https-proxy`, and `no-proxy` configs in `kserve-controller` charm
+```shell
+juju config kserve-controller http-proxy=$HTTP_PROXY https-proxy=$HTTPS_PROXY no-proxy=$CLUSTER_CIDR,$SERVICE_CLUSTER_IP_RANGE,127.0.0.1,localhost,$NODE_INTERNAL_IP/24,$HOSTNAME,.svc,.local,.kubeflow
+```
+
+2. Set the `http-proxy`, `https-proxy`, and `no-proxy` configs in `knative-serving` charm
+```shell
+juju config knative-serving http-proxy=$HTTP_PROXY https-proxy=$HTTPS_PROXY no-proxy=$CLUSTER_CIDR,$SERVICE_CLUSTER_IP_RANGE,127.0.0.1,localhost,$NODE_INTERNAL_IP/24,$HOSTNAME,.svc,.local
+```
+
+#### Running using Notebook
+
+First, edit the [PodDefault](tests/proxy-poddefault.yaml.j2) to replace the placeholders following the [Prerequisites](#prerequisites-2) section.
+
+Then, to run the tests behind proxy using Notebook:
 1. Login to the Dashboard and Create a Profile
 2. Apply the PodDefault to your Profile's namespace, make sure you already followed the Prerequisites
    section to modify the PodDefault. Apply it with:
    ```
-   microk8s kubectl apply -f ./tests/proxy-poddefault.yaml -n <your_namespace>
+   kubectl apply -f ./tests/proxy-poddefault.yaml -n <your_namespace>
    ```
 3. Continue as described in the [Running inside a Notebook](#running-inside-a-notebook) section above.
-   
-   Currently, all tests are supported to run behind proxy except kfp-v1.
 
 #### Running using `driver`
 
-You can pass the `--proxy` flag and set the values for proxies to the tox command and this should automatically apply the required changes to run behind proxy.
+You can pass the `--proxy` flag and set the values for proxies to the tox command and this should automatically apply the required changes to run behind proxy. Given that the environment variables are already set when configuring KServe and KNative:
 
-```bash
-tox -e kubeflow-<local|remote> -- --proxy http_proxy="http_proxy:port" https_proxy="https_proxy:port" no_proxy="<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local,.kubeflow"
+```shell
+tox -e kubeflow-<local|remote> -- --proxy http_proxy=$HTTP_PROXY https_proxy=$HTTPS_PROXY no_proxy="$CLUSTER_CIDR,$SERVICE_CLUSTER_IP_RANGE,127.0.0.1,localhost,$NODE_INTERNAL_IP/24,$HOSTNAME,.svc,.local,.kubeflow"
 ```
 
 #### Developer Notes
