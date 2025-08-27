@@ -46,12 +46,14 @@ going to assume programmatic access to a Kubeflow installation. Such a deploymen
 very least) of the following pieces:
 
 * A **Kubernetes cluster**, e.g.
+    * Canonical Kubernetes
     * MicroK8s
-    * Charmed Kubernetes
     * EKS cluster
     * AKS cluster
 * **Charmed Kubeflow** deployed on top of it
 * **MLflow (optional)** deployed alongside Kubeflow
+
+To run the tests on [Canonical Kubernetes](https://documentation.ubuntu.com/canonical-kubernetes/release-1.32/), we provide a `concierge.yaml` file in this repository for conveniently deploying a cluster with [concierge](https://github.com/canonical/concierge).
 
 For instructions on deploying and getting started with Charmed Kubeflow, we recommend that you
 start with [this guide](https://charmed-kubeflow.io/docs/get-started-with-charmed-kubeflow).
@@ -76,9 +78,8 @@ As mentioned before, when it comes to running the tests, you've got 2 options:
 * Running the tests on an existing cluster using the `driver` along with the provided automation
 
 NOTE: Depending on the version of Charmed Kubeflow you want to test, make sure to checkout to the appropriate branch with `git checkout`:
+- Charmed Kubeflow 1.10 -> `track/1.10`
 - Charmed Kubeflow 1.9 -> `track/1.9`
-- Charmed Kubeflow 1.8 -> `track/1.8`
-- Charmed Kubeflow 1.7 -> `track/1.7`
 
 The `main` branch is generally used for testing against the `latest/edge` track of the bundle.   
 
