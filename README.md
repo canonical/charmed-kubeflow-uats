@@ -25,11 +25,13 @@ found in the [Run the tests](#run-the-tests) section.
       * [Specify a different bundle](#specify-a-different-bundle)
       * [Kubeflow UATs](#run-kubeflow-uats)
       * [MLflow UATs](#run-mlflow-uats)
+      * [Feast UATs](#run-feast-uats)
    * [NVIDIA GPU UAT](#nvidia-gpu-uat)
       * [From inside a notebook](#run-nvidia-gpu-uat-from-inside-a-notebook)
       * [Using the `driver`](#run-nvidia-gpu-uat-using-the-driver)
    * [Behind proxy](#run-behind-proxy)
-      * [Prerequisites for KServe UATs](#prerequisites-for-kserve-uats)
+      * [Prerequisites](#prerequisites-2)
+        * [Running the KServe UATs](#running-the-kserve-uats)
       * [From inside a notebook](#running-using-notebook)
       * [Using the `driver`](#running-using-driver)
    * [Developer notes](#developer-notes)
@@ -44,20 +46,30 @@ going to assume programmatic access to a Kubeflow installation. Such a deploymen
 very least) of the following pieces:
 
 * A **Kubernetes cluster**, e.g.
+    * Canonical Kubernetes
     * MicroK8s
-    * Charmed Kubernetes
     * EKS cluster
-    * AKS cluster <!-- codespell-ignore -->
+    * AKS cluster
 * **Charmed Kubeflow** deployed on top of it
 * **MLflow (optional)** deployed alongside Kubeflow
+
+To run the tests on [Canonical Kubernetes](https://documentation.ubuntu.com/canonical-kubernetes/release-1.32/), we provide a `concierge.yaml` file in this repository for conveniently deploying a cluster with [concierge](https://github.com/canonical/concierge).
 
 For instructions on deploying and getting started with Charmed Kubeflow, we recommend that you
 start with [this guide](https://charmed-kubeflow.io/docs/get-started-with-charmed-kubeflow).
 
 The UATs include tests that assume MLflow is installed alongside Kubeflow, which will otherwise
 fail. For instructions on deploying MLflow you can start with [this
-guide](https://documentation.ubuntu.com/charmed-mlflow/en/latest/tutorial/mlflow-kubeflow/),
-ignoring the EKS specific steps.
+guide](https://documentation.ubuntu.com/charmed-mlflow/en/latest/tutorial/mlflow-kubeflow/)].
+
+When running tests using the driver (see [Using the `driver` ](#running-from-a-configured-management-environment-using-the-driver)), the environment executing the UATs must meet the following requirements:
+
+- Python >=3.12
+- Tox
+- Juju >=3.6 (required by `pytest-operator`)
+- charmcraft >=3.4.3 (required by `pytest-operator`)
+
+Please refer to the respective documentation for more details on how to install these tools on various environments, i.e. the [how to manage Juju](https://canonical-juju.readthedocs-hosted.com/en/latest/user/howto/manage-juju/) and the [setup charmcraft](https://canonical-charmcraft.readthedocs-hosted.com/en/stable/howto/set-up-charmcraft/) user guides.
 
 ## Run the tests
 
@@ -66,16 +78,14 @@ As mentioned before, when it comes to running the tests, you've got 2 options:
 * Running the tests on an existing cluster using the `driver` along with the provided automation
 
 NOTE: Depending on the version of Charmed Kubeflow you want to test, make sure to checkout to the appropriate branch with `git checkout`:
+- Charmed Kubeflow 1.10 -> `track/1.10`
 - Charmed Kubeflow 1.9 -> `track/1.9`
-- Charmed Kubeflow 1.8 -> `track/1.8`
-- Charmed Kubeflow 1.7 -> `track/1.7`
 
-`main` branch is generally used for testing against the `latest/edge` track of the bundle.   
+The `main` branch is generally used for testing against the `latest/edge` track of the bundle.   
 
 As part of the tests, the UATs checks that the version of the applications are the ones expected for the various tracks. The different branches
 above point to a different bundle from the [bundle-kubeflow](https://github.com/canonical/bundle-kubeflow) repository to compare the 
-channels in the deployment being tested. `main` branch also provides ability to specify the of the bundle to be used for checking by providing
-the `--bundle` argument for the tox entrypoints.
+channels in the deployment being tested. The `main` branch allows you to specify the URL of the bundle used for checking by passing the --bundle argument to the tox entrypoints.
 
 ### Running inside a Notebook
 
@@ -99,18 +109,18 @@ the `--bundle` argument for the tox entrypoints.
 
 ### Running from a configured management environment using the `driver`
 
-To run the tests, Python 3.8 and Tox must be installed on your system. If your default Python version is higher than 3.8, you can set up Python 3.8 with the following commands:
+To run the tests, Python >=3.12 and Tox must be installed on your system. You can set up Python 3.12 with the following commands:
 
 ```bash
 sudo add-apt-repository ppa:deadsnakes/ppa -y
 sudo apt update -y
-sudo apt install python3.8 python3.8-distutils python3.8-venv -y
+sudo apt install python3.12 -y
 ```
 
-Next, create a virtual environment with Python 3.8 and install Tox:
+First, create a virtual environment with Python 3.12 and install Tox:
 
 ```bash
-python3.8 -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate
 pip install tox
 ```
@@ -196,6 +206,19 @@ tox -e mlflow-remote
 tox -e mlflow-local
 ```
 
+#### Run Feast UATs
+
+In order to only run the tests that test integration with Feast, you can use the
+dedicated `feast` tox test environment:
+
+```bash
+# assumes an existing `kubeflow` Juju model
+# run tests from the checked out commit after fetching them remotely
+tox -e feast-remote
+# run tests from the local copy of the repo
+tox -e feast-local
+```
+
 ### NVIDIA GPU UAT
 
 #### Run NVIDIA GPU UAT from inside a notebook
@@ -251,36 +274,8 @@ The driver will populate the [PodDefault](./assets/gpu-toleration-poddefault.yam
 
 ### Run behind proxy
 
-#### Prerequisites for KServe UATs
-
-To be able to run UATs requiring KServe (e2e-wine, kserve, mlflow-kserve) behind proxy, first you need to configure `kserve-controller`
-and `knative-serving` charms to function behind proxy.
-
-> [!NOTE]  
-> For information on how to fill out the proxy config values, see the `Running using Notebook > Prerequisites` section below.
-
-1. Set the `http-proxy`, `https-proxy`, and `no-proxy` configs in `kserve-controller` charm
-```
-juju config kserve-controller http-proxy=<proxy_address>:<proxy_port> https-proxy=<proxy_address>:<proxy_port> no-proxy=<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local,.kubeflow
-```
-
-2. Set the `http-proxy`, `https-proxy`, and `no-proxy` configs in `knative-serving` charm
-```
-juju config knative-serving http-proxy=<proxy_address>:<proxy_port> https-proxy=<proxy_address>:<proxy_port> no-proxy=<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local
-```
-
-For Example:
-```
-juju config kserve-controller http-proxy=http://10.0.13.50:3128/ https-proxy=http://10.0.13.50:3128/ no-proxy=10.1.0.0/16,10.152.183.0/24,127.0.0.1,localhost,10.0.2.0/24,ip-10-0-2-157,.svc,.local,.kubeflow
-
-juju config knative-serving http-proxy=http://10.0.13.50:3128/ https-proxy=http://10.0.13.50:3128/ no-proxy=10.1.0.0/16,10.152.183.0/24,127.0.0.1,localhost,10.0.2.0/24,ip-10-0-2-157,.svc,.local
-```
-
-#### Running using Notebook
-
-##### Prerequisites
-
-Edit the [PodDefault](tests/proxy-poddefault.yaml.j2) to replace the placeholders for:
+#### Prerequisites
+In order to run any UAT behind a proxy, you 'll need first to define the following environment variables:
 
 * `http_proxy` and `https_proxy` - The address and port of your proxy server, format should be `<proxy_address>:<proxy_port>`
 * `no_proxy` - A comma separated list of items that should not be proxied. It is recommended to include the following:
@@ -289,24 +284,24 @@ Edit the [PodDefault](tests/proxy-poddefault.yaml.j2) to replace the placeholder
 
 where,
 
-  * `<cluster cidr>`: you can get this value by running:
+  * `<cluster cidr>`: In a Microk8s cluster, you can get this value by running:
 
-    ```
-    cat /var/snap/microk8s/current/args/kube-proxy | grep cluster-cidr
+    ```shell
+    cat /var/snap/microk8s/current/args/kube-proxy | grep cluster-cidr | sed 's/^[^=]*=//'
     ```
 
-  * `<service cluster ip range>`: you can get this value by running:
+  * `<service cluster ip range>`: In a Microk8s cluster, you can get this value by running:
 
+    ```shell
+    cat /var/snap/microk8s/current/args/kube-apiserver | grep service-cluster-ip-range | sed 's/^[^=]*=//'
     ```
-    cat /var/snap/microk8s/current/args/kube-apiserver | grep service-cluster-ip-range
-    ```
-   
-  * `<nodes internal ip(s)>`: the Internal IP of the nodes where your cluster is running, you can get this value by running:
 
+  * `<nodes internal ip(s)>`: the Internal IP of the nodes where your cluster is running. For a **single-node cluster**, you can get this value by running:
+
+    ```shell
+    kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}'
     ```
-    microk8s kubectl get nodes -o wide
-    ```
-    It is the `INTERNAL-IP` value
+    For a multi-node cluster, use is the `INTERNAL-IP` values of each node.
 
   * `<hostname>`: the name of your host on which the cluster is deployed, you can use the `hostname` command to get it
 
@@ -314,24 +309,51 @@ where,
 
   * `.kubeflow`: is needed in the `no-proxy` values to allow communication with the minio service.
 
+To get all of those together (in a Microk8s cluster), run:
+```shell
+HTTP_PROXY=<http-proxy>
+HTTPS_PROXY=<https-proxy>
+CLUSTER_CIDR=$(cat /var/snap/microk8s/current/args/kube-proxy | grep cluster-cidr | sed 's/^[^=]*=//')
+SERVICE_CLUSTER_IP_RANGE=$(cat /var/snap/microk8s/current/args/kube-apiserver | grep service-cluster-ip-range | sed 's/^[^=]*=//')
+NODE_INTERNAL_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+HOSTNAME=$(hostname)
+```
 
-To run the tests behind proxy using Notebook:
+
+##### Running the KServe UATs
+
+To be able to run UATs requiring KServe (e2e-wine, kserve, mlflow-kserve) behind proxy, first you need to configure `kserve-controller`
+and `knative-serving` charms to function behind proxy. Given that the environment variables were set during [Prerequisites](#prerequisites-2):
+
+1. Set the `http-proxy`, `https-proxy`, and `no-proxy` configs in `kserve-controller` charm
+```shell
+juju config kserve-controller http-proxy=$HTTP_PROXY https-proxy=$HTTPS_PROXY no-proxy=$CLUSTER_CIDR,$SERVICE_CLUSTER_IP_RANGE,127.0.0.1,localhost,$NODE_INTERNAL_IP/24,$HOSTNAME,.svc,.local,.kubeflow
+```
+
+2. Set the `http-proxy`, `https-proxy`, and `no-proxy` configs in `knative-serving` charm
+```shell
+juju config knative-serving http-proxy=$HTTP_PROXY https-proxy=$HTTPS_PROXY no-proxy=$CLUSTER_CIDR,$SERVICE_CLUSTER_IP_RANGE,127.0.0.1,localhost,$NODE_INTERNAL_IP/24,$HOSTNAME,.svc,.local
+```
+
+#### Running using Notebook
+
+First, edit the [PodDefault](tests/proxy-poddefault.yaml.j2) to replace the placeholders following the [Prerequisites](#prerequisites-2) section.
+
+Then, to run the tests behind proxy using Notebook:
 1. Login to the Dashboard and Create a Profile
 2. Apply the PodDefault to your Profile's namespace, make sure you already followed the Prerequisites
    section to modify the PodDefault. Apply it with:
    ```
-   microk8s kubectl apply -f ./tests/proxy-poddefault.yaml -n <your_namespace>
+   kubectl apply -f ./tests/proxy-poddefault.yaml -n <your_namespace>
    ```
 3. Continue as described in the [Running inside a Notebook](#running-inside-a-notebook) section above.
-   
-   Currently, all tests are supported to run behind proxy except kfp-v1.
 
 #### Running using `driver`
 
-You can pass the `--proxy` flag and set the values for proxies to the tox command and this should automatically apply the required changes to run behind proxy.
+You can pass the `--proxy` flag and set the values for proxies to the tox command and this should automatically apply the required changes to run behind proxy. Given that the environment variables are already set when configuring KServe and KNative:
 
-```bash
-tox -e kubeflow-<local|remote> -- --proxy http_proxy="http_proxy:port" https_proxy="https_proxy:port" no_proxy="<cluster cidr>,<service cluster ip range>,127.0.0.1,localhost,<nodes internal ip(s)>/24,<cluster hostname>,.svc,.local,.kubeflow"
+```shell
+tox -e kubeflow-<local|remote> -- --proxy http_proxy=$HTTP_PROXY https_proxy=$HTTPS_PROXY no_proxy="$CLUSTER_CIDR,$SERVICE_CLUSTER_IP_RANGE,127.0.0.1,localhost,$NODE_INTERNAL_IP/24,$HOSTNAME,.svc,.local,.kubeflow"
 ```
 
 #### Developer Notes
