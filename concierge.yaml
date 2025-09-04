@@ -1,5 +1,7 @@
 juju:
   channel: 3.6/stable
+  model-defaults:
+    logging-config: <root>=INFO; unit=DEBUG
 
 providers:
   k8s:
@@ -18,6 +20,7 @@ providers:
   lxd:
     enable: true
     bootstrap: false
+    channel: latest/stable
 
 host:
   snaps:
