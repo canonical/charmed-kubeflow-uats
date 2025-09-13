@@ -1,5 +1,5 @@
 # pin the highest kserve version
-kserve==0.14.1
+kserve==0.15.2
 pydantic
 kubernetes
 requests
