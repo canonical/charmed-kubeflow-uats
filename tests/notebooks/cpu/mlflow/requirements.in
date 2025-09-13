@@ -1,6 +1,6 @@
 boto3
 # pin to <7.0 to avoid breaking changes in sdk
-minio<7.0
+minio<7.3
 # pin the client to match the version of the deployed MLflow server
 mlflow==2.15.1
 scikit-learn
