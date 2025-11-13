@@ -44,6 +44,12 @@ def pytest_addoption(parser: Parser):
         "By default, it is set to False.",
     )
     parser.addoption(
+        "--include-kubeflow-trainer-tests",
+        action="store_true",
+        help="Defines whether to include the tests for Kubeflow Trainer V2 in the executed tests."
+        "By default, it is set to False.",
+    )
+    parser.addoption(
         "--toleration",
         nargs="+",
         help="Set a number of key-value pairs for the toleration needed to access a GPU node. With the"

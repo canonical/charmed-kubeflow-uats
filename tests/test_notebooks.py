@@ -15,12 +15,19 @@ from utils import (
     save_notebook,
 )
 
-EXAMPLES_DIR = {"cpu": "notebooks/cpu", "gpu": "notebooks/gpu"}
+EXAMPLES_DIR = {
+    "cpu": "tests/notebooks/cpu",
+    "gpu": "tests/notebooks/gpu",
+    "kubeflow-trainer": "tests/notebooks/kubeflow-trainer",
+}
 INCLUDE_GPU_TESTS = os.getenv("include_gpu_tests").lower() == "true"
+INCLUDE_KUBEFLOW_TRAINER_TESTS = os.getenv("include_kubeflow_trainer_tests").lower() == "true"
 
 NOTEBOOKS = discover_notebooks(EXAMPLES_DIR["cpu"])
 if INCLUDE_GPU_TESTS:
     NOTEBOOKS.update(discover_notebooks(EXAMPLES_DIR["gpu"]))
+if INCLUDE_KUBEFLOW_TRAINER_TESTS:
+    NOTEBOOKS.update(discover_notebooks(EXAMPLES_DIR["kubeflow-trainer"]))
 
 log = logging.getLogger(__name__)
 
@@ -51,6 +58,12 @@ def test_notebook(test_notebook):
             " To learn more, use `--help` or refer to the repository's README file."
         )
 
+    if not INCLUDE_KUBEFLOW_TRAINER_TESTS:
+        log.info(
+            "Note that Kubeflow Trainer V2 tests will not be run. In order to run tests for Kubeflow Trainer V2,"
+            "use the `--include-kubeflow-trainer-tests` flag e.g. `tox -e kubeflow-local -- --include-kubeflow-trainer-tests`."
+            " To learn more, use `--help` or refer to the repository's README file."
+        )
     try:
         log.info(f"Running {os.path.basename(test_notebook)}...")
         output_notebook, _ = ep.preprocess(notebook, {"metadata": {"path": "./"}})
