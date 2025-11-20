@@ -16,9 +16,9 @@ from utils import (
 )
 
 EXAMPLES_DIR = {
-    "cpu": "tests/notebooks/cpu",
-    "gpu": "tests/notebooks/gpu",
-    "kubeflow-trainer": "tests/notebooks/kubeflow-trainer",
+    "cpu": "notebooks/cpu",
+    "gpu": "notebooks/gpu",
+    "kubeflow-trainer": "notebooks/kubeflow-trainer",
 }
 INCLUDE_GPU_TESTS = os.getenv("include_gpu_tests").lower() == "true"
 INCLUDE_KUBEFLOW_TRAINER_TESTS = os.getenv("include_kubeflow_trainer_tests").lower() == "true"
@@ -53,14 +53,14 @@ def test_notebook(test_notebook):
 
     if not INCLUDE_GPU_TESTS:
         log.info(
-            "Note that only CPU tests will be run. In order to run tests that use an NVIDIA GPU,"
+            "Note that only CPU tests will be run. In order to run tests that use an NVIDIA GPU, "
             "use the `--include-gpu-tests` flag e.g. `tox -e kubeflow-local -- --include-gpu-tests`."
             " To learn more, use `--help` or refer to the repository's README file."
         )
 
     if not INCLUDE_KUBEFLOW_TRAINER_TESTS:
         log.info(
-            "Note that Kubeflow Trainer V2 tests will not be run. In order to run tests for Kubeflow Trainer V2,"
+            "Note that Kubeflow Trainer V2 tests will not be run. In order to run tests for Kubeflow Trainer V2, "
             "use the `--include-kubeflow-trainer-tests` flag e.g. `tox -e kubeflow-local -- --include-kubeflow-trainer-tests`."
             " To learn more, use `--help` or refer to the repository's README file."
         )

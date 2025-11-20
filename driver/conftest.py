@@ -15,6 +15,8 @@ def pytest_addoption(parser: Parser):
       https://docs.pytest.org/en/7.4.x/reference/reference.html#command-line-flags)
     * Add an `--include-gpu-tests` flag to include the tests under the `gpu` directory
       in the executed tests.
+    * Add an `--include-kubeflow-trainer-tests` flag to include the tests for Kubeflow Trainer V2
+      in the executed tests.
     * Add a `--toleration` option that enables setting a `toleration` entry for pods
       with the enable-gpu = 'true' label.
     """
