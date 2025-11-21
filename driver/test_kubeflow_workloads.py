@@ -339,8 +339,7 @@ def test_kubeflow_workloads(
     )
 
     n_resources_to_be_created = 1 + int(TESTS_LOCAL_RUN)
-    assert (
-        len(resources) == n_resources_to_be_created,
+    assert len(resources) == n_resources_to_be_created, (
         f"Expected {n_resources_to_be_created} Job, got {len(resources)}!"
     )
     lightkube_client.create(resources[0], namespace=NAMESPACE)
