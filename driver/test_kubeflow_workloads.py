@@ -315,10 +315,7 @@ def test_kubeflow_workloads(
         with open(k8s_admission_config_file_path, "r") as file:
             admission_controller_configurations = yaml.safe_load(file)
         admission_controller_configurations["plugins"].append(
-            {
-                "name": "PodSecurity",
-                "path": POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH
-            }
+            {"name": "PodSecurity", "path": POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH}
         )
         with open(k8s_admission_config_file_path, "w") as file:
             yaml.safe_dump(admission_controller_configurations, file)
