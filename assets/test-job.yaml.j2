@@ -34,7 +34,7 @@ spec:
       securityContext:
         fsGroup: 101
       {% else %}
-      # needed for exemptions from the Pod Security Admission Contoller in
+      # needed for exemptions from the Pod Security Admission Controller in
       # order to be able to mount Volumes via "hostPath" despite possible
       # "baseline" Pod Security Standards
       runtimeClassName: uats

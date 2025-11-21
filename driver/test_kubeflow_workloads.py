@@ -31,6 +31,7 @@ from utils import (
 log = logging.getLogger(__name__)
 
 ASSETS_DIR = Path("assets")
+ADMISSION_CONTROLLER_FILE = ASSETS_DIR / "admission-controller.yaml"
 JOB_TEMPLATE_FILE = ASSETS_DIR / "test-job.yaml.j2"
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 
@@ -299,6 +300,9 @@ def test_kubeflow_workloads(
     create_poddefault_on_security_policy,
 ):
     """Run a K8s Job to execute the notebook tests."""
+    log.info(f"Configuring the Admission Controller for exemptions from Pod Security Standards...")
+    lightkube_client.create(codecs.load_all_yaml(ADMISSION_CONTROLLER_FILE.read_text()))
+
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
     resources = list(
         codecs.load_all_yaml(
