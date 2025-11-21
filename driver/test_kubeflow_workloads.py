@@ -17,6 +17,7 @@ from lightkube.generic_resource import (
     create_namespaced_resource,
     load_in_cluster_generic_resources,
 )
+from lightkube.models.node_v1 import RuntimeClass
 from lightkube.types import CascadeType
 from utils import (
     assert_namespace_active,
@@ -32,7 +33,11 @@ log = logging.getLogger(__name__)
 
 ASSETS_DIR = Path("assets")
 JOB_TEMPLATE_FILE = ASSETS_DIR / "test-job.yaml.j2"
+POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH = os.path.abspath(
+    ASSETS_DIR / "pod-security-admission-configurations.yaml"
+)
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
+RUNTIMECLASS_TEMPLATE_FILE = ASSETS_DIR / "runtimeclass.yaml.j2"
 
 TESTS_LOCAL_RUN = eval(os.environ.get("LOCAL"))
 TESTS_LOCAL_DIR = os.path.abspath(Path("tests"))
@@ -48,6 +53,7 @@ PROFILE_RESOURCE = create_global_resource(
 )
 
 JOB_NAME = "test-kubeflow"
+JOB_RUNTIMECLASS_NAME = "uats"
 
 PYTEST_CMD_BASE = "pytest"
 
@@ -88,6 +94,16 @@ def charm_list(request):
         app_name: charm["channel"].split("/")[0] + "/*"
         for app_name, charm in bundle["applications"].items()
     }
+
+
+@pytest.fixture(scope="module")
+def k8s_admission_config_file_path(request):
+    return request.config.getoption("--k8s-admission-config-file-path")
+
+
+@pytest.fixture(scope="module")
+def k8s_default_runtimeclass_handler(request):
+    return request.config.getoption("--k8s-default-runtimeclass-handler")
 
 
 @pytest.fixture(scope="module")
@@ -267,6 +283,8 @@ async def test_create_profile(lightkube_client, create_profile):
 
 @pytest.mark.dependency(depends=["test_create_profile"])
 def test_kubeflow_workloads(
+    k8s_admission_config_file_path,
+    k8s_default_runtimeclass_handler,
     lightkube_client,
     pytest_cmd,
     tests_checked_out_commit,
@@ -275,6 +293,45 @@ def test_kubeflow_workloads(
     create_poddefault_on_toleration,
 ):
     """Run a K8s Job to execute the notebook tests."""
+    if TESTS_LOCAL_RUN:
+        log.info(
+            "Configuring the Admission Controller for exemptions from Pod Security Standards..."
+        )
+        # reading the Admission Controller's configurations:
+        with open(k8s_admission_config_file_path, "r") as file:
+            admission_controller_configurations = yaml.safe_load(file)
+        # updating the Admission Controller's configurations:
+        plugins = admission_controller_configurations["plugins"]
+        is_podsecurity_already_configured = False
+        for plugin in plugins:
+            if plugin["name"] == "PodSecurity":
+                if plugin["path"] != POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH:
+                    raise NotImplementedError(
+                        "Updating `PodSecurity` when already set is not supported (yet)."
+                    )
+                is_podsecurity_already_configured = True
+                break
+        if not is_podsecurity_already_configured:
+            plugins.append(
+                {"name": "PodSecurity", "path": POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH}
+            )
+        # saving the (updated) Admission Controller's configurations:
+        with open(k8s_admission_config_file_path, "w") as file:
+            yaml.safe_dump(admission_controller_configurations, file)
+
+        log.info("Creating the RuntimeClass for exemption from Pod Security Standards...")
+        resources = list(
+            codecs.load_all_yaml(
+                RUNTIMECLASS_TEMPLATE_FILE.read_text(),
+                context={
+                    "runtimeclass_handler": k8s_default_runtimeclass_handler,
+                    "runtimeclass_name": JOB_RUNTIMECLASS_NAME,
+                },
+            )
+        )
+        assert len(resources) == 1, f"Expected 1 RuntimeClass, got {len(resources)}!"
+        lightkube_client.create(resources[0])
+
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
     resources = list(
         codecs.load_all_yaml(
@@ -304,3 +361,7 @@ def test_kubeflow_workloads(
     finally:
         log.info("Fetching Job logs...")
         fetch_job_logs(JOB_NAME, NAMESPACE, TESTS_LOCAL_RUN)
+
+        if TESTS_LOCAL_RUN:
+            log.info("Deleting the RuntimeClass for the Job...")
+            lightkube_client.delete(RuntimeClass, name=JOB_RUNTIMECLASS_NAME)
