@@ -300,7 +300,7 @@ def test_kubeflow_workloads(
     create_poddefault_on_security_policy,
 ):
     """Run a K8s Job to execute the notebook tests."""
-    log.info(f"Configuring the Admission Controller for exemptions from Pod Security Standards...")
+    log.info("Configuring the Admission Controller for exemptions from Pod Security Standards...")
     lightkube_client.create(codecs.load_all_yaml(ADMISSION_CONTROLLER_FILE.read_text()))
 
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
