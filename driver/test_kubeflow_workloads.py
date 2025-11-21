@@ -337,9 +337,7 @@ def test_kubeflow_workloads(
         with open(k8s_admission_config_file_path, "w") as file:
             yaml.safe_dump(admission_controller_configurations, file)
 
-        log.info(
-            "Creating the RuntimeClass for exemption from Pod Security Standards..."
-        )
+        log.info("Creating the RuntimeClass for exemption from Pod Security Standards...")
         resources = list(
             codecs.load_all_yaml(
                 RUNTIMECLASS_TEMPLATE_FILE.read_text(),
