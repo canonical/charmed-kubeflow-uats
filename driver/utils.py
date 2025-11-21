@@ -100,8 +100,6 @@ def wait_for_job(
     If the Job fails or lands in an unexpected state, this function will raise a ValueError and
     fail immediately.
     """
-    command = ["kubectl", "logs", "-n", namespace, f"job/{job_name}"]
-    subprocess.check_call(command)
     # raises a 404 ApiError if the Job doesn't exist
     job = client.get(Job, name=job_name, namespace=namespace)
     if job.status.succeeded:
