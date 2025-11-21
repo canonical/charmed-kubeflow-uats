@@ -1,7 +1,5 @@
-{% if tests_local_run %}
 apiVersion: node.k8s.io/v1
 kind: RuntimeClass
 metadata:
   name: {{ runtimeclass_name }}
 handler: {{ runtimeclass_handler }}
-{% endif %}
