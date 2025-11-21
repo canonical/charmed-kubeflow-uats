@@ -92,6 +92,11 @@ def charm_list(request):
 
 
 @pytest.fixture(scope="module")
+def default_k8s_runtimeclass_handler(request):
+    return request.config.getoption("--default-k8s-runtimeclass-handler")
+
+
+@pytest.fixture(scope="module")
 def pytest_filter(request):
     """Retrieve filter from Pytest invocation."""
     filter = request.config.getoption("filter")
@@ -284,6 +289,7 @@ async def test_create_profile(lightkube_client, create_profile):
 
 @pytest.mark.dependency(depends=["test_create_profile"])
 def test_kubeflow_workloads(
+    default_k8s_runtimeclass_handler,
     lightkube_client,
     pytest_cmd,
     tests_checked_out_commit,
@@ -305,6 +311,7 @@ def test_kubeflow_workloads(
                 "tests_remote_commit": tests_checked_out_commit,
                 "pytest_cmd": pytest_cmd,
                 "proxy": True if request.config.getoption("proxy") else False,
+                "runtimeclass_handler": default_k8s_runtimeclass_handler,
                 "security_policy": request.config.getoption("security_policy") != "privileged",
             },
         )
