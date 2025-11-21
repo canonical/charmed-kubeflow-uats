@@ -312,11 +312,28 @@ def test_kubeflow_workloads(
         log.info(
             "Configuring the Admission Controller for exemptions from Pod Security Standards..."
         )
+
+        # reading the Admission Controller's configurations:
         with open(k8s_admission_config_file_path, "r") as file:
             admission_controller_configurations = yaml.safe_load(file)
-        admission_controller_configurations["plugins"].append(
-            {"name": "PodSecurity", "path": POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH}
-        )
+
+        # updating the Admission Controller's configurations:
+        plugins = admission_controller_configurations["plugins"]
+        is_podsecurity_already_configured = False
+        for plugin in plugins:
+            if plugin["name"] == "PodSecurity":
+                if plugin["path"] != POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH:
+                    raise NotImplementedError(
+                        "Updating `PodSecurity` when already set is not supported (yet)."
+                    )
+                is_podsecurity_already_configured = True
+                break
+        if not is_podsecurity_already_configured:
+            plugins.append(
+                {"name": "PodSecurity", "path": POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH}
+            )
+
+        # saving the (updated) Admission Controller's configurations:
         with open(k8s_admission_config_file_path, "w") as file:
             yaml.safe_dump(admission_controller_configurations, file)
 
