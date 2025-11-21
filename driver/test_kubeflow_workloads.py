@@ -350,7 +350,7 @@ def test_kubeflow_workloads(
             )
         )
         assert len(resources) == 1, f"Expected 1 RuntimeClass, got {len(resources)}!"
-        lightkube_client.create(resources[0], namespace=NAMESPACE)
+        lightkube_client.create(resources[0])
 
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
     resources = list(
