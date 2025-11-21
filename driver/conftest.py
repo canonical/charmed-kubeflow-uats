@@ -71,7 +71,6 @@ def pytest_addoption(parser: Parser):
     parser.addoption(
         "--k8s-admission-config-file-path",
         default="/var/snap/microk8s/current/args/admission-control-config-file.yaml",
-        help="",
         help="Provide the path to the admission configuration file of your Kubernetes cluster. The"
         " default one for MicroK8s is otherwise assumed.",
     )
