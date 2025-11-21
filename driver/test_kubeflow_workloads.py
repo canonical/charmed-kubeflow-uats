@@ -37,6 +37,7 @@ POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH = os.path.abspath(
     ASSETS_DIR / "pod-security-admission-configurations.yaml"
 )
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
+RUNTIMECLASS_TEMPLATE_FILE = ASSETS_DIR / "runtimeclass.yaml.j2"
 
 TESTS_LOCAL_RUN = eval(os.environ.get("LOCAL"))
 TESTS_LOCAL_DIR = os.path.abspath(Path("tests"))
@@ -314,11 +315,9 @@ def test_kubeflow_workloads(
         log.info(
             "Configuring the Admission Controller for exemptions from Pod Security Standards..."
         )
-
         # reading the Admission Controller's configurations:
         with open(k8s_admission_config_file_path, "r") as file:
             admission_controller_configurations = yaml.safe_load(file)
-
         # updating the Admission Controller's configurations:
         plugins = admission_controller_configurations["plugins"]
         is_podsecurity_already_configured = False
@@ -334,10 +333,22 @@ def test_kubeflow_workloads(
             plugins.append(
                 {"name": "PodSecurity", "path": POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH}
             )
-
         # saving the (updated) Admission Controller's configurations:
         with open(k8s_admission_config_file_path, "w") as file:
             yaml.safe_dump(admission_controller_configurations, file)
+
+        log.info(
+            "Creating the RuntimeClass for the Job's exemption from Pod Security Standards..."
+        )
+        lightkube_client.create(
+            codecs.load_all_yaml(
+                RUNTIMECLASS_TEMPLATE_FILE.read_text(),
+                context={
+                    "runtimeclass_handler": k8s_default_runtimeclass_handler,
+                    "runtimeclass_name": JOB_RUNTIMECLASS_NAME,
+                },
+            )
+        )
 
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
     resources = list(
@@ -351,17 +362,12 @@ def test_kubeflow_workloads(
                 "tests_remote_commit": tests_checked_out_commit,
                 "pytest_cmd": pytest_cmd,
                 "proxy": True if request.config.getoption("proxy") else False,
-                "runtimeclass_handler": k8s_default_runtimeclass_handler,
-                "runtimeclass_name": JOB_RUNTIMECLASS_NAME,
                 "security_policy": request.config.getoption("security_policy") != "privileged",
             },
         )
     )
 
-    n_resources_to_be_created = 1
-    assert (
-        len(resources) == n_resources_to_be_created
-    ), f"Expected {n_resources_to_be_created} Job, got {len(resources)}!"
+    assert len(resources) == 1, f"Expected 1 Job, got {len(resources)}!"
     lightkube_client.create(resources[0], namespace=NAMESPACE)
 
     try:
