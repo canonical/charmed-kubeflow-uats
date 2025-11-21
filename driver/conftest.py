@@ -19,8 +19,11 @@ def pytest_addoption(parser: Parser):
       in the executed tests.
     * Add a `--toleration` option that enables setting a `toleration` entry for pods
       with the enable-gpu = 'true' label.
-    * Add a `--default-k8s-runtimeclass-handler` option to specify the default RuntimeClass handler
-      of your Kubernetes cluster. The default one for MicroK8s, 'runc', is otherwise assumed.
+    * Add a `--k8s-admission-config-file-path` option to specify the path to the admission
+      configuration file of your Kubernetes cluster. The default one for MicroK8s is otherwise
+      assumed.
+    * Add a `--k8s-default-runtimeclass-handler` option to specify the default RuntimeClass handler
+      of your Kubernetes cluster. The default one for MicroK8s is otherwise assumed.
     """
     parser.addoption(
         "--proxy",
@@ -66,10 +69,17 @@ def pytest_addoption(parser: Parser):
         action="store",
     )
     parser.addoption(
-        "--default-k8s-runtimeclass-handler",
-        default="runc",  # default for MicroK8s
+        "--k8s-admission-config-file-path",
+        default="/var/snap/microk8s/current/args/admission-control-config-file.yaml",
+        help="",
+        help="Provide the path to the admission configuration file of your Kubernetes cluster. The"
+        " default one for MicroK8s is otherwise assumed.",
+    )
+    parser.addoption(
+        "--k8s-default-runtimeclass-handler",
+        default="runc",
         help="Provide the default RuntimeClass handler of your Kubernetes cluster for local tests to"
-        " be set up correctly. The default one for MicroK8s, 'runc', is otherwise assumed.",
+        " be set up correctly. The default one for MicroK8s is otherwise assumed.",
     )
     parser.addoption(
         "--security-policy",

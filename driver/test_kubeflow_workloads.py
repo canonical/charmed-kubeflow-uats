@@ -31,8 +31,10 @@ from utils import (
 log = logging.getLogger(__name__)
 
 ASSETS_DIR = Path("assets")
-ADMISSION_CONTROLLER_FILE = ASSETS_DIR / "admission-controller.yaml"
 JOB_TEMPLATE_FILE = ASSETS_DIR / "test-job.yaml.j2"
+POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH = os.path.abspath(
+    ASSETS_DIR / "pod-security-admission-configurations.yaml"
+)
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 
 TESTS_LOCAL_RUN = eval(os.environ.get("LOCAL"))
@@ -93,8 +95,13 @@ def charm_list(request):
 
 
 @pytest.fixture(scope="module")
-def default_k8s_runtimeclass_handler(request):
-    return request.config.getoption("--default-k8s-runtimeclass-handler")
+def k8s_admission_config_file_path(request):
+    return request.config.getoption("--k8s-admission-config-file-path")
+
+
+@pytest.fixture(scope="module")
+def k8s_default_runtimeclass_handler(request):
+    return request.config.getoption("--k8s-default-runtimeclass-handler")
 
 
 @pytest.fixture(scope="module")
@@ -290,7 +297,8 @@ async def test_create_profile(lightkube_client, create_profile):
 
 @pytest.mark.dependency(depends=["test_create_profile"])
 def test_kubeflow_workloads(
-    default_k8s_runtimeclass_handler,
+    k8s_admission_config_file_path,
+    k8s_default_runtimeclass_handler,
     lightkube_client,
     pytest_cmd,
     tests_checked_out_commit,
@@ -304,7 +312,16 @@ def test_kubeflow_workloads(
         log.info(
             "Configuring the Admission Controller for exemptions from Pod Security Standards..."
         )
-        lightkube_client.create(codecs.load_all_yaml(ADMISSION_CONTROLLER_FILE.read_text()))
+        with open(k8s_admission_config_file_path, "r") as file:
+            admission_controller_configurations = yaml.safe_load(file)
+        admission_controller_configurations["plugins"].append(
+            {
+                "name": "PodSecurity",
+                "path": POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH
+            }
+        )
+        with open(k8s_admission_config_file_path, "w") as file:
+            yaml.safe_dump(admission_controller_configurations, file)
 
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
     resources = list(
@@ -318,7 +335,7 @@ def test_kubeflow_workloads(
                 "tests_remote_commit": tests_checked_out_commit,
                 "pytest_cmd": pytest_cmd,
                 "proxy": True if request.config.getoption("proxy") else False,
-                "runtimeclass_handler": default_k8s_runtimeclass_handler,
+                "runtimeclass_handler": k8s_default_runtimeclass_handler,
                 "security_policy": request.config.getoption("security_policy") != "privileged",
             },
         )
