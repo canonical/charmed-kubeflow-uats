@@ -17,6 +17,7 @@ from lightkube.generic_resource import (
     create_namespaced_resource,
     load_in_cluster_generic_resources,
 )
+from lightkube.models.node_v1 import RuntimeClass
 from lightkube.types import CascadeType
 from utils import (
     assert_namespace_active,
@@ -51,6 +52,7 @@ PROFILE_RESOURCE = create_global_resource(
 )
 
 JOB_NAME = "test-kubeflow"
+JOB_RUNTIMECLASS_NAME = "uats"
 
 PYTEST_CMD_BASE = "pytest"
 
@@ -350,6 +352,7 @@ def test_kubeflow_workloads(
                 "pytest_cmd": pytest_cmd,
                 "proxy": True if request.config.getoption("proxy") else False,
                 "runtimeclass_handler": k8s_default_runtimeclass_handler,
+                "runtimeclass_name": JOB_RUNTIMECLASS_NAME,
                 "security_policy": request.config.getoption("security_policy") != "privileged",
             },
         )
@@ -371,3 +374,7 @@ def test_kubeflow_workloads(
     finally:
         log.info("Fetching Job logs...")
         fetch_job_logs(JOB_NAME, NAMESPACE, TESTS_LOCAL_RUN)
+
+        if TESTS_LOCAL_RUN:
+            log.info("Deleting the RuntimeClass for the Job...")
+            lightkube_client.delete(RuntimeClass, name=JOB_RUNTIMECLASS_NAME)
