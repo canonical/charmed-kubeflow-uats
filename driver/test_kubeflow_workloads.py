@@ -338,9 +338,9 @@ def test_kubeflow_workloads(
             yaml.safe_dump(admission_controller_configurations, file)
 
         log.info(
-            "Creating the RuntimeClass for the Job's exemption from Pod Security Standards..."
+            "Creating the RuntimeClass for exemption from Pod Security Standards..."
         )
-        lightkube_client.create(
+        resources = list(
             codecs.load_all_yaml(
                 RUNTIMECLASS_TEMPLATE_FILE.read_text(),
                 context={
@@ -349,6 +349,8 @@ def test_kubeflow_workloads(
                 },
             )
         )
+        assert len(resources) == 1, f"Expected 1 RuntimeClass, got {len(resources)}!"
+        lightkube_client.create(resources[0], namespace=NAMESPACE)
 
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
     resources = list(
