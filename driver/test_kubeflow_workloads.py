@@ -364,6 +364,8 @@ def test_kubeflow_workloads(
     ), f"Expected {n_resources_to_be_created} Job, got {len(resources)}!"
     lightkube_client.create(resources[0], namespace=NAMESPACE)
 
+    time.sleep(10)
+
     try:
         wait_for_job(lightkube_client, JOB_NAME, NAMESPACE)
     except ValueError:
