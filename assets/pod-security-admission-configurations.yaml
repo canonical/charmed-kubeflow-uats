@@ -3,6 +3,6 @@
 # are applied just because such a Job has a `hostPath` volume mount, which is
 # not otherwise allowed by the `baseline` policy:
 apiVersion: pod-security.admission.config.k8s.io/v1
-kind: Configuration
+kind: PodSecurityConfiguration
 exemptions:
   runtimeClasses: [uats]
