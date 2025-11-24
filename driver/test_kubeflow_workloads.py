@@ -324,8 +324,8 @@ def test_kubeflow_workloads(
         for plugin in plugins:
             if plugin["name"] == "PodSecurity":
                 if (
-                    "path" not in plugin or
-                    plugin["path"] != POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH
+                    "path" not in plugin
+                    or plugin["path"] != POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH
                 ):
                     raise NotImplementedError(
                         "Updating `PodSecurity` when already set is not supported (yet)."
