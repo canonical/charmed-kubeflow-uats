@@ -271,6 +271,14 @@ tox -e uats-remote -- --include-gpu-tests --toleration key="MyKey" value="MyValu
 
 The driver will populate the [PodDefault](./assets/gpu-toleration-poddefault.yaml.j2) with the passed toleration values and apply it, ensuring that the toleration is added to workload pods requiring a GPU. Since most fields are optional, make sure that the toleration passed is a valid one by consulting relevant [Kubernetes docs](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling).
 
+### Running `pod-security-standards` test
+The `pod-security-standards` test ensures that the Charmed Kubeflow deployment properly enforces the pod security standards policy configured in the `kubeflow-profiles` charm.
+
+By default, the test expects the default value of `security-policy`, which is `privileged`. To pass the value of the configured security policy, use the "--security-policy" option:
+```bash
+tox -e uats-local -- --security-policy "baseline"
+```
+
 
 ### Run behind proxy
 

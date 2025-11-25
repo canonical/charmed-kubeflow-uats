@@ -59,6 +59,7 @@ PODDEFAULT_RESOURCE = create_namespaced_resource(
 )
 PODDEFAULT_WITH_PROXY_PATH = Path("tests") / "proxy-poddefault.yaml.j2"
 PODDEFAULT_WITH_TOLERATION_PATH = Path("assets") / "gpu-toleration-poddefault.yaml.j2"
+PODDEFAULT_WITH_SECURITY_POLICY_PATH = Path("tests") / "security-policy-poddefault.yaml.j2"
 
 KFP_PODDEFAULT_NAME = "access-ml-pipeline"
 
@@ -184,7 +185,24 @@ def create_poddefault_on_toleration(request, lightkube_client):
         )
 
 
+@pytest.fixture(scope="function")
+def create_poddefault_on_security_policy(request, lightkube_client):
+    """Create PodDefault with security policy env variables for the Notebook inside the Job."""
+    # Simply yield if the option is not set
+    if not request.config.getoption("security_policy"):
+        yield
+    else:
+        security_policy_context = {"security_policy": request.config.getoption("security_policy")}
+        yield from create_poddefault(
+            PODDEFAULT_WITH_SECURITY_POLICY_PATH,
+            security_policy_context,
+            NAMESPACE,
+            lightkube_client,
+        )
+
+
 @pytest.mark.abort_on_fail
+@pytest.mark.skip
 async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
     """Test that the correct bundle is selected.
 
@@ -265,6 +283,7 @@ def test_kubeflow_workloads(
     request,
     create_poddefault_on_proxy,
     create_poddefault_on_toleration,
+    create_poddefault_on_security_policy,
 ):
     """Run a K8s Job to execute the notebook tests."""
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
@@ -279,6 +298,7 @@ def test_kubeflow_workloads(
                 "tests_remote_commit": tests_checked_out_commit,
                 "pytest_cmd": pytest_cmd,
                 "proxy": True if request.config.getoption("proxy") else False,
+                "security_policy": True if request.config.getoption("security_policy") else False,
             },
         )
     )

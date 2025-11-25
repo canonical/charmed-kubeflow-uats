@@ -56,6 +56,17 @@ def pytest_addoption(parser: Parser):
         action="store",
     )
     parser.addoption(
+        "--security-policy",
+        choices=["privileged", "baseline"],
+        default="privileged",
+        metavar=("security_policy"),
+        help="Provide the security policy defined in `kubeflow-profiles` to ensure the expected bevahior in the testing namespace."
+        " Possible values correspond to Pod Security Standard levels: 'privileged', 'baseline'."
+        " For more information, see: \n"
+        " https://kubernetes.io/docs/concepts/security/pod-security-standards/",
+        action="store",
+    )
+    parser.addoption(
         "--kubeflow-model",
         default="kubeflow",
         help="Provide the name of the namespace/juju model where kubeflow is deployed.",
