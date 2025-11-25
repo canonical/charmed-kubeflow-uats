@@ -105,6 +105,12 @@ def include_gpu_tests(request):
 
 
 @pytest.fixture(scope="module")
+def include_kubeflow_trainer_tests(request):
+    """Retrieve the `--include-kubeflow-trainer-tests` flag from Pytest invocation."""
+    return True if request.config.getoption("--include-kubeflow-trainer-tests") else False
+
+
+@pytest.fixture(scope="module")
 def kubeflow_model(request, ops_test):
     """Retrieve name of the model where Kubeflow is deployed."""
     model_name = request.config.getoption("--kubeflow-model")
@@ -119,13 +125,15 @@ def tests_checked_out_commit(request):
 
 
 @pytest.fixture(scope="module")
-def pytest_cmd(pytest_filter, include_gpu_tests):
+def pytest_cmd(pytest_filter, include_gpu_tests, include_kubeflow_trainer_tests):
     """Format the Pytest command."""
     cmd = PYTEST_CMD_BASE
     if pytest_filter:
         cmd += f" {pytest_filter}"
     if include_gpu_tests:
         cmd += " --include-gpu-tests"
+    if include_kubeflow_trainer_tests:
+        cmd += " --include-kubeflow-trainer-tests"
     return cmd
 
 
