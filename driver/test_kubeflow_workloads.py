@@ -51,6 +51,12 @@ PROFILE_RESOURCE = create_global_resource(
     kind="profile",
     plural="profiles",
 )
+RUNTIMECLASS_RESOURCE = create_global_resource(
+    group="node.k8s.io",
+    version="v1",
+    kind="runtimeclass",
+    plural="runtimeclasses",
+)
 
 JOB_NAME = "test-kubeflow"
 JOB_RUNTIMECLASS_NAME = "uats"
@@ -386,4 +392,4 @@ def test_kubeflow_workloads(
 
         if TESTS_LOCAL_RUN:
             log.info("Deleting the RuntimeClass for the Job...")
-            # lightkube_client.delete(RuntimeClass, name=JOB_RUNTIMECLASS_NAME)  # FIXME
+            lightkube_client.delete(RUNTIMECLASS_RESOURCE, name=JOB_RUNTIMECLASS_NAME)
