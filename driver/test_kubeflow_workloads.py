@@ -33,9 +33,6 @@ log = logging.getLogger(__name__)
 
 ASSETS_DIR = Path("assets")
 JOB_TEMPLATE_FILE = ASSETS_DIR / "test-job.yaml.j2"
-POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH = os.path.abspath(
-    ASSETS_DIR / "pod-security-admission-configurations.yaml"
-)
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 RUNTIMECLASS_TEMPLATE_FILE = ASSETS_DIR / "runtimeclass.yaml.j2"
 
