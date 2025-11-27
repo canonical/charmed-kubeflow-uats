@@ -386,4 +386,4 @@ def test_kubeflow_workloads(
 
         if TESTS_LOCAL_RUN:
             log.info("Deleting the RuntimeClass for the Job...")
-            lightkube_client.delete(RuntimeClass, name=JOB_RUNTIMECLASS_NAME)
+            # lightkube_client.delete(RuntimeClass, name=JOB_RUNTIMECLASS_NAME)  # FIXME
