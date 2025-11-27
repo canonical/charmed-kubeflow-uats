@@ -104,11 +104,6 @@ def charm_list(request):
 
 
 @pytest.fixture(scope="module")
-def k8s_admission_config_file_path(request):
-    return request.config.getoption("--k8s-admission-config-file-path")
-
-
-@pytest.fixture(scope="module")
 def k8s_default_runtimeclass_handler(request):
     return request.config.getoption("--k8s-default-runtimeclass-handler")
 
@@ -306,7 +301,6 @@ async def test_create_profile(lightkube_client, create_profile):
 
 @pytest.mark.dependency(depends=["test_create_profile"])
 def test_kubeflow_workloads(
-    k8s_admission_config_file_path,
     k8s_default_runtimeclass_handler,
     lightkube_client,
     pytest_cmd,
@@ -318,34 +312,6 @@ def test_kubeflow_workloads(
 ):
     """Run a K8s Job to execute the notebook tests."""
     if TESTS_LOCAL_RUN:
-        log.info(
-            "Configuring the Admission Controller for exemptions from Pod Security Standards..."
-        )
-        # reading the Admission Controller's configurations:
-        with open(k8s_admission_config_file_path, "r") as file:
-            admission_controller_configurations = yaml.safe_load(file)
-        # updating the Admission Controller's configurations:
-        plugins = admission_controller_configurations["plugins"]
-        is_podsecurity_already_configured = False
-        for plugin in plugins:
-            if plugin["name"] == "PodSecurity":
-                if (
-                    "path" not in plugin
-                    or plugin["path"] != POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH
-                ):
-                    raise NotImplementedError(
-                        "Updating `PodSecurity` when already set is not supported (yet)."
-                    )
-                is_podsecurity_already_configured = True
-                break
-        if not is_podsecurity_already_configured:
-            plugins.append(
-                {"name": "PodSecurity", "path": POD_SECURITY_ADMISSION_CONFIGURATION_FILE_PATH}
-            )
-        # saving the (updated) Admission Controller's configurations:
-        with open(k8s_admission_config_file_path, "w") as file:
-            yaml.safe_dump(admission_controller_configurations, file)
-
         log.info("Creating the RuntimeClass for exemption from Pod Security Standards...")
         resources = list(
             codecs.load_all_yaml(

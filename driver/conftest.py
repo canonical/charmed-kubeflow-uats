@@ -19,9 +19,6 @@ def pytest_addoption(parser: Parser):
       in the executed tests.
     * Add a `--toleration` option that enables setting a `toleration` entry for pods
       with the enable-gpu = 'true' label.
-    * Add a `--k8s-admission-config-file-path` option to specify the path to the admission
-      configuration file of your Kubernetes cluster. The default one for MicroK8s is otherwise
-      assumed.
     * Add a `--k8s-default-runtimeclass-handler` option to specify the default RuntimeClass handler
       of your Kubernetes cluster. The default one for MicroK8s is otherwise assumed.
     """
@@ -67,12 +64,6 @@ def pytest_addoption(parser: Parser):
         " consulting relevant Kubernetes docs:\n"
         " https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling.",
         action="store",
-    )
-    parser.addoption(
-        "--k8s-admission-config-file-path",
-        default="/var/snap/microk8s/current/args/admission-control-config-file.yaml",
-        help="Provide the path to the admission configuration file of your Kubernetes cluster. The"
-        " default one for MicroK8s is otherwise assumed.",
     )
     parser.addoption(
         "--k8s-default-runtimeclass-handler",
