@@ -305,7 +305,7 @@ def test_kubeflow_workloads(
                 "tests_remote_commit": tests_checked_out_commit,
                 "pytest_cmd": pytest_cmd,
                 "proxy": True if request.config.getoption("proxy") else False,
-                "security_policy": True if request.config.getoption("security_policy") else False,
+                "security_policy": request.config.getoption("security_policy") != "privileged",
             },
         )
     )
