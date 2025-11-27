@@ -1,8 +1,0 @@
-# configuring the Pod Security Admission Controller in order not to reject the
-# creation of the Job running the UATs when `baseline` Pod Security Standards
-# are applied just because such a Job has a `hostPath` volume mount, which is
-# not otherwise allowed by the `baseline` policy:
-apiVersion: pod-security.admission.config.k8s.io/v1
-kind: PodSecurityConfiguration
-exemptions:
-  runtimeClasses: [uats]
