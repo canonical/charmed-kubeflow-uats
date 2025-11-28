@@ -151,6 +151,31 @@ This one works only when running the tests from the same node where the tests jo
 tox -e uats-local
 ```
 
+When deploying Kubeflow with `baseline` Pod Security Standards, configure, beforehand, your K8s distribution for the security exemptions required by the Job running tests to mount its volume on the host (`hostPath`), which would not otherwise be allowed, by:
+1. enabling the [`PodSecurity` Admission Control plugin](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#podsecurity) on your K8s distribution, if not already enabled
+   - in (recent versions of) MicroK8s, it is already enabled by default
+2. updating the configurations of the Pod Security Admission Controller to add an [exemption](https://kubernetes.io/docs/concepts/security/pod-security-admission/#exemptions) based on a `runtimeClass` called `uats`
+   - in MicroK8s, it can be achieved by:
+      1. creating a `PodSecurityConfiguration` YAML file with the following content:
+         ```
+         pod_security_admission_config_absolute_path="$(pwd)/pod-security-admission-configurations.yaml"
+
+         cat > ${pod_security_admission_config_absolute_path} << EOF
+         apiVersion: pod-security.admission.config.k8s.io/v1
+         kind: PodSecurityConfiguration
+         exemptions:
+           runtimeClasses: [uats]
+         EOF
+         ```
+      2. appending the following lines, with the path to the above-mentioned file, to the file configuring Admission Control, located by default at `/var/snap/microk8s/current/args/admission-control-config-file.yaml`:
+         ```
+         echo "  - name: PodSecurity" >> /var/snap/microk8s/current/args/admission-control-config-file.yaml
+         echo "    path: ${pod_security_admission_config_absolute_path}" >> /var/snap/microk8s/current/args/admission-control-config-file.yaml
+         ```
+3. ensuring K8s' API server picks up the new Admission Control configurations
+   - in MicroK8s, restart MicroK8s' node
+
+
 #### Run a subset of UATs
 
 You can also run a subset of the provided tests using the `--filter` option and passing a filter
