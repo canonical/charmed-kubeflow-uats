@@ -172,7 +172,7 @@ When deploying Kubeflow with `baseline` Pod Security Standards, configure, befor
          echo "  - name: PodSecurity" >> /var/snap/microk8s/current/args/admission-control-config-file.yaml
          echo "    path: ${pod_security_admission_config_absolute_path}" >> /var/snap/microk8s/current/args/admission-control-config-file.yaml
          ```
-3. ensuring K8s' API server is updated according to the new configurations
+3. ensuring K8s' API server picks up the new Admission Control configurations
    - in MicroK8s, restart MicroK8s' node
 
 
