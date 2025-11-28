@@ -164,7 +164,7 @@ When deploying Kubeflow with `baseline` Pod Security Standards, configure, befor
          apiVersion: pod-security.admission.config.k8s.io/v1
          kind: PodSecurityConfiguration
          exemptions:
-         runtimeClasses: [uats]
+           runtimeClasses: [uats]
          EOF
          ```
       2. appending the following lines, with the path to the above-mentioned file, to the file configuring Admission Control, located by default at `/var/snap/microk8s/current/args/admission-control-config-file.yaml`:
