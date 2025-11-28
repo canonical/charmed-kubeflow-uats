@@ -151,20 +151,16 @@ This one works only when running the tests from the same node where the tests jo
 tox -e uats-local
 ```
 
-When deploying Kubeflow with `baseline` Pod Security Standards, configure, beforehand, your K8s distribution for the security exemptions required by the Job running tests to mount its volume on the host, by:
+When deploying Kubeflow with `baseline` Pod Security Standards, configure, beforehand, your K8s distribution for the security exemptions required by the Job running tests to mount its volume on the host (`hostPath`), which would not otherwise be allowed, by:
 1. enabling the [`PodSecurity` Admission Control plugin](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#podsecurity) on your K8s distribution, if not already enabled
    - in (recent versions of) MicroK8s, it is already enabled by default
-2. updating the configurations for Admission Control to add an exemption based on a `runtimeClass` called `uats` to its `PodSecurityConfiguration`
+2. updating the configurations of the Pod Security Admission Controller to add an exemption based on a `runtimeClass` called `uats` to its `PodSecurityConfiguration`
    - in MicroK8s, it can be achieve by:
       1. creating a YAML file with the following content with these commands:
          ```
          pod_security_admission_config_absolute_path="$(pwd)/pod-security-admission-configurations.yaml"
 
          cat > ${pod_security_admission_config_absolute_path} << EOF
-         # configuring the Pod Security Admission Controller in order not to reject the
-         # creation of the Job running the UATs when 'baseline' Pod Security Standards
-         # are applied just because such a Job has a 'hostPath' volume mount, which is
-         # not otherwise allowed by the 'baseline' policy:
          apiVersion: pod-security.admission.config.k8s.io/v1
          kind: PodSecurityConfiguration
          exemptions:
