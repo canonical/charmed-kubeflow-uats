@@ -17,7 +17,6 @@ from lightkube.generic_resource import (
     create_namespaced_resource,
     load_in_cluster_generic_resources,
 )
-from lightkube.models.node_v1 import RuntimeClass
 from lightkube.types import CascadeType
 from utils import (
     assert_namespace_active,
