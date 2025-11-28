@@ -158,9 +158,9 @@ When deploying Kubeflow with `baseline` Pod Security Standards, configure your K
    - in MicroK8s, it can be achieve by:
       1. creating a YAML file with the following content with these commands:
          ```
-         pod_security_admission_config_path=./pod-security-admission-configurations.yaml
+         pod_security_admission_config_absolute_path="$(pwd)/pod-security-admission-configurations.yaml"
 
-         cat > ${pod_security_admission_config_path} << EOF
+         cat > ${pod_security_admission_config_absolute_path} << EOF
          # configuring the Pod Security Admission Controller in order not to reject the
          # creation of the Job running the UATs when 'baseline' Pod Security Standards
          # are applied just because such a Job has a 'hostPath' volume mount, which is
@@ -174,7 +174,7 @@ When deploying Kubeflow with `baseline` Pod Security Standards, configure your K
       2. appending the following lines, with the path to the above-mentioned file, to the file configuring Admission Control, located by default at `/var/snap/microk8s/current/args/admission-control-config-file.yaml`:
          ```
          echo "  - name: PodSecurity" >> /var/snap/microk8s/current/args/admission-control-config-file.yaml
-         echo "    path: $(pwd)/${pod_security_admission_config_path}" >> /var/snap/microk8s/current/args/admission-control-config-file.yaml
+         echo "    path: ${pod_security_admission_config_absolute_path}" >> /var/snap/microk8s/current/args/admission-control-config-file.yaml
          ```
 3. ensuring K8s' API server is updated according to the new configurations
    - in MicroK8s, restart MicroK8s' node
