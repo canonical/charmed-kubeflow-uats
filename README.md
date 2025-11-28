@@ -155,7 +155,7 @@ When deploying Kubeflow with `baseline` Pod Security Standards, configure, befor
 1. enabling the [`PodSecurity` Admission Control plugin](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#podsecurity) on your K8s distribution, if not already enabled
    - in (recent versions of) MicroK8s, it is already enabled by default
 2. updating the configurations of the Pod Security Admission Controller to add an [exemption](https://kubernetes.io/docs/concepts/security/pod-security-admission/#exemptions) based on a `runtimeClass` called `uats`
-   - in MicroK8s, it can be achieve by:
+   - in MicroK8s, it can be achieved by:
       1. creating a `PodSecurityConfiguration` YAML file with the following content:
          ```
          pod_security_admission_config_absolute_path="$(pwd)/pod-security-admission-configurations.yaml"
