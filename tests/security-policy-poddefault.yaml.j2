@@ -1,0 +1,12 @@
+apiVersion: kubeflow.org/v1alpha1
+kind: PodDefault
+metadata:
+  name: security-policy
+spec:
+  desc: Add security policy environment variable
+  env:
+  - name: POD_SECURITY_STANDARDS_POLICY
+    value: {{ security_policy }}
+  selector:
+    matchLabels:
+      security-policy: "true"

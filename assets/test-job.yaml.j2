@@ -10,6 +10,9 @@ spec:
           {% if proxy %}
           notebook-proxy: "true"
           {% endif %}
+		  {% if security_policy %}
+          security-policy: "true"
+          {% endif %}
           access-feast: "true"
           access-minio: "true"
           access-ml-pipeline: "true"

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: privileged-pod
+  labels:
+    app: test-security-standards
+spec:
+  containers:
+  - name: privileged-container
+    image: busybox
+    command: ["sleep", "3600"]
+    securityContext:
+      capabilities:
+        drop: ["ALL"]
+        add: ["NET_RAW"] # VIOLATION: Forbidden in Restricted PSS
