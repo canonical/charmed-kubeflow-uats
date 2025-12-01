@@ -19,6 +19,8 @@ def pytest_addoption(parser: Parser):
       in the executed tests.
     * Add a `--toleration` option that enables setting a `toleration` entry for pods
       with the enable-gpu = 'true' label.
+    * Add a `--k8s-default-runtimeclass-handler` option to specify the default RuntimeClass handler
+      of your Kubernetes cluster. The default one for MicroK8s is otherwise assumed.
     """
     parser.addoption(
         "--proxy",
@@ -61,6 +63,23 @@ def pytest_addoption(parser: Parser):
         " Since most fields are optional, ensure that that the toleration passed is a valid one by"
         " consulting relevant Kubernetes docs:\n"
         " https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling.",
+        action="store",
+    )
+    parser.addoption(
+        "--k8s-default-runtimeclass-handler",
+        default="runc",
+        help="Provide the default RuntimeClass handler of your Kubernetes cluster for local tests to"
+        " be set up correctly. The default one for MicroK8s is otherwise assumed.",
+    )
+    parser.addoption(
+        "--security-policy",
+        choices=["privileged", "baseline"],
+        default="privileged",
+        metavar=("security_policy"),
+        help="Provide the security policy defined in `kubeflow-profiles` to ensure the expected bevahior in the testing namespace."
+        " Possible values correspond to Pod Security Standard levels: 'privileged', 'baseline'."
+        " For more information, see: \n"
+        " https://kubernetes.io/docs/concepts/security/pod-security-standards/",
         action="store",
     )
     parser.addoption(

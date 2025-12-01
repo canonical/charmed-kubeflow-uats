@@ -151,6 +151,31 @@ This one works only when running the tests from the same node where the tests jo
 tox -e uats-local
 ```
 
+When deploying Kubeflow with `baseline` Pod Security Standards, configure, beforehand, your K8s distribution for the security exemptions required by the Job running tests to mount its volume on the host (`hostPath`), which would not otherwise be allowed, by:
+1. enabling the [`PodSecurity` Admission Control plugin](https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#podsecurity) on your K8s distribution, if not already enabled
+   - in (recent versions of) MicroK8s, it is already enabled by default
+2. updating the configurations of the Pod Security Admission Controller to add an [exemption](https://kubernetes.io/docs/concepts/security/pod-security-admission/#exemptions) based on a `runtimeClass` called `uats`
+   - in MicroK8s, it can be achieved by:
+      1. creating a `PodSecurityConfiguration` YAML file with the following content:
+         ```
+         pod_security_admission_config_absolute_path="$(pwd)/pod-security-admission-configurations.yaml"
+
+         cat > ${pod_security_admission_config_absolute_path} << EOF
+         apiVersion: pod-security.admission.config.k8s.io/v1
+         kind: PodSecurityConfiguration
+         exemptions:
+           runtimeClasses: [uats]
+         EOF
+         ```
+      2. appending the following lines, with the path to the above-mentioned file, to the file configuring Admission Control, located by default at `/var/snap/microk8s/current/args/admission-control-config-file.yaml`:
+         ```
+         echo "  - name: PodSecurity" >> /var/snap/microk8s/current/args/admission-control-config-file.yaml
+         echo "    path: ${pod_security_admission_config_absolute_path}" >> /var/snap/microk8s/current/args/admission-control-config-file.yaml
+         ```
+3. ensuring K8s' API server picks up the new Admission Control configurations
+   - in MicroK8s, restart MicroK8s' node
+
+
 #### Run a subset of UATs
 
 You can also run a subset of the provided tests using the `--filter` option and passing a filter
@@ -270,6 +295,14 @@ tox -e uats-remote -- --include-gpu-tests --toleration key="MyKey" value="MyValu
 ```
 
 The driver will populate the [PodDefault](./assets/gpu-toleration-poddefault.yaml.j2) with the passed toleration values and apply it, ensuring that the toleration is added to workload pods requiring a GPU. Since most fields are optional, make sure that the toleration passed is a valid one by consulting relevant [Kubernetes docs](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling).
+
+### Running `pod-security-standards` test
+The `pod-security-standards` test ensures that the Charmed Kubeflow deployment properly enforces the pod security standards policy configured in the `kubeflow-profiles` charm.
+
+Currently, `kubeflow-profiles` supports only the values `privileged` and `baseline`. By default, the test expects the default value of `security-policy`, which is `privileged`. To pass the value of the configured security policy, use the "--security-policy" option:
+```bash
+tox -e uats-local -- --security-policy "baseline"
+```
 
 
 ### Run behind proxy
