@@ -57,7 +57,7 @@ RUNTIMECLASS_RESOURCE = create_global_resource(
 JOB_NAME = "test-kubeflow"
 JOB_RUNTIMECLASS_NAME = "uats"
 
-PYTEST_CMD_BASE = "pytest"
+PYTEST_CMD_BASE = "python3 -m pytest"
 
 PODDEFAULT_RESOURCE = create_namespaced_resource(
     group="kubeflow.org",
@@ -97,6 +97,14 @@ def charm_list(request):
         app_name: charm["channel"].split("/")[0] + "/*"
         for app_name, charm in bundle["applications"].items()
     }
+
+
+@pytest.fixture(scope="module")
+def tests_image(request):
+    image = request.config.getoption("--test-image")
+    if not image:
+        image = TESTS_IMAGE
+    return image
 
 
 @pytest.fixture(scope="module")
@@ -301,6 +309,7 @@ def test_kubeflow_workloads(
     lightkube_client,
     pytest_cmd,
     tests_checked_out_commit,
+    tests_image,
     request,
     create_poddefault_on_proxy,
     create_poddefault_on_toleration,
@@ -329,7 +338,7 @@ def test_kubeflow_workloads(
                 "job_name": JOB_NAME,
                 "tests_local_run": TESTS_LOCAL_RUN,
                 "tests_local_dir": TESTS_LOCAL_DIR,
-                "tests_image": TESTS_IMAGE,
+                "tests_image": tests_image,
                 "tests_remote_commit": tests_checked_out_commit,
                 "pytest_cmd": pytest_cmd,
                 "proxy": True if request.config.getoption("proxy") else False,

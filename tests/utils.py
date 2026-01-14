@@ -10,7 +10,7 @@ import nbformat
 
 def install_python_requirements(requirements_file: str = "requirements.txt", *args, **kwargs):
     """Install Python dependencies specified in the provided requirements file."""
-    subprocess.run(["pip", "install", "-r", requirements_file])
+    subprocess.run(["python3", "-m", "pip", "install", "-r", requirements_file])
 
 
 def format_error_message(traceback: list):

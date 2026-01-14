@@ -92,3 +92,8 @@ def pytest_addoption(parser: Parser):
         default=BUNDLE_URL,
         help="Provide the bundle to be used during the check. You can use a URL, e.g. http://..., or a local file, file:/path/to/file. If empty, the check is skipped",
     )
+    parser.addoption(
+        "--test-image",
+        default=TESTS_IMAGE,
+        help="Provide the test image to be used by the driver notebook pod.",
+    )
