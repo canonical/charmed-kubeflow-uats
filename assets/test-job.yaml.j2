@@ -10,13 +10,14 @@ spec:
           {% if proxy %}
           notebook-proxy: "true"
           {% endif %}
-		  {% if security_policy %}
+		      {% if security_policy %}
           security-policy: "true"
           {% endif %}
           access-feast: "true"
           access-minio: "true"
           access-ml-pipeline: "true"
           mlflow-server-minio: "true"
+          access-spark-notebook: "true"
     spec:
       {% if not tests_local_run %}
       # securityContext is needed in order for test files to be writeable 
@@ -45,12 +46,26 @@ spec:
               {% else %}
               cd /tests/charmed-kubeflow-uats/tests;
               {% endif %}
-              pip install -r requirements.txt >/dev/null;
+              python3 -m pip install -r requirements.txt >/dev/null;
               {{ pytest_cmd }};
               # Kill Istio Sidecar after workload completes to have the Job status properly updated
               # https://github.com/istio/istio/issues/6324
               x=$(echo $?);
-              curl -fsI -X POST http://localhost:15020/quitquitquit >/dev/null && exit $x;
+
+              # Kill Istio sidecar (curl replacement)
+              python3 - <<'EOF'
+              import http.client
+
+              try:
+                  conn = http.client.HTTPConnection("localhost", 15020, timeout=2)
+                  conn.request("POST", "/quitquitquit")
+                  conn.close()
+              except Exception:
+                  pass
+              EOF
+
+              exit $x
+              # curl -fsI -X POST http://localhost:15020/quitquitquit >/dev/null && exit $x;
           volumeMounts:
             - name: test-volume
               mountPath: /tests
