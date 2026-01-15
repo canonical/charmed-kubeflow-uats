@@ -4,6 +4,7 @@
 from _pytest.config.argparsing import Parser
 
 BUNDLE_URL = "https://raw.githubusercontent.com/canonical/bundle-kubeflow/refs/heads/main/releases/latest/edge/bundle.yaml"
+TESTS_IMAGE = "kubeflownotebookswg/jupyter-scipy:v1.10.0-rc.1"
 
 
 def pytest_addoption(parser: Parser):
