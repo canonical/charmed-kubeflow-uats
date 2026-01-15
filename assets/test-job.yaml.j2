@@ -18,6 +18,7 @@ spec:
           access-ml-pipeline: "true"
           mlflow-server-minio: "true"
           access-spark-notebook: "true"
+          access-spark-pipeline: "true"
     spec:
       {% if not tests_local_run %}
       # securityContext is needed in order for test files to be writeable 
