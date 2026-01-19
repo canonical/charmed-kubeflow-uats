@@ -100,10 +100,7 @@ def charm_list(request):
 
 @pytest.fixture(scope="module")
 def tests_image(request):
-    image = request.config.getoption("--test-image")
-    if not image:
-        image = TESTS_IMAGE
-    return image
+    return request.config.getoption("--test-image")
 
 
 @pytest.fixture(scope="module")

@@ -10,7 +10,7 @@ spec:
           {% if proxy %}
           notebook-proxy: "true"
           {% endif %}
-		      {% if security_policy %}
+          {% if security_policy %}
           security-policy: "true"
           {% endif %}
           access-feast: "true"
@@ -18,7 +18,6 @@ spec:
           access-ml-pipeline: "true"
           mlflow-server-minio: "true"
           access-spark-notebook: "true"
-          access-spark-pipeline: "true"
     spec:
       {% if not tests_local_run %}
       # securityContext is needed in order for test files to be writeable 
@@ -53,7 +52,9 @@ spec:
               # https://github.com/istio/istio/issues/6324
               x=$(echo $?);
 
-              # Kill Istio sidecar (curl replacement)
+              # Kill Istio sidecar -- does the same function as the commented out curl command below
+              # curl -fsI -X POST http://localhost:15020/quitquitquit >/dev/null && exit $x;
+              # The curl command was replaced by the Python code below to support this step in images that don't have curl installed
               python3 - <<'EOF'
               import http.client
 
@@ -66,7 +67,6 @@ spec:
               EOF
 
               exit $x
-              # curl -fsI -X POST http://localhost:15020/quitquitquit >/dev/null && exit $x;
           volumeMounts:
             - name: test-volume
               mountPath: /tests
