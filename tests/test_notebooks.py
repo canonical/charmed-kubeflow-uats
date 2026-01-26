@@ -67,11 +67,16 @@ def test_notebook(test_notebook):
     try:
         log.info(f"Running {os.path.basename(test_notebook)}...")
         output_notebook, _ = ep.preprocess(notebook, {"metadata": {"path": "./"}})
-        # persist the notebook output to the original file for debugging purposes
-        save_notebook(output_notebook, test_notebook)
     except CellExecutionError as e:
         # handle underlying error
         pytest.fail(f"Notebook execution failed with {e.ename}: {e.evalue}")
+    finally:
+        try:
+            # persist the notebook output to the original file for debugging purposes
+            save_notebook(output_notebook, test_notebook)
+        except PermissionError as e:
+            # If in case the notebook cannot be saved in-place, log the error and continue
+            log.error(f"Permission error while saving notebook: {str(e)}")
 
     for cell in output_notebook.cells:
         metadata = cell.get("metadata", dict)
