@@ -41,6 +41,7 @@ def pytest_addoption(parser: Parser):
         " tests containing 'kfp' or 'katib' in their name, whereas --filter 'not kserve' will run"
         " any test that doesn't contain 'kserve' in its name. Essentially, the option simulates"
         " the behaviour of running `pytest -k '<filter>'` directly on the test suite.",
+        default="not feast and not spark",
     )
     parser.addoption(
         "--include-gpu-tests",
