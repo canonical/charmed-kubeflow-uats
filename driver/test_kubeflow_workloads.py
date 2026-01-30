@@ -3,14 +3,11 @@
 
 import logging
 import os
-import re
 import subprocess
 import time
 from pathlib import Path
 
 import pytest
-import requests
-import yaml
 from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import (
     create_global_resource,
