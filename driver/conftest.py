@@ -3,8 +3,7 @@
 
 from _pytest.config.argparsing import Parser
 
-BUNDLE_URL = "https://raw.githubusercontent.com/canonical/bundle-kubeflow/refs/heads/main/releases/latest/edge/bundle.yaml"
-TESTS_IMAGE = "kubeflownotebookswg/jupyter-scipy:v1.10.0-rc.1"
+TESTS_IMAGE = "ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter-scipy:v1.10.0"
 
 
 def pytest_addoption(parser: Parser):
@@ -87,11 +86,6 @@ def pytest_addoption(parser: Parser):
         "--kubeflow-model",
         default="kubeflow",
         help="Provide the name of the namespace/juju model where kubeflow is deployed.",
-    )
-    parser.addoption(
-        "--bundle",
-        default=BUNDLE_URL,
-        help="Provide the bundle to be used during the check. You can use a URL, e.g. http://..., or a local file, file:/path/to/file. If empty, the check is skipped",
     )
     parser.addoption(
         "--test-image",
