@@ -200,6 +200,12 @@ def create_poddefault_on_security_policy(request, lightkube_client):
 async def test_charms_active_and_idle(ops_test):
     """Test that all applications in the Kubeflow model are active and idle."""
 
+    apps = list(ops_test.model.applications.keys())
+            
+    # Remove opentelemetry-collector-k8s-kubeflow from the apps list because it remains
+    # `blocked` until it's related to one of the COS charms
+    apps.remove("opentelemetry-collector-k8s-kubeflow")
+    
     # Check that every charm is active/idle
     await ops_test.model.wait_for_idle(
         timeout=3600,
