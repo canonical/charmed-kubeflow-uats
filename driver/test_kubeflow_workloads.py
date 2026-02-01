@@ -208,6 +208,7 @@ async def test_charms_active_and_idle(ops_test):
     
     # Check that every charm is active/idle
     await ops_test.model.wait_for_idle(
+        apps=apps,
         timeout=3600,
         idle_period=30,
         status="active",
