@@ -34,7 +34,7 @@ RUNTIMECLASS_TEMPLATE_FILE = ASSETS_DIR / "runtimeclass.yaml.j2"
 
 TESTS_LOCAL_RUN = eval(os.environ.get("LOCAL"))
 TESTS_LOCAL_DIR = os.path.abspath(Path("tests"))
-TESTS_IMAGE = "ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter-scipy:v1.10.0"
+TESTS_IMAGE = "charmedkubeflow/jupyter-scipy:1.10.0-fafb9e8"
 
 NAMESPACE = "test-kubeflow"
 PROFILE_RESOURCE = create_global_resource(
