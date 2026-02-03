@@ -241,12 +241,13 @@ pyasn1-modules==0.4.2
     # via google-auth
 pycparser==3.0
     # via cffi
-pydantic==2.12.5
+pydantic==2.10.6
     # via
+    #   -r requirements.in
     #   fastapi
     #   kserve
     #   mlflow-skinny
-pydantic-core==2.41.5
+pydantic-core==2.27.2
     # via pydantic
 pyparsing==3.3.2
     # via matplotlib
@@ -340,9 +341,6 @@ typing-extensions==4.15.0
     #   pydantic-core
     #   sqlalchemy
     #   starlette
-    #   typing-inspection
-typing-inspection==0.4.2
-    # via pydantic
 tzdata==2025.3
     # via pandas
 urllib3==2.6.3
