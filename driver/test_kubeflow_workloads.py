@@ -98,7 +98,7 @@ def charm_list(request):
 
     return {
         app_name: reduce(
-            lambda suffix, channel: channel.removesuffix(suffix), suffixes, charm["channel"]
+            lambda channel, suffix: channel.removesuffix(suffix), suffixes, charm["channel"]
         )
         for app_name, charm in bundle["applications"].items()
     }
