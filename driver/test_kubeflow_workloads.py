@@ -6,6 +6,7 @@ import os
 import re
 import subprocess
 import time
+from functools import reduce
 from pathlib import Path
 
 import pytest
@@ -85,6 +86,7 @@ def charm_list(request):
 
         bundle = yaml.safe_load(response.content.decode("utf-8"))
     else:
+        logging.info(f"Using file: {url}")
         if not (filename := re.compile("^file:").sub("", url)) or not Path(filename).exists():
             logging.warning(f"Bundle file {filename} does not exist")
             return {}
@@ -92,8 +94,14 @@ def charm_list(request):
         with open(filename, "r") as fid:
             bundle = yaml.safe_load(fid)
 
+    suffixes=["edge", "beta", "candidate", "stable"]
+
     return {
-        app_name: charm["channel"].split("/")[0] + "/*"
+        app_name: reduce(
+            lambda suffix, channel: channel.removesuffix(suffix),
+            suffixes,
+            charm["channel"]
+        )
         for app_name, charm in bundle["applications"].items()
     }
 
