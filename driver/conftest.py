@@ -3,8 +3,7 @@
 
 from _pytest.config.argparsing import Parser
 
-BUNDLE_URL = "https://raw.githubusercontent.com/canonical/bundle-kubeflow/refs/heads/main/releases/1.10/stable/bundle.yaml"
-
+BUNDLE_URL = "file:assets/versions.yaml"
 
 def pytest_addoption(parser: Parser):
     """Add pytest options.
