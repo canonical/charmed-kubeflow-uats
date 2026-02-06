@@ -95,13 +95,11 @@ def charm_list(request):
         with open(filename, "r") as fid:
             bundle = yaml.safe_load(fid)
 
-    suffixes=["edge", "beta", "candidate", "stable"]
+    suffixes = ["edge", "beta", "candidate", "stable"]
 
     return {
         app_name: reduce(
-            lambda suffix, channel: channel.removesuffix(suffix),
-            suffixes,
-            charm["channel"]
+            lambda suffix, channel: channel.removesuffix(suffix), suffixes, charm["channel"]
         )
         for app_name, charm in bundle["applications"].items()
     }
