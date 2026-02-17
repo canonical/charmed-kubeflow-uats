@@ -2,45 +2,45 @@ applications:
   admission-webhook:
     channel: 1.10/
   argo-controller:
-    channel: 3.5/
+    channel: 3.7/
   dex-auth:
     channel: 2.41/
   envoy:
     channel: 2.4/
   istio-ingressgateway:
-    channel: 1.24/
+    channel: 1.28/
   istio-pilot:
-    channel: 1.24/
+    channel: 1.28/
   jupyter-controller:
     channel: 1.10/
   jupyter-ui:
     channel: 1.10/
   katib-controller:
-    channel: 0.18/
+    channel: 0.19/
   katib-db:
     channel: 8.0/
   katib-db-manager:
-    channel: 0.18/
+    channel: 0.19/
   katib-ui:
-    channel: 0.18/
+    channel: 0.19/
   kfp-api:
-    channel: 2.5/
+    channel: 2.15/
   kfp-db:
     channel: 8.0/
   kfp-metadata-writer:
-    channel: 2.5/
+    channel: 2.15/
   kfp-persistence:
-    channel: 2.5/
+    channel: 2.15/
   kfp-profile-controller:
-    channel: 2.5/
+    channel: 2.15/
   kfp-schedwf:
-    channel: 2.5/
+    channel: 2.15/
   kfp-ui:
-    channel: 2.5/
+    channel: 2.15/
   kfp-viewer:
-    channel: 2.5/
+    channel: 2.15/
   kfp-viz:
-    channel: 2.5/
+    channel: 2.15/
   knative-eventing:
     channel: 1.16/
   knative-operator:
@@ -48,7 +48,7 @@ applications:
   knative-serving:
     channel: 1.16/
   kserve-controller:
-    channel: 0.14/
+    channel: 0.15/
   kubeflow-dashboard:
     channel: 1.10/
   kubeflow-profiles:
