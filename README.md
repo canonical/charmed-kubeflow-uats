@@ -231,6 +231,19 @@ tox -e mlflow-remote
 tox -e mlflow-local
 ```
 
+#### Run Kubeflow+MLFlow UATs
+
+In order to only run the Kubeflow+MLFlow-specific tests you can use the
+dedicated `kubeflow` tox test environment:
+
+```bash
+# assumes an existing `kubeflow` Juju model
+# run tests from the checked out commit after fetching them remotely
+tox -e kubeflow-mlflow-remote
+# run tests from the local copy of the repo
+tox -e kubeflow-mlflow-local
+```
+
 #### Run Feast UATs
 
 In order to only run the tests that test integration with Feast, you can use the
