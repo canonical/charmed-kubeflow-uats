@@ -25,6 +25,7 @@ found in the [Run the tests](#run-the-tests) section.
       * [Specify a different bundle](#specify-a-different-bundle)
       * [Kubeflow UATs](#run-kubeflow-uats)
       * [MLflow UATs](#run-mlflow-uats)
+      * [Kubeflow+MLflow UATs](#run-kubeflow+mlflow-uats)
       * [Feast UATs](#run-feast-uats)
    * [NVIDIA GPU UAT](#nvidia-gpu-uat)
       * [From inside a notebook](#run-nvidia-gpu-uat-from-inside-a-notebook)
