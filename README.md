@@ -233,7 +233,7 @@ tox -e mlflow-local
 #### Run Kubeflow+MLFlow UATs
 
 In order to only run the Kubeflow+MLFlow-specific tests you can use the
-dedicated `kubeflow` tox test environment:
+dedicated `kubeflow-mlflow-remote` or `kubeflow-mlflow-local` tox test environments:
 
 ```bash
 # assumes an existing `kubeflow` Juju model
