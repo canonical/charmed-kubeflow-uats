@@ -25,6 +25,7 @@ found in the [Run the tests](#run-the-tests) section.
       * [Specify a different bundle](#specify-a-different-bundle)
       * [Kubeflow UATs](#run-kubeflow-uats)
       * [MLflow UATs](#run-mlflow-uats)
+      * [Kubeflow+MLflow UATs](#run-kubeflow+mlflow-uats)
       * [Feast UATs](#run-feast-uats)
    * [NVIDIA GPU UAT](#nvidia-gpu-uat)
       * [From inside a notebook](#run-nvidia-gpu-uat-from-inside-a-notebook)
@@ -229,6 +230,19 @@ dedicated `mlflow` tox test environment:
 tox -e mlflow-remote
 # run tests from the local copy of the repo
 tox -e mlflow-local
+```
+
+#### Run Kubeflow+MLFlow UATs
+
+In order to only run the Kubeflow+MLFlow-specific tests you can use the
+dedicated `kubeflow-mlflow-remote` or `kubeflow-mlflow-local` tox test environments:
+
+```bash
+# assumes an existing `kubeflow` Juju model
+# run tests from the checked out commit after fetching them remotely
+tox -e kubeflow-mlflow-remote
+# run tests from the local copy of the repo
+tox -e kubeflow-mlflow-local
 ```
 
 #### Run Feast UATs
