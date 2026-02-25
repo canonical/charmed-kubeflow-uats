@@ -6,6 +6,10 @@ spec:
   backoffLimit: 0
   template:
     metadata:
+      annotations:
+        # Ensures istio-proxy container terminates when the Job finishes (sidecar)
+        # and is safely ignored in Ambient mesh.
+        sidecar.istio.io/nativeSidecar: "true"
       labels:
           {% if proxy %}
           notebook-proxy: "true"
@@ -47,10 +51,6 @@ spec:
               {% endif %}
               pip install -r requirements.txt >/dev/null;
               {{ pytest_cmd }};
-              # Kill Istio Sidecar after workload completes to have the Job status properly updated
-              # https://github.com/istio/istio/issues/6324
-              # x=$(echo $?);
-              # curl -fsI -X POST http://localhost:15020/quitquitquit >/dev/null && exit $x;
           volumeMounts:
             - name: test-volume
               mountPath: /tests
