@@ -49,8 +49,8 @@ spec:
               {{ pytest_cmd }};
               # Kill Istio Sidecar after workload completes to have the Job status properly updated
               # https://github.com/istio/istio/issues/6324
-              x=$(echo $?);
-              curl -fsI -X POST http://localhost:15020/quitquitquit >/dev/null && exit $x;
+              # x=$(echo $?);
+              # curl -fsI -X POST http://localhost:15020/quitquitquit >/dev/null && exit $x;
           volumeMounts:
             - name: test-volume
               mountPath: /tests
