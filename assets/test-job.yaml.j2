@@ -6,6 +6,10 @@ spec:
   backoffLimit: 0
   template:
     metadata:
+      annotations:
+        # Ensures istio-proxy container terminates when the Job finishes (sidecar)
+        # and is safely ignored in ambient mode.
+        sidecar.istio.io/nativeSidecar: "true"
       labels:
           {% if proxy %}
           notebook-proxy: "true"
@@ -47,26 +51,7 @@ spec:
               cd /tests/charmed-kubeflow-uats/tests;
               {% endif %}
               python3 -m pip install -r requirements.txt >/dev/null;
-              {{ pytest_cmd }};
-              # Kill Istio Sidecar after workload completes to have the Job status properly updated
-              # https://github.com/istio/istio/issues/6324
-              x=$(echo $?);
-
-              # Kill Istio sidecar -- does the same function as the commented out curl command below
-              # curl -fsI -X POST http://localhost:15020/quitquitquit >/dev/null && exit $x;
-              # The curl command was replaced by the Python code below to support this step in images that don't have curl installed
-              python3 - <<'EOF'
-              import http.client
-
-              try:
-                  conn = http.client.HTTPConnection("localhost", 15020, timeout=2)
-                  conn.request("POST", "/quitquitquit")
-                  conn.close()
-              except Exception:
-                  pass
-              EOF
-
-              exit $x
+              {{ pytest_cmd }}
           volumeMounts:
             - name: test-volume
               mountPath: /tests
