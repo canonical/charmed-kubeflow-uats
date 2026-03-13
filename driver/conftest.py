@@ -92,3 +92,9 @@ def pytest_addoption(parser: Parser):
         default=TESTS_IMAGE,
         help="Provide the test image to be used by the driver notebook pod.",
     )
+    parser.addoption(
+        "--include-ambient-tests",
+        action="store_true",
+        help="Defines whether to include the ambient integration tests."
+        "By default, it is set to False.",
+    )
