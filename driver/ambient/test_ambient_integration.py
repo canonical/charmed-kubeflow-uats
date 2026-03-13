@@ -136,8 +136,7 @@ def create_curl_pod(lightkube_client, create_profile_2):
 
 
 @pytest.mark.dependency(
-    depends=["driver/test_kubeflow_workloads.py::test_charms_active_and_idle"],
-    scope="session"
+    depends=["driver/test_kubeflow_workloads.py::test_charms_active_and_idle"], scope="session"
 )
 def test_ambient_rbac_isolation(
     lightkube_client, create_profile_1, create_profile_2, create_curl_pod
