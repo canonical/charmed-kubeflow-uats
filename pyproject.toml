@@ -29,11 +29,10 @@ authors = []
 
 [tool.poetry.dependencies]
 python = ">=3.12"
-juju = "<4.0"
+jubilant = "~1.7"
 lightkube = "*"
 # pytest is transitive dependencies of other packages
 # pytest = "^7.4"
-pytest-operator = "*"
 pytest-dependency = "*"
 tenacity = "*"
 
