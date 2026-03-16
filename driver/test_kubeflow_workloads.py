@@ -7,6 +7,7 @@ import subprocess
 import time
 from pathlib import Path
 
+import jubilant
 import pytest
 from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import (
@@ -98,10 +99,10 @@ def include_kubeflow_trainer_tests(request):
 
 
 @pytest.fixture(scope="module")
-def kubeflow_model(request, ops_test):
-    """Retrieve name of the model where Kubeflow is deployed."""
+def juju(request):
+    """Create a Jubilant Juju client for the Kubeflow model."""
     model_name = request.config.getoption("--kubeflow-model")
-    return model_name if model_name else ops_test.model.name
+    return jubilant.Juju(model=model_name)
 
 
 @pytest.fixture(scope="module")
@@ -197,10 +198,11 @@ def create_poddefault_on_security_policy(request, lightkube_client):
 
 
 @pytest.mark.abort_on_fail
-async def test_charms_active_and_idle(ops_test):
+def test_charms_active_and_idle(juju):
     """Test that all applications in the Kubeflow model are active and idle."""
 
-    apps = list(ops_test.model.applications.keys())
+    status = juju.status()
+    apps = list(status.apps.keys())
 
     # Remove opentelemetry-collector-k8s-kubeflow from the apps list because it remains
     # `blocked` until it's related to one of the COS charms
@@ -208,17 +210,15 @@ async def test_charms_active_and_idle(ops_test):
         apps.remove("opentelemetry-collector-k8s-kubeflow")
 
     # Check that every charm is active/idle
-    await ops_test.model.wait_for_idle(
-        apps=apps,
+    juju.wait(
+        lambda s: jubilant.all_active(s, *apps) and jubilant.all_agents_idle(s, *apps),
+        error=jubilant.any_error,
         timeout=3600,
-        idle_period=30,
-        status="active",
-        raise_on_error=True,
     )
 
 
 @pytest.mark.dependency()
-async def test_create_profile(lightkube_client, create_profile):
+def test_create_profile(lightkube_client, create_profile):
     """Test Profile creation.
 
     This test relies on the create_profile fixture, which handles the Profile creation and
