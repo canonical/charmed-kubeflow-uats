@@ -21,6 +21,12 @@ def pytest_addoption(parser: Parser):
       with the enable-gpu = 'true' label.
     * Add a `--k8s-default-runtimeclass-handler` option to specify the default RuntimeClass handler
       of your Kubernetes cluster. The default one for MicroK8s is otherwise assumed.
+    * Add a `--security-policy` option to specify the security policy (privileged or baseline)
+      defined in `kubeflow-profiles` for the testing namespace.
+    * Add a `--kubeflow-model` option to specify the namespace/juju model where kubeflow is deployed.
+    * Add a `--test-image` option to specify the test image to be used by the driver notebook pod.
+    * Add an `--include-ambient-tests` flag to include the ambient integration tests in the
+      executed tests.
     """
     parser.addoption(
         "--proxy",
