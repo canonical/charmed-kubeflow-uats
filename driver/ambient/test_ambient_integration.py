@@ -1,7 +1,6 @@
 # Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 import logging
-import sys
 from pathlib import Path
 
 import pytest
@@ -19,9 +18,6 @@ from utils import (
     assert_service_account_exists,
     exec_in_pod,
 )
-
-# Add parent directory to path to import from driver
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 log = logging.getLogger(__name__)
 
