@@ -56,10 +56,11 @@ tox -e uats-local  # ambient tests will be skipped
 - Kubectl configured to access the cluster
 - Python dependencies installed (pytest, lightkube, tenacity)
 
-## Files Created
+## Test Implementation Files
 
-- `driver/ambient/test_ambient_integration.py` - Main test file
-- `assets/ambient-profile.yaml.j2` - Profile template (used for both profiles)
+- `driver/ambient/test_ambient_integration.py` - Main test implementation
+- `driver/ambient/conftest.py` - Pytest configuration and fixtures for ambient tests
+- `assets/ambient-profile.yaml.j2` - Jinja2 template for creating test profiles
 
 ## Expected Behavior
 
