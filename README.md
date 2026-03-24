@@ -30,6 +30,7 @@ found in the [Run the tests](#run-the-tests) section.
    * [NVIDIA GPU UAT](#nvidia-gpu-uat)
       * [From inside a notebook](#run-nvidia-gpu-uat-from-inside-a-notebook)
       * [Using the `driver`](#run-nvidia-gpu-uat-using-the-driver)
+   * [Ambient Integration Test](#ambient-integration-test)
    * [Behind proxy](#run-behind-proxy)
       * [Prerequisites](#prerequisites-2)
         * [Running the KServe UATs](#running-the-kserve-uats)
@@ -309,6 +310,22 @@ tox -e uats-remote -- --include-gpu-tests --toleration key="MyKey" value="MyValu
 ```
 
 The driver will populate the [PodDefault](./assets/gpu-toleration-poddefault.yaml.j2) with the passed toleration values and apply it, ensuring that the toleration is added to workload pods requiring a GPU. Since most fields are optional, make sure that the toleration passed is a valid one by consulting relevant [Kubernetes docs](https://kubernetes.io/docs/reference/kubernetes-api/workload-resources/pod-v1/#scheduling).
+
+### Ambient Integration Test
+
+The Ambient Integration Test verifies that Istio Ambient Mesh properly enforces isolation between Kubeflow profiles. This test creates two separate profiles and verifies that a pod in one profile cannot access resources in another profile via KFP API.
+
+By default, the ambient integration test is not included in any of the `tox` environments. To include it, use the `--include-ambient-tests` flag:
+
+```bash
+# Run all tests including ambient
+tox -e uats-local -- --include-ambient-tests
+
+# Run only the ambient test
+tox -e uats-local -- --include-ambient-tests -k ambient
+```
+
+For more details, see the [Ambient Integration Test README](./driver/ambient/README.md).
 
 ### Running `pod-security-standards` test
 The `pod-security-standards` test ensures that the Charmed Kubeflow deployment properly enforces the pod security standards policy configured in the `kubeflow-profiles` charm.

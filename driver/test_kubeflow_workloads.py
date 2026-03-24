@@ -197,6 +197,7 @@ def create_poddefault_on_security_policy(request, lightkube_client):
 
 
 @pytest.mark.abort_on_fail
+@pytest.mark.dependency()
 async def test_charms_active_and_idle(ops_test):
     """Test that all applications in the Kubeflow model are active and idle."""
 
