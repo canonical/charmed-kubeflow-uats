@@ -95,11 +95,6 @@ def pytest_addoption(parser: Parser):
         help="Provide the name of the namespace/juju model where kubeflow is deployed.",
     )
     parser.addoption(
-        "--model",
-        default="kubeflow",
-        help="Provide the name of the namespace/juju model where kubeflow is deployed.",
-    )
-    parser.addoption(
         "--bundle",
         default=BUNDLE_URL,
         help="Provide the bundle to be used during the check. You can use a URL, e.g. http://..., or a local file, file:/path/to/file. If empty, the check is skipped",
