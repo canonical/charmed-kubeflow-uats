@@ -102,6 +102,8 @@ def include_kubeflow_trainer_tests(request):
 def juju(request):
     """Create a Jubilant Juju client for the Kubeflow model."""
     model_name = request.config.getoption("--kubeflow-model")
+    if not model_name:
+        model_name = request.config.getoption("--model")
     return jubilant.Juju(model=model_name)
 
 

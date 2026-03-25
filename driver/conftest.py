@@ -84,6 +84,11 @@ def pytest_addoption(parser: Parser):
     )
     parser.addoption(
         "--kubeflow-model",
+        default=None,
+        help="Provide the name of the namespace/juju model where kubeflow is deployed.",
+    )
+    parser.addoption(
+        "--model",
         default="kubeflow",
         help="Provide the name of the namespace/juju model where kubeflow is deployed.",
     )
