@@ -3,12 +3,16 @@
 
 import logging
 import os
+import re
 import subprocess
 import time
+from functools import reduce
 from pathlib import Path
 
 import jubilant
 import pytest
+import requests
+import yaml
 from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import (
     create_global_resource,
@@ -67,6 +71,38 @@ PODDEFAULT_WITH_TOLERATION_PATH = Path("assets") / "gpu-toleration-poddefault.ya
 PODDEFAULT_WITH_SECURITY_POLICY_PATH = Path("tests") / "security-policy-poddefault.yaml.j2"
 
 KFP_PODDEFAULT_NAME = "access-ml-pipeline"
+
+
+@pytest.fixture(scope="module")
+def charm_list(request):
+    url = request.config.getoption("--bundle")
+
+    if not url:
+        return {}
+
+    if url.startswith("http"):
+        if not (response := requests.get(url)) or (response.status_code != 200):
+            logging.warning(f"Bundle file {url} could not be downloaded")
+            return {}
+
+        bundle = yaml.safe_load(response.content.decode("utf-8"))
+    else:
+        logging.info(f"Using file: {url}")
+        if not (filename := re.compile("^file:").sub("", url)) or not Path(filename).exists():
+            logging.warning(f"Bundle file {filename} does not exist")
+            return {}
+
+        with open(filename, "r") as fid:
+            bundle = yaml.safe_load(fid)
+
+    suffixes = ["edge", "beta", "candidate", "stable"]
+
+    return {
+        app_name: reduce(
+            lambda channel, suffix: channel.removesuffix(suffix), suffixes, charm["channel"]
+        )
+        for app_name, charm in bundle["applications"].items()
+    }
 
 
 @pytest.fixture(scope="module")
@@ -200,16 +236,42 @@ def create_poddefault_on_security_policy(request, lightkube_client):
 
 
 @pytest.mark.abort_on_fail
+def test_bundle_correctness(juju, charm_list):
+    """Test that the correct bundle is selected.
+
+    Tests are specific to each Charmed Kubeflow version release. This test makes sure that
+    the correct version of the bundle, consistent with the tests, is specified. In order to
+    check the correctness, we use a YAML bundle that is pulled from the correct URL in the
+    bundle-kubeflow repository. This value can be overridden using the `--bundle` argument.
+    """
+
+    if not charm_list:
+        pytest.skip("charm_list empty. Cannot test bundle correctness")
+
+    status = juju.status()
+
+    # Check that the version is the one expected by this set of tests
+    for name, channel_regex in charm_list.items():
+        app_channel = status.apps[name].charm_channel
+        assert re.compile(channel_regex).match(
+            app_channel
+        ), f"Failed bundle correctness check. Expected: {channel_regex} Found: {app_channel}"
+
+    # Check that every charm of the bundle is active/idle
+    apps = list(charm_list.keys())
+    juju.wait(
+        lambda s: jubilant.all_active(s, *apps) and jubilant.all_agents_idle(s, *apps),
+        error=jubilant.any_error,
+        timeout=3600,
+    )
+
+
+@pytest.mark.abort_on_fail
 def test_charms_active_and_idle(juju):
     """Test that all applications in the Kubeflow model are active and idle."""
 
     status = juju.status()
     apps = list(status.apps.keys())
-
-    # Remove opentelemetry-collector-k8s-kubeflow from the apps list because it remains
-    # `blocked` until it's related to one of the COS charms
-    if "opentelemetry-collector-k8s-kubeflow" in apps:
-        apps.remove("opentelemetry-collector-k8s-kubeflow")
 
     # Check that every charm is active/idle
     juju.wait(

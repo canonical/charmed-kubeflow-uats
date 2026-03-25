@@ -1,0 +1,75 @@
+applications:
+  admission-webhook:
+    channel: latest/
+  argo-controller:
+    channel: latest/
+  dex-auth:
+    channel: latest/
+  envoy:
+    channel: latest/
+  istio-ingressgateway:
+    channel: latest/
+  istio-pilot:
+    channel: latest/
+  jupyter-controller:
+    channel: latest/
+  jupyter-ui:
+    channel: latest/
+  katib-controller:
+    channel: latest/
+  katib-db:
+    channel: 8.0/
+  katib-db-manager:
+    channel: latest/
+  katib-ui:
+    channel: latest/
+  kfp-api:
+    channel: latest/
+  kfp-db:
+    channel: 8.0/
+  kfp-metadata-writer:
+    channel: latest/
+  kfp-persistence:
+    channel: latest/
+  kfp-profile-controller:
+    channel: latest/
+  kfp-schedwf:
+    channel: latest/
+  kfp-ui:
+    channel: latest/
+  kfp-viewer:
+    channel: latest/
+  kfp-viz:
+    channel: latest/
+  knative-eventing:
+    channel: latest/
+  knative-operator:
+    channel: latest/
+  knative-serving:
+    channel: latest/
+  kserve-controller:
+    channel: latest/
+  kubeflow-dashboard:
+    channel: latest/
+  kubeflow-profiles:
+    channel: latest/
+  kubeflow-roles:
+    channel: latest/
+  kubeflow-volumes:
+    channel: latest/
+  metacontroller-operator:
+    channel: latest/
+  minio:
+    channel: latest/
+  mlmd:
+    channel: latest/
+  oidc-gatekeeper:
+    channel: latest/
+  pvcviewer-operator:
+    channel: latest/
+  tensorboard-controller:
+    channel: latest/
+  tensorboards-web-app:
+    channel: latest/
+  training-operator:
+    channel: latest/
