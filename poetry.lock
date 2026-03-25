@@ -714,6 +714,22 @@ pytest = ">=3.7.0"
 setuptools = "*"
 
 [[package]]
+name = "pytest-jubilant"
+version = "1.3.0"
+description = "Add your description here"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "pytest_jubilant-1.3.0-py3-none-any.whl", hash = "sha256:520c04f5a4a5d1d9e3729424d4f8bd6b01153c0284fb3e2fda8fe90fae79cc4a"},
+    {file = "pytest_jubilant-1.3.0.tar.gz", hash = "sha256:93e05233172e33a76f96e162fd9aeb5161f453abd7de521183631857bb77a8ea"},
+]
+
+[package.dependencies]
+jubilant = ">=0.5.0"
+pytest = ">=8.3.5"
+
+[[package]]
 name = "pyyaml"
 version = "6.0.2"
 description = "YAML parser and emitter for Python"
@@ -901,4 +917,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "e409d2acba368fdd46b721cc861519e277eedef941d4c9e646dcac29318caa8d"
+content-hash = "d9795c18dff66eb8e1e89bb36cb66d764fa08d5fe3c595ee67a2141709fe0f45"
