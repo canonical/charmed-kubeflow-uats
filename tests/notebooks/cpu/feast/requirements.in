@@ -1,2 +1,2 @@
-feast[postgres]==0.49.0
+feast[postgres]==0.54.0
 psycopg2-binary
