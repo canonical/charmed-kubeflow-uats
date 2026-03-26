@@ -35,6 +35,7 @@ lightkube = "*"
 # pytest = "^7.4"
 pytest-operator = "*"
 pytest-dependency = "*"
+pytest-ordering = "*"
 tenacity = "*"
 
 [tool.poetry.group.fmt]
