@@ -9,6 +9,7 @@ import time
 from functools import reduce
 from pathlib import Path
 
+import jubilant
 import pytest
 import requests
 import yaml
@@ -134,10 +135,10 @@ def include_kubeflow_trainer_tests(request):
 
 
 @pytest.fixture(scope="module")
-def kubeflow_model(request, ops_test):
-    """Retrieve name of the model where Kubeflow is deployed."""
-    model_name = request.config.getoption("--kubeflow-model")
-    return model_name if model_name else ops_test.model.name
+def juju(request):
+    """Create a Jubilant Juju client for the Kubeflow model."""
+    model_name = request.config.getoption("--kubeflow-model") or request.config.getoption("--model") or "kubeflow"
+    return jubilant.Juju(model=model_name)
 
 
 @pytest.fixture(scope="module")
@@ -233,8 +234,7 @@ def create_poddefault_on_security_policy(request, lightkube_client):
 
 
 @pytest.mark.abort_on_fail
-@pytest.mark.dependency()
-async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
+def test_bundle_correctness(juju, charm_list):
     """Test that the correct bundle is selected.
 
     Tests are specific to each Charmed Kubeflow version release. This test makes sure that
@@ -246,28 +246,41 @@ async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
     if not charm_list:
         pytest.skip("charm_list empty. Cannot test bundle correctness")
 
-    model = await ops_test.track_model("kubeflow", model_name=kubeflow_model, use_existing=True)
-    status = await model.get_status()
+    status = juju.status()
 
     # Check that the version is the one expected by this set of tests
     for name, channel_regex in charm_list.items():
-        app_channel = status["applications"][name]["charm-channel"]
+        app_channel = status.apps[name].charm_channel
         assert re.compile(channel_regex).match(
             app_channel
         ), f"Failed bundle correctness check. Expected: {channel_regex} Found: {app_channel}"
 
     # Check that every charm of the bundle is active/idle
-    await ops_test.model.wait_for_idle(
-        apps=list(charm_list),
+    apps = list(charm_list.keys())
+    juju.wait(
+        lambda s: jubilant.all_active(s, *apps) and jubilant.all_agents_idle(s, *apps),
+        error=jubilant.any_error,
         timeout=3600,
-        idle_period=30,
-        status="active",
-        raise_on_error=True,
+    )
+
+
+@pytest.mark.abort_on_fail
+def test_charms_active_and_idle(juju):
+    """Test that all applications in the Kubeflow model are active and idle."""
+
+    status = juju.status()
+    apps = list(status.apps.keys())
+
+    # Check that every charm is active/idle
+    juju.wait(
+        lambda s: jubilant.all_active(s, *apps) and jubilant.all_agents_idle(s, *apps),
+        error=jubilant.any_error,
+        timeout=3600,
     )
 
 
 @pytest.mark.dependency()
-async def test_create_profile(lightkube_client, create_profile):
+def test_create_profile(lightkube_client, create_profile):
     """Test Profile creation.
 
     This test relies on the create_profile fixture, which handles the Profile creation and
