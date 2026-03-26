@@ -131,7 +131,7 @@ def create_curl_pod(lightkube_client, create_profile_2):
         log.info(f"Pod {CURL_POD_NAME} already deleted")
 
 
-@pytest.mark.order(after="driver/test_kubeflow_workloads.py::test_bundle_correctness")
+@pytest.mark.run(order=2)
 @pytest.mark.dependency(
     depends=["driver/test_kubeflow_workloads.py::test_bundle_correctness"], scope="session"
 )
