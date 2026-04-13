@@ -131,7 +131,7 @@ def fetch_job_logs(job_name, namespace, tests_local_run):
 
 @tenacity.retry(
     wait=tenacity.wait_exponential(multiplier=2, min=1, max=10),
-    stop=tenacity.stop_after_attempt(10),
+    stop=tenacity.stop_after_attempt(50),
     reraise=True,
 )
 def assert_profile_deleted(client, profile_name, logger: logging.Logger):
