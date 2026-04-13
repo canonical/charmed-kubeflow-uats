@@ -233,7 +233,6 @@ def create_poddefault_on_security_policy(request, lightkube_client):
         )
 
 
-@pytest.mark.abort_on_fail
 def test_bundle_correctness(juju, charm_list):
     """Test that the correct bundle is selected.
 
@@ -264,7 +263,6 @@ def test_bundle_correctness(juju, charm_list):
     )
 
 
-@pytest.mark.abort_on_fail
 def test_charms_active_and_idle(juju):
     """Test that all applications in the Kubeflow model are active and idle."""
 
