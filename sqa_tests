@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -xou pipefail
+
+MODEL=kubeflow
+TEST_OPTION=kubeflow-remote
+
+OUTPUT_RESULTS=$PWD/test_results.xml
+OUTPUT_METRICS=metrics.json
+
+sudo add-apt-repository ppa:deadsnakes/ppa -y
+sudo apt update -y
+sudo apt install python3.12 python3.12-venv -y
+
+python3.12 -m venv venv
+source venv/bin/activate
+
+HTTPS_PROXY=http://squid.internal:3128 pip install --upgrade tox
+
+juju status --model "${MODEL}" --utc
+
+# poetry does not respect /etc/pip.conf to use proxy for contacting PyPI
+HTTPS_PROXY=http://squid.internal:3128 tox -e "${TEST_OPTION}" -- --no-test ||
+    echo "Ignore the Error, only downloaded packages"
+
+TERM=dumb timeout 4h tox -e ${TEST_OPTION} -- \
+    --junit-xml="$OUTPUT_RESULTS" \
+    "$@"  # passed 'args'
+
+# (placeholder) A file containing metrics from the test run.
+#   Currently only expected, but not used.  Empty is okay.
+touch $OUTPUT_METRICS
