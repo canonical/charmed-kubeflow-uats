@@ -137,7 +137,11 @@ def include_kubeflow_trainer_tests(request):
 @pytest.fixture(scope="module")
 def juju(request):
     """Create a Jubilant Juju client for the Kubeflow model."""
-    model_name = request.config.getoption("--kubeflow-model") or request.config.getoption("--model") or "kubeflow"
+    model_name = (
+        request.config.getoption("--kubeflow-model")
+        or request.config.getoption("--model")
+        or "kubeflow"
+    )
     return jubilant.Juju(model=model_name)
 
 
