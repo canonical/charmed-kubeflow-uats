@@ -3,7 +3,7 @@
 
 from _pytest.config.argparsing import Parser
 
-BUNDLE_URL = "file:assets/versions.yaml"
+BUNDLE_URL = "file:assets/versions-sidecar.yaml"
 TESTS_IMAGE = "ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter-scipy:v1.10.0"
 
 
