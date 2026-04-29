@@ -30,15 +30,6 @@ NAMESPACE_2 = "profile2"
 CURL_POD_NAME = "ambient-test-curl"
 
 
-def pytest_collection_modifyitems(config, items):
-    """Skip ambient tests unless --include-ambient-tests is passed."""
-    if not config.getoption("--include-ambient-tests", default=False):
-        skip_ambient = pytest.mark.skip(reason="need --include-ambient-tests option to run")
-        for item in items:
-            if "ambient" in item.nodeid:
-                item.add_marker(skip_ambient)
-
-
 @pytest.fixture(scope="module")
 def lightkube_client():
     """Initialise Lightkube Client."""
