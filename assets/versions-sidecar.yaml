@@ -52,7 +52,7 @@ applications:
   kubeflow-dashboard:
     channel: 2.0/
   kubeflow-profiles:
-    channel: 1.10/
+    channel: 2.0/
   kubeflow-roles:
     channel: 1.10/
   kubeflow-volumes:
