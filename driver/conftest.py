@@ -1,9 +1,11 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import pytest
 from _pytest.config.argparsing import Parser
 
-BUNDLE_URL = "file:assets/versions-sidecar.yaml"
+BUNDLE_URL_SIDECAR = "file:assets/versions-sidecar.yaml"
+BUNDLE_URL_AMBIENT = "file:assets/versions-ambient.yaml"
 TESTS_IMAGE = "ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter-scipy:v1.10.0"
 
 
@@ -96,7 +98,7 @@ def pytest_addoption(parser: Parser):
     )
     parser.addoption(
         "--bundle",
-        default=BUNDLE_URL,
+        default=None,
         help="Provide the bundle to be used during the check. You can use a URL, e.g. http://..., or a local file, file:/path/to/file. If empty, the check is skipped",
     )
     parser.addoption(
@@ -110,3 +112,31 @@ def pytest_addoption(parser: Parser):
         help="Defines whether to include the ambient integration tests."
         "By default, it is set to False.",
     )
+
+
+def pytest_configure(config):
+    """Set the default bundle based on whether ambient tests are enabled."""
+    if config.getoption("--bundle") is not None:
+        return
+
+    if config.getoption("--include-ambient-tests"):
+        config.option.bundle = BUNDLE_URL_AMBIENT
+    else:
+        config.option.bundle = BUNDLE_URL_SIDECAR
+
+
+def pytest_collection_modifyitems(config, items):
+    """Ensure dependency roots are collected before tests that depend on them.
+
+    pytest-dependency skips immediately when a dependency has not run yet,
+    so this forces the bundle correctness check to execute first.
+    """
+
+    if not config.getoption("--include-ambient-tests", default=False):
+        skip_ambient = pytest.mark.skip(reason="need --include-ambient-tests option to run")
+        for item in items:
+            if "/ambient/" in item.nodeid:
+                item.add_marker(skip_ambient)
+
+    dependency_root = "driver/test_kubeflow_workloads.py::test_bundle_correctness"
+    items.sort(key=lambda item: 0 if item.nodeid.endswith(dependency_root) else 1)
