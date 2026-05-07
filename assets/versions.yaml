@@ -24,23 +24,23 @@ applications:
   katib-ui:
     channel: 0.19/
   kfp-api:
-    channel: 2.15/
+    channel: 2.16/
   kfp-db:
     channel: 8.0/
   kfp-metadata-writer:
-    channel: 2.15/
+    channel: 2.16/
   kfp-persistence:
-    channel: 2.15/
+    channel: 2.16/
   kfp-profile-controller:
-    channel: 2.15/
+    channel: 2.16/
   kfp-schedwf:
-    channel: 2.15/
+    channel: 2.16/
   kfp-ui:
-    channel: 2.15/
+    channel: 2.16/
   kfp-viewer:
-    channel: 2.15/
+    channel: 2.16/
   kfp-viz:
-    channel: 2.15/
+    channel: 2.16/
   knative-eventing:
     channel: 1.16/
   knative-operator:
