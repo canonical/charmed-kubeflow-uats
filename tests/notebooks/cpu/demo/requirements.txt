@@ -4,4 +4,5 @@ kserve
 kubeflow-katib
 pyarrow
 pandas
-scikit-learn
+scikit-learn<=1.6.1
+mlflow<3.0.0
