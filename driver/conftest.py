@@ -92,9 +92,16 @@ def pytest_addoption(parser: Parser):
         action="store",
     )
     parser.addoption(
+        "--model",
+        default=None,
+        help="Provide the exact name of the juju model where kubeflow is deployed."
+        " Overridden by --kubeflow-model if both are set.",
+    )
+    parser.addoption(
         "--kubeflow-model",
-        default="kubeflow",
-        help="Provide the name of the namespace/juju model where kubeflow is deployed.",
+        default=None,
+        help="Provide the exact name of the juju model where kubeflow is deployed."
+        " Overrides --model if both are set.",
     )
     parser.addoption(
         "--bundle",
