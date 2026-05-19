@@ -348,6 +348,7 @@ def test_kubeflow_workloads(
                 "proxy": True if request.config.getoption("proxy") else False,
                 "security_policy": request.config.getoption("security_policy") != "privileged",
                 "kubeflow_namespace": kubeflow_model,
+                "user_namespace": NAMESPACE,
             },
         )
     )

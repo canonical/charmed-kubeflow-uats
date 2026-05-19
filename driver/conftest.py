@@ -93,7 +93,6 @@ def pytest_addoption(parser: Parser):
     )
     parser.addoption(
         "--kubeflow-model",
-        default="kubeflow",
         help="Provide the name of the namespace/juju model where kubeflow is deployed. "
         "This is used to determine the Kubeflow control-plane namespace for the KFP API endpoint.",
     )

@@ -53,8 +53,10 @@ spec:
               python3 -m pip install -r requirements.txt >/dev/null;
               {{ pytest_cmd }}
           env:
-            - name: KF_PIPELINES_ENDPOINT
-              value: "http://ml-pipeline.{{ kubeflow_namespace }}.svc.cluster.local:8888"
+            - name: KUBEFLOW_NAMESPACE
+              value: {{ kubeflow_namespace }}
+            - name: USER_NAMESPACE
+              value: {{ user_namespace }}
           volumeMounts:
             - name: test-volume
               mountPath: /tests

@@ -219,9 +219,12 @@ tox -e uats-local -- --kubeflow-model kf-system
 ```
 
 This flag controls both the juju model name used for bundle checks and the Kubernetes namespace
-where the KFP API endpoint (`ml-pipeline` service) is located. The namespace is used to construct
-the `KF_PIPELINES_ENDPOINT` environment variable, which the KFP SDK reads to connect to the correct
-API server.
+where the KFP API endpoint (`ml-pipeline` service) is located. The driver injects two environment
+variables into the test Job container:
+- `KUBEFLOW_NAMESPACE` — the namespace where the Kubeflow control plane is deployed (used by
+  `kfp.Client(namespace=...)` to connect to the correct API server)
+- `USER_NAMESPACE` — the profile namespace where pipeline runs are submitted (used by
+  `client.set_user_namespace(...)` to target the correct user profile)
 
 #### Run Kubeflow UATs
 
