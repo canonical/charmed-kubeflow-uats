@@ -309,6 +309,7 @@ async def test_create_profile(lightkube_client, create_profile):
 @pytest.mark.dependency(depends=["test_create_profile"])
 def test_kubeflow_workloads(
     k8s_default_runtimeclass_handler,
+    kubeflow_model,
     lightkube_client,
     pytest_cmd,
     tests_checked_out_commit,
