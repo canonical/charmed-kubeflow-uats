@@ -1,6 +1,6 @@
 applications:
   admission-webhook:
-    channel: 1.10/
+    channel: 2.0/
   argo-controller:
     channel: 3.7/
   dex-auth:
@@ -12,9 +12,9 @@ applications:
   istio-pilot:
     channel: 1.28/
   jupyter-controller:
-    channel: 1.10/
+    channel: 1.11/
   jupyter-ui:
-    channel: 1.10/
+    channel: 1.11/
   katib-controller:
     channel: 0.19/
   katib-db:
@@ -50,13 +50,13 @@ applications:
   kserve-controller:
     channel: 0.15/
   kubeflow-dashboard:
-    channel: 1.10/
+    channel: 2.0/
   kubeflow-profiles:
-    channel: 1.10/
+    channel: 2.0/
   kubeflow-roles:
     channel: 1.10/
   kubeflow-volumes:
-    channel: 1.10/
+    channel: 1.11/
   metacontroller-operator:
     channel: 4.11/
   minio:
@@ -66,10 +66,10 @@ applications:
   oidc-gatekeeper:
     channel: ckf-1.10/
   pvcviewer-operator:
-    channel: 1.10/
+    channel: 1.11/
   tensorboard-controller:
-    channel: 1.10/
+    channel: 1.11/
   tensorboards-web-app:
-    channel: 1.10/
+    channel: 1.11/
   training-operator:
     channel: 1.9/

@@ -232,8 +232,8 @@ def create_poddefault_on_security_policy(request, lightkube_client):
         )
 
 
-@pytest.mark.abort_on_fail
 @pytest.mark.dependency()
+@pytest.mark.abort_on_fail
 async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
     """Test that the correct bundle is selected.
 
