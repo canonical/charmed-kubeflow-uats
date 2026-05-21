@@ -126,7 +126,7 @@ def create_curl_pod(lightkube_client, create_profile_2):
     depends=["driver/test_kubeflow_workloads.py::test_bundle_correctness"], scope="session"
 )
 def test_ambient_rbac_isolation(
-    lightkube_client, create_profile_1, create_profile_2, create_curl_pod
+    lightkube_client, create_profile_1, create_profile_2, create_curl_pod, kubeflow_model
 ):
     """Test that ambient mesh prevents cross-profile access via RBAC.
 
@@ -146,7 +146,7 @@ def test_ambient_rbac_isolation(
         "\\nHTTP_CODE:%{http_code}",
         "-H",
         f"kubeflow-userid: {NAMESPACE_1}@email.com",
-        f"ml-pipeline.kubeflow.svc:8888/apis/v2beta1/experiments?namespace={NAMESPACE_1}",
+        f"ml-pipeline.{kubeflow_model}.svc:8888/apis/v2beta1/experiments?namespace={NAMESPACE_1}",
     ]
 
     stdout, stderr, returncode = exec_in_pod(pod_name, NAMESPACE_2, curl_command)
