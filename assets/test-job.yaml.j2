@@ -52,6 +52,11 @@ spec:
               {% endif %}
               python3 -m pip install -r requirements.txt >/dev/null;
               {{ pytest_cmd }}
+          env:
+            - name: KUBEFLOW_NAMESPACE
+              value: {{ kubeflow_namespace }}
+            - name: USER_NAMESPACE
+              value: {{ user_namespace }}
           volumeMounts:
             - name: test-volume
               mountPath: /tests

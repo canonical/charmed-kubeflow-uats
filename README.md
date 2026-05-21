@@ -207,6 +207,25 @@ The `<my-bundle>` can be replaced by either a URL, e.g. `http://...`, or a local
 
 This flag is currently only provided on main branch and tracks 1.9+. 
 
+#### Specify the Kubeflow control-plane namespace
+
+By default, the UATs assume the Kubeflow control plane (including the `ml-pipeline` API service)
+is deployed in the `kubeflow` namespace. If your Charmed Kubeflow installation is deployed to a
+different namespace, use the `--model` flag to specify the namespace where Kubeflow is deployed:
+
+```bash
+# run tests against Kubeflow deployed to the kf-system namespace
+tox -e uats-local -- --model kf-system
+```
+
+This flag controls both the juju model name used for bundle checks and the Kubernetes namespace
+where the KFP API endpoint (`ml-pipeline` service) is located. The driver injects two environment
+variables into the test Job container:
+- `KUBEFLOW_NAMESPACE` — the namespace where the Kubeflow control plane is deployed (used by
+  `kfp.Client(namespace=...)` to connect to the correct API server)
+- `USER_NAMESPACE` — the profile namespace where pipeline runs are submitted (used by
+  `client.set_user_namespace(...)` to target the correct user profile)
+
 #### Run Kubeflow UATs
 
 In order to only run the Kubeflow-specific tests (i.e. no MLflow integration) you can use the
