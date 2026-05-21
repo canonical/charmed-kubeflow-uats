@@ -26,7 +26,6 @@ def pytest_addoption(parser: Parser):
       of your Kubernetes cluster. The default one for MicroK8s is otherwise assumed.
     * Add a `--security-policy` option to specify the security policy (privileged or baseline)
       defined in `kubeflow-profiles` for the testing namespace.
-    * Add a `--kubeflow-model` option to specify the juju model where kubeflow is deployed.
     * Add a `--test-image` option to specify the test image to be used by the driver notebook pod.
     * Add an `--include-ambient-tests` flag to include the ambient integration tests in the
       executed tests.
@@ -90,11 +89,6 @@ def pytest_addoption(parser: Parser):
         " For more information, see: \n"
         " https://kubernetes.io/docs/concepts/security/pod-security-standards/",
         action="store",
-    )
-    parser.addoption(
-        "--kubeflow-model",
-        help="Provide the name of the namespace/juju model where kubeflow is deployed. "
-        "This is used to determine the Kubeflow control-plane namespace for the KFP API endpoint.",
     )
     parser.addoption(
         "--bundle",

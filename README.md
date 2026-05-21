@@ -211,11 +211,11 @@ This flag is currently only provided on main branch and tracks 1.9+.
 
 By default, the UATs assume the Kubeflow control plane (including the `ml-pipeline` API service)
 is deployed in the `kubeflow` namespace. If your Charmed Kubeflow installation is deployed to a
-different namespace, use the `--kubeflow-model` flag to specify the namespace where Kubeflow is deployed:
+different namespace, use the `--model` flag to specify the namespace where Kubeflow is deployed:
 
 ```bash
 # run tests against Kubeflow deployed to the kf-system namespace
-tox -e uats-local -- --kubeflow-model kf-system
+tox -e uats-local -- --model kf-system
 ```
 
 This flag controls both the juju model name used for bundle checks and the Kubernetes namespace

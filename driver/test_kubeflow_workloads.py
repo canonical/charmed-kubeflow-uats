@@ -134,13 +134,6 @@ def include_kubeflow_trainer_tests(request):
 
 
 @pytest.fixture(scope="module")
-def kubeflow_model(request, ops_test):
-    """Retrieve name of the model where Kubeflow is deployed."""
-    model_name = request.config.getoption("--kubeflow-model")
-    return model_name if model_name else ops_test.model.name
-
-
-@pytest.fixture(scope="module")
 def tests_checked_out_commit(request):
     """Retrieve active git commit."""
     head = subprocess.check_output(["git", "rev-parse", "HEAD"])
@@ -234,7 +227,7 @@ def create_poddefault_on_security_policy(request, lightkube_client):
 
 @pytest.mark.abort_on_fail
 @pytest.mark.dependency()
-async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
+async def test_bundle_correctness(ops_test, charm_list):
     """Test that the correct bundle is selected.
 
     Tests are specific to each Charmed Kubeflow version release. This test makes sure that
@@ -246,8 +239,7 @@ async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
     if not charm_list:
         pytest.skip("charm_list empty. Cannot test bundle correctness")
 
-    model = await ops_test.track_model("kubeflow", model_name=kubeflow_model, use_existing=True)
-    status = await model.get_status()
+    status = await ops_test.model.get_status()
 
     # Check that the version is the one expected by this set of tests
     for name, channel_regex in charm_list.items():
@@ -257,7 +249,7 @@ async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
         ), f"Failed bundle correctness check for charm {name}. Expected: {channel_regex} Found: {app_channel}"
 
     # Check that every charm of the bundle is active/idle
-    await model.wait_for_idle(
+    await ops_test.model.wait_for_idle(
         apps=list(charm_list),
         timeout=3600,
         idle_period=30,
@@ -308,8 +300,8 @@ async def test_create_profile(lightkube_client, create_profile):
 
 @pytest.mark.dependency(depends=["test_create_profile"])
 def test_kubeflow_workloads(
+    ops_test,
     k8s_default_runtimeclass_handler,
-    kubeflow_model,
     lightkube_client,
     pytest_cmd,
     tests_checked_out_commit,
@@ -347,7 +339,7 @@ def test_kubeflow_workloads(
                 "pytest_cmd": pytest_cmd,
                 "proxy": True if request.config.getoption("proxy") else False,
                 "security_policy": request.config.getoption("security_policy") != "privileged",
-                "kubeflow_namespace": kubeflow_model,
+                "kubeflow_namespace": ops_test.model.name,
                 "user_namespace": NAMESPACE,
             },
         )
