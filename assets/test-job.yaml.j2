@@ -72,6 +72,7 @@ spec:
             - --root=/tests
             - --group-write
             - --one-time
+            - --max-sync-failures=3
           volumeMounts:
             - name: test-volume
               mountPath: /tests
