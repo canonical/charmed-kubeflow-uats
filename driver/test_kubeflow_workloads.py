@@ -122,6 +122,12 @@ def pytest_filter(request):
 
 
 @pytest.fixture(scope="module")
+def include_ambient(request):
+    """Retrieve the `--include-gpu-tests` flag from Pytest invocation."""
+    return True if request.config.getoption("--include-ambient-tests") else False
+
+
+@pytest.fixture(scope="module")
 def include_gpu_tests(request):
     """Retrieve the `--include-gpu-tests` flag from Pytest invocation."""
     return True if request.config.getoption("--include-gpu-tests") else False
@@ -151,16 +157,6 @@ def pytest_cmd(pytest_filter, include_gpu_tests, include_kubeflow_trainer_tests)
     if include_kubeflow_trainer_tests:
         cmd += " --include-kubeflow-trainer-tests"
     return cmd
-
-
-@pytest.fixture(scope="module")
-def istio_mode(charm_list):
-    if "istio-beacon-k8s" in charm_list:
-        return "ambient"
-    if "istio-pilot" in charm_list:
-        return "sidecar"
-
-    raise ValueError("Deployment does not comply with either istio ambient or sidecar")
 
 
 @pytest.fixture(scope="module")
@@ -234,6 +230,13 @@ def create_poddefault_on_security_policy(request, lightkube_client):
             lightkube_client,
         )
 
+
+@pytest.fixture(scope="module")
+def istio_mode(include_ambient):
+    if include_ambient:
+        return "ambient"
+
+    return "sidecar"
 
 @pytest.mark.abort_on_fail
 @pytest.mark.dependency()
