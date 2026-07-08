@@ -30,6 +30,7 @@ authors = []
 [tool.poetry.dependencies]
 python = ">=3.12"
 jubilant = "*"
+jinja2 = "*"
 lightkube = "*"
 requests = "*"
 # pytest is transitive dependencies of other packages
