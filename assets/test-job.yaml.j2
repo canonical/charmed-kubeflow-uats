@@ -57,6 +57,8 @@ spec:
               value: {{ kubeflow_namespace }}
             - name: USER_NAMESPACE
               value: {{ user_namespace }}
+            - name: ISTIO_MODE
+              value: {{ istio_mode }}
           volumeMounts:
             - name: test-volume
               mountPath: /tests

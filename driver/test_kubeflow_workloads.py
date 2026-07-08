@@ -154,6 +154,16 @@ def pytest_cmd(pytest_filter, include_gpu_tests, include_kubeflow_trainer_tests)
 
 
 @pytest.fixture(scope="module")
+def istio_mode(charm_list):
+    if "istio-beacon-k8s" in charm_list:
+        return "ambient"
+    if "istio-pilot" in charm_list:
+        return "sidecar"
+
+    raise ValueError("Deployment does not comply with either istio ambient or sidecar")
+
+
+@pytest.fixture(scope="module")
 def lightkube_client():
     """Initialise Lightkube Client."""
     lightkube_client = Client(trust_env=False)
@@ -310,6 +320,7 @@ def test_kubeflow_workloads(
     create_poddefault_on_proxy,
     create_poddefault_on_toleration,
     create_poddefault_on_security_policy,
+    istio_mode: str,
 ):
     """Run a K8s Job to execute the notebook tests."""
     if TESTS_LOCAL_RUN:
@@ -327,6 +338,7 @@ def test_kubeflow_workloads(
         lightkube_client.create(resources[0])
 
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
+    log.info(f"Istio Mode: {istio_mode}")
     resources = list(
         codecs.load_all_yaml(
             JOB_TEMPLATE_FILE.read_text(),
@@ -341,6 +353,7 @@ def test_kubeflow_workloads(
                 "security_policy": request.config.getoption("security_policy") != "privileged",
                 "kubeflow_namespace": ops_test.model.name,
                 "user_namespace": NAMESPACE,
+                "istio_mode": istio_mode,
             },
         )
     )
