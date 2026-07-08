@@ -245,8 +245,8 @@ def istio_mode(include_ambient):
 
     return "sidecar"
 
-@pytest.mark.dependency()
 @pytest.mark.abort_on_fail
+@pytest.mark.dependency()
 async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
     """Test that the correct bundle is selected.
 
