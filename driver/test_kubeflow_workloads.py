@@ -9,6 +9,7 @@ import time
 from functools import reduce
 from pathlib import Path
 
+import jubilant
 import pytest
 import requests
 import yaml
@@ -241,7 +242,7 @@ def istio_mode(include_ambient):
 
 @pytest.mark.abort_on_fail
 @pytest.mark.dependency()
-async def test_bundle_correctness(ops_test, charm_list):
+def test_bundle_correctness(juju, charm_list):
     """Test that the correct bundle is selected.
 
     Tests are specific to each Charmed Kubeflow version release. This test makes sure that
@@ -253,27 +254,27 @@ async def test_bundle_correctness(ops_test, charm_list):
     if not charm_list:
         pytest.skip("charm_list empty. Cannot test bundle correctness")
 
-    status = await ops_test.model.get_status()
+    status = juju.status()
 
     # Check that the version is the one expected by this set of tests
     for name, channel_regex in charm_list.items():
-        app_channel = status["applications"][name]["charm-channel"]
+        app_channel = status.apps[name].charm_channel
         assert re.compile(channel_regex).match(
             app_channel
         ), f"Failed bundle correctness check for charm {name}. Expected: {channel_regex} Found: {app_channel}"
 
     # Check that every charm of the bundle is active/idle
-    await ops_test.model.wait_for_idle(
-        apps=list(charm_list),
+    juju.wait(
+        lambda status: jubilant.all_active(status, *charm_list)
+        and jubilant.all_agents_idle(status, *charm_list),
+        error=jubilant.any_error,
         timeout=3600,
-        idle_period=30,
-        status="active",
-        raise_on_error=True,
+        delay=10,
     )
 
 
 @pytest.mark.dependency()
-async def test_create_profile(lightkube_client, create_profile):
+def test_create_profile(lightkube_client, create_profile):
     """Test Profile creation.
 
     This test relies on the create_profile fixture, which handles the Profile creation and
@@ -314,7 +315,7 @@ async def test_create_profile(lightkube_client, create_profile):
 
 @pytest.mark.dependency(depends=["test_create_profile"])
 def test_kubeflow_workloads(
-    ops_test,
+    juju,
     k8s_default_runtimeclass_handler,
     lightkube_client,
     pytest_cmd,
@@ -355,7 +356,7 @@ def test_kubeflow_workloads(
                 "pytest_cmd": pytest_cmd,
                 "proxy": True if request.config.getoption("proxy") else False,
                 "security_policy": request.config.getoption("security_policy") != "privileged",
-                "kubeflow_namespace": ops_test.model.name,
+                "kubeflow_namespace": juju.model,
                 "user_namespace": NAMESPACE,
                 "istio_mode": istio_mode,
             },
