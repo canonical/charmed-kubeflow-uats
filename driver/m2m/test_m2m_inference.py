@@ -102,7 +102,8 @@ def patch_gateway(lightkube_client, kubeflow_model, m2m_gateway):
     """Patch the M2M Gateway listeners to a wildcard hostname.
 
     Workaround for https://github.com/canonical/service-mesh/issues/102 so KServe's
-    per-service subdomain routes attach to the gateway.
+    per-service subdomain routes attach to the gateway. Remove this fixture once the
+    issue is fixed and the charm supports wildcard listeners natively.
     """
     patch_gateway_wildcard_hostname(lightkube_client, kubeflow_model, m2m_gateway, WILDCARD_HOSTNAME)
     yield

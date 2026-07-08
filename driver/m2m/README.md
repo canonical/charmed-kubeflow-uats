@@ -18,7 +18,8 @@ Given the deployment described under [Prerequisites](#prerequisites), the suite:
    matching its listener hostname — the charm/app name is **not** hardcoded — and
    patches its listeners to the wildcard hostname `*.api.kubeflow.com` (workaround
    for
-   [canonical/service-mesh#102](https://github.com/canonical/service-mesh/issues/102)).
+   [canonical/service-mesh#102](https://github.com/canonical/service-mesh/issues/102),
+   to be removed once the charm supports wildcard listeners natively).
 2. Creates a Kubeflow `Profile` (`test-m2m`).
 3. Creates a KServe `InferenceService` (`sklearn-v2-iris`) in that namespace and
    waits for it to become `Ready`.
@@ -47,7 +48,10 @@ clients) are cleaned up at the end of the module.
   - Juju models `iam` and `kubeflow`.
   - An istio ingress `Gateway` serving `api.kubeflow.com` (deployed via the
     `istio-ingress-k8s` charm; its app name is discovered at runtime).
-  - Hydra (`iam` model) and `oauth2-proxy-k8s` (`kubeflow` model).
+  - `kserve-controller` configured with `domain-name=api.kubeflow.com`, so
+    InferenceServices get hostnames under that domain (matching the gateway
+    listener). Otherwise they default to `example.com` and never become `Ready`.
+  - Hydra (`iam` model) and `oauth2-proxy` (`kubeflow` model).
 - DNS (or `/etc/hosts`) configured so the host can resolve the JWT issuer hostname
   returned by oauth2-proxy (e.g. `auth.kubeflow.com`).
 - `juju` logged in to the controller (used via jubilant) and a valid `KUBECONFIG`

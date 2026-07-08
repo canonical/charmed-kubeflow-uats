@@ -110,7 +110,7 @@ def get_jwt_issuer_url(kubeflow_model: str) -> str:
     result is a Python-style string encoding a list of dictionaries.
     """
     task = jubilant.Juju(model=kubeflow_model).run(
-        "oauth2-proxy-k8s/0", "get-extra-jwt-issuers"
+        "oauth2-proxy/0", "get-extra-jwt-issuers"
     )
     raw = task.results["extra-jwt-issuers"]
     issuers = json.loads(raw.replace("'", '"'))
@@ -206,7 +206,8 @@ def patch_gateway_wildcard_hostname(
 
     Workaround for https://github.com/canonical/service-mesh/issues/102: the
     istio-ingress-k8s charm pins each listener to the exact ``external_hostname``,
-    which rejects KServe's per-service subdomain routes.
+    which rejects KServe's per-service subdomain routes. Remove this once the issue
+    is fixed and the charm supports wildcard listeners natively.
     """
     gw = client.get(GATEWAY_RESOURCE, name=gateway, namespace=namespace)
     listeners = (gw.spec or {}).get("listeners", [])
@@ -291,8 +292,11 @@ def authorize_contributor(
     github-profiles-automator would otherwise create from a PMR ``contributor`` entry.
     """
     log.info(f"Authorizing contributor '{user}' with role '{role}' on namespace {namespace}")
-    client.apply(_contributor_rolebinding(namespace, user, role))
-    client.apply(_contributor_authorization_policy(namespace, user, role, principals))
+    client.apply(_contributor_rolebinding(namespace, user, role), field_manager="m2m-uats")
+    client.apply(
+        _contributor_authorization_policy(namespace, user, role, principals),
+        field_manager="m2m-uats",
+    )
 
 
 @tenacity.retry(
@@ -309,11 +313,18 @@ def wait_for_inferenceservice_ready(client: Client, name: str, namespace: str) -
     isvc = client.get(INFERENCE_SERVICE_RESOURCE, name=name, namespace=namespace)
     status = isvc.status or {}
     conditions = status.get("conditions", [])
-    ready = any(c.get("type") == "Ready" and c.get("status") == "True" for c in conditions)
+    ready_condition = next((c for c in conditions if c.get("type") == "Ready"), {})
 
-    if not ready:
-        log.info(f"Waiting for InferenceService {namespace}/{name} to become Ready...")
-        raise AssertionError(f"InferenceService {namespace}/{name} is not Ready yet")
+    if ready_condition.get("status") != "True":
+        reason = ready_condition.get("reason", "")
+        message = ready_condition.get("message", "")
+        log.info(
+            f"Waiting for InferenceService {namespace}/{name} to become Ready "
+            f"(reason={reason!r}, message={message!r})..."
+        )
+        raise AssertionError(
+            f"InferenceService {namespace}/{name} is not Ready yet: {reason} {message}".strip()
+        )
 
     url = status.get("url", "")
     hostname = url.split("://", 1)[-1].split("/", 1)[0]
