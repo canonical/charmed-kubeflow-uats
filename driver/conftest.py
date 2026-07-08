@@ -106,6 +106,12 @@ def pytest_addoption(parser: Parser):
         help="Defines whether to include the ambient integration tests."
         "By default, it is set to False.",
     )
+    parser.addoption(
+        "--include-m2m-tests",
+        action="store_true",
+        help="Defines whether to include the M2M identity integration tests."
+        "By default, it is set to False.",
+    )
 
 
 def pytest_configure(config):
@@ -113,7 +119,7 @@ def pytest_configure(config):
     if config.getoption("--bundle") is not None:
         return
 
-    if config.getoption("--include-ambient-tests"):
+    if config.getoption("--include-ambient-tests") or config.getoption("--include-m2m-tests"):
         config.option.bundle = BUNDLE_URL_AMBIENT
     else:
         config.option.bundle = BUNDLE_URL_SIDECAR
@@ -131,6 +137,12 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             if "/ambient/" in item.nodeid:
                 item.add_marker(skip_ambient)
+
+    if not config.getoption("--include-m2m-tests", default=False):
+        skip_m2m = pytest.mark.skip(reason="need --include-m2m-tests option to run")
+        for item in items:
+            if "/m2m/" in item.nodeid:
+                item.add_marker(skip_m2m)
 
     dependency_root = "driver/test_kubeflow_workloads.py::test_bundle_correctness"
     items.sort(key=lambda item: 0 if item.nodeid.endswith(dependency_root) else 1)
