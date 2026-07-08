@@ -88,7 +88,9 @@ def gateway_principals(kubeflow_model, m2m_gateway):
 @pytest.fixture(scope="module")
 def gateway_ip(lightkube_client, kubeflow_model, m2m_gateway):
     """LoadBalancer IP of the M2M ingress gateway."""
-    return get_service_lb_ip(lightkube_client, kubeflow_model, gateway_service_account(m2m_gateway))
+    return get_service_lb_ip(
+        lightkube_client, kubeflow_model, gateway_service_account(m2m_gateway)
+    )
 
 
 @pytest.fixture(scope="module")
@@ -105,7 +107,9 @@ def patch_gateway(lightkube_client, kubeflow_model, m2m_gateway):
     per-service subdomain routes attach to the gateway. Remove this fixture once the
     issue is fixed and the charm supports wildcard listeners natively.
     """
-    patch_gateway_wildcard_hostname(lightkube_client, kubeflow_model, m2m_gateway, WILDCARD_HOSTNAME)
+    patch_gateway_wildcard_hostname(
+        lightkube_client, kubeflow_model, m2m_gateway, WILDCARD_HOSTNAME
+    )
     yield
 
 
@@ -128,9 +132,7 @@ def create_profile(lightkube_client):
 
     log.info(f"Deleting Profile {NAMESPACE}...")
     try:
-        lightkube_client.delete(
-            PROFILE_RESOURCE, name=NAMESPACE, cascade=CascadeType.FOREGROUND
-        )
+        lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE, cascade=CascadeType.FOREGROUND)
         assert_profile_deleted(lightkube_client, NAMESPACE, log)
     except ApiError as error:
         if error.status.code != 404:
@@ -229,9 +231,10 @@ def test_missing_token_is_rejected(create_inference_service, gateway_ip):
 
     http_code, body = request_inference(hostname, gateway_ip, None, PAYLOAD, ISVC_NAME)
 
-    assert http_code in (401, 403), (
-        f"Expected HTTP 401 or 403 for a request without a token, got {http_code}. Body: {body}"
-    )
+    assert http_code in (
+        401,
+        403,
+    ), f"Expected HTTP 401 or 403 for a request without a token, got {http_code}. Body: {body}"
     log.info("✓ Request without a token was correctly rejected.")
 
 
@@ -239,17 +242,17 @@ def test_invalid_token_is_rejected(create_inference_service, gateway_ip):
     """A request with an invalid token is rejected by RequestAuthentication."""
     hostname = create_inference_service
 
-    http_code, body = request_inference(hostname, gateway_ip, "not-a-valid-jwt", PAYLOAD, ISVC_NAME)
-
-    assert http_code == 401, (
-        f"Expected HTTP 401 for an invalid token, got {http_code}. Body: {body}"
+    http_code, body = request_inference(
+        hostname, gateway_ip, "not-a-valid-jwt", PAYLOAD, ISVC_NAME
     )
+
+    assert (
+        http_code == 401
+    ), f"Expected HTTP 401 for an invalid token, got {http_code}. Body: {body}"
     log.info("✓ Request with an invalid token was correctly rejected.")
 
 
-def test_unauthorized_token_is_forbidden(
-    create_inference_service, unauthorized_token, gateway_ip
-):
+def test_unauthorized_token_is_forbidden(create_inference_service, unauthorized_token, gateway_ip):
     """A valid token from an unauthorized client is forbidden by the AuthorizationPolicy.
 
     The token is authentic (issued by Hydra) but its client identity is not a

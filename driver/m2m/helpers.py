@@ -109,9 +109,7 @@ def get_jwt_issuer_url(kubeflow_model: str) -> str:
     The issuer is sourced from oauth2-proxy's ``get-extra-jwt-issuers`` action, whose
     result is a Python-style string encoding a list of dictionaries.
     """
-    task = jubilant.Juju(model=kubeflow_model).run(
-        "oauth2-proxy/0", "get-extra-jwt-issuers"
-    )
+    task = jubilant.Juju(model=kubeflow_model).run("oauth2-proxy/0", "get-extra-jwt-issuers")
     raw = task.results["extra-jwt-issuers"]
     issuers = json.loads(raw.replace("'", '"'))
     issuer_url = issuers[0]["oidc-issuer-url"]
@@ -234,16 +232,12 @@ def _contributor_rolebinding(namespace: str, user: str, role: str) -> RoleBindin
                 "kind": "ClusterRole",
                 "name": f"kubeflow-{role}",
             },
-            "subjects": [
-                {"apiGroup": "rbac.authorization.k8s.io", "kind": "User", "name": user}
-            ],
+            "subjects": [{"apiGroup": "rbac.authorization.k8s.io", "kind": "User", "name": user}],
         }
     )
 
 
-def _contributor_authorization_policy(
-    namespace: str, user: str, role: str, principals: list[str]
-):
+def _contributor_authorization_policy(namespace: str, user: str, role: str, principals: list[str]):
     """Build the ambient AuthorizationPolicy a contributor would get.
 
     Mirrors github-profiles-automator's
@@ -387,4 +381,3 @@ def request_inference(
 
     log.info(f"Inference request to {hostname} returned HTTP {response.status_code}")
     return response.status_code, response.text
-
