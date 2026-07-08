@@ -290,6 +290,12 @@ def authorize_contributor(
 
     Creates the RoleBinding and (ambient) AuthorizationPolicy that KFAM /
     github-profiles-automator would otherwise create from a PMR ``contributor`` entry.
+
+    NOTE: We create the authorization directly instead of via github-profiles-automator
+    (edit ``pmr.yaml`` -> automator reconciles), because this suite tests the
+    enforcement path and the gating object is identical either way. Driving the PMR
+    path is a deploy-time concern (the client_id can't be pinned, so it must be seeded
+    into a test PMR repo by Terraform) and is best left to the automator's own tests.
     """
     log.info(f"Authorizing contributor '{user}' with role '{role}' on namespace {namespace}")
     client.apply(_contributor_rolebinding(namespace, user, role), field_manager="m2m-uats")
