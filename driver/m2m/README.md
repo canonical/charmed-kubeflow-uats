@@ -1,7 +1,8 @@
 # M2M Identity Integration Test
 
-This suite validates **programmatic (machine-to-machine) access** to a KServe
-`InferenceService` using a token issued by the Identity Platform (Hydra).
+This suite validates **programmatic (machine-to-machine) access** — from **outside
+the cluster** — to a KServe `InferenceService` using a token issued by the Identity
+Platform (Hydra).
 
 It obtains a JWT via the OAuth `client_credentials` grant and uses it to reach an
 `InferenceService` through the Istio ingress gateway serving the KServe domain, from
@@ -42,6 +43,7 @@ clients) are cleaned up at the end of the module.
 
 ## Prerequisites
 
+<!-- TODO: point this link at `main` once feat/iam-integration is merged. -->
 - A Kubeflow + Identity Platform deployment with an ambient service mesh — e.g. the
   [`kubeflow-ambient-iam`](https://github.com/canonical/charmed-kubeflow-solutions/tree/feat/iam-integration/terraform-refactoring/tests/kubeflow-ambient-iam)
   test setup in `charmed-kubeflow-solutions` — which provides:
@@ -52,8 +54,17 @@ clients) are cleaned up at the end of the module.
     InferenceServices get hostnames under that domain (matching the gateway
     listener). Otherwise they default to `example.com` and never become `Ready`.
   - Hydra (`iam` model) and `oauth2-proxy` (`kubeflow` model).
-- DNS (or `/etc/hosts`) configured so the host can resolve the JWT issuer hostname
-  returned by oauth2-proxy (e.g. `auth.kubeflow.com`).
+- DNS configured so the JWT issuer hostname returned by oauth2-proxy (e.g.
+  `auth.kubeflow.com`) resolves in **two** places:
+  - **in-cluster (CoreDNS)** — so istiod can fetch the issuer's JWKS to validate the
+    token at the gateway;
+  - **on the UAT host** (`/etc/hosts` or a resolver) — so the suite can request the
+    token from Hydra.
+
+  The UATs do **not** configure DNS; this is a manual, deployment-time step (easy to
+  forget between deploying the solution and running the UATs). The InferenceService's
+  own `*.api.kubeflow.com` hostname does **not** need host DNS — the suite connects to
+  the gateway's LoadBalancer IP directly, preserving the TLS SNI and `Host` header.
 - `juju` logged in to the controller (used via jubilant) and a valid `KUBECONFIG`
   pointing at the cluster (used via lightkube).
 - Python dependencies installed (pytest, jubilant, lightkube, tenacity,
@@ -62,9 +73,13 @@ clients) are cleaned up at the end of the module.
 > **Note on `github-profiles-automator`:** in the deployed setup this charm is the
 > source of truth for Profile contributors and reconciles the cluster against its
 > PMR repo. Because the test authorizes the client directly (the `test-m2m` Profile
-> is not in the PMR), a reconcile during the run could remove that access. Run the
-> suite on its own (`-k m2m`, which completes quickly) or pause the automator while
-> testing.
+> is not in the PMR), a reconcile during the run could remove that access. The
+> `charmed-kubeflow-solutions` CI that runs these UATs is expected to raise the
+> charm's
+> [`sync-period`](https://charmhub.io/github-profiles-automator/configurations#sync-period)
+> to a large value beforehand so it does not reconcile mid-run. If you run this suite
+> outside that CI, do the same first, e.g.
+> `juju config -m kubeflow github-profiles-automator sync-period=86400`.
 
 ## Running the Test
 
