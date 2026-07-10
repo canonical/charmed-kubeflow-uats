@@ -220,16 +220,21 @@ def test_authorized_token_reaches_inferenceservice(
 
 
 def test_missing_token_is_rejected(create_inference_service, gateway_ip):
-    """A request without a token is rejected (not authenticated / not authorized)."""
+    """A request without a token is denied by the AuthorizationPolicy (403).
+
+    A token-less request carries no identity. RequestAuthentication does not reject
+    it (it only 401s present-but-invalid/expired tokens), so it reaches the
+    AuthorizationPolicy, where no rule matches and the request is denied with 403
+    (RBAC: access denied).
+    """
     hostname = create_inference_service
 
     http_code, body = request_inference(hostname, gateway_ip, None, PAYLOAD, ISVC_NAME)
 
-    assert http_code in (
-        401,
-        403,
-    ), f"Expected HTTP 401 or 403 for a request without a token, got {http_code}. Body: {body}"
-    log.info("✓ Request without a token was correctly rejected.")
+    assert (
+        http_code == 403
+    ), f"Expected HTTP 403 for a request without a token, got {http_code}. Body: {body}"
+    log.info("✓ Request without a token was correctly denied.")
 
 
 def test_invalid_token_is_rejected(create_inference_service, gateway_ip):

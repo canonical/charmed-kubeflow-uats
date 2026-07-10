@@ -34,7 +34,7 @@ Given the deployment described under [Prerequisites](#prerequisites), the suite:
 | Test | Request | Expected |
 | --- | --- | --- |
 | `test_authorized_token_reaches_inferenceservice` | valid token from an authorized client | `200` with a prediction |
-| `test_missing_token_is_rejected` | no `Authorization` header | `401` or `403` |
+| `test_missing_token_is_rejected` | no `Authorization` header | `403` (no identity → `AuthorizationPolicy` denies) |
 | `test_invalid_token_is_rejected` | invalid bearer token | `401` (rejected by `RequestAuthentication`) |
 | `test_unauthorized_token_is_forbidden` | valid token from a client that is **not** a contributor | `403` (RBAC: access denied) |
 
