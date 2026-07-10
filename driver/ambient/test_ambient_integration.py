@@ -23,7 +23,7 @@ log = logging.getLogger(__name__)
 
 # Assets directory is relative to the repository root
 ASSETS_DIR = Path(__file__).parent.parent.parent / "assets"
-AMBIENT_PROFILE_TEMPLATE_FILE = ASSETS_DIR / "ambient-profile.yaml.j2"
+PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 
 NAMESPACE_1 = "profile1"
 NAMESPACE_2 = "profile2"
@@ -43,7 +43,7 @@ def _create_and_cleanup_profile(client: Client, namespace: str):
     log.info(f"Creating Profile {namespace}...")
     profile = list(
         codecs.load_all_yaml(
-            AMBIENT_PROFILE_TEMPLATE_FILE.read_text(),
+            PROFILE_TEMPLATE_FILE.read_text(),
             context={"namespace": namespace},
         )
     )[0]
