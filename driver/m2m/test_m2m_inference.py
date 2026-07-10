@@ -56,12 +56,6 @@ PAYLOAD = '{"instances": [[6.8, 2.8, 4.8, 1.4], [6.0, 3.4, 4.5, 1.6]]}'
 
 
 @pytest.fixture(scope="module")
-def kubeflow_model():
-    """Name of the Kubeflow Juju model (and namespace)."""
-    return KUBEFLOW_MODEL
-
-
-@pytest.fixture(scope="module")
 def lightkube_client():
     """Initialise a Lightkube Client."""
     client = Client(trust_env=False)
@@ -70,37 +64,37 @@ def lightkube_client():
 
 
 @pytest.fixture(scope="module")
-def m2m_gateway(lightkube_client, kubeflow_model):
+def m2m_gateway(lightkube_client):
     """Name of the istio Gateway serving the KServe (M2M) domain.
 
     Discovered dynamically by matching the listener hostname, so the charm/app name
     does not need to be hardcoded.
     """
-    return find_gateway_for_domain(lightkube_client, kubeflow_model, DOMAIN)
+    return find_gateway_for_domain(lightkube_client, KUBEFLOW_MODEL, DOMAIN)
 
 
 @pytest.fixture(scope="module")
-def gateway_principals(kubeflow_model, m2m_gateway):
+def gateway_principals(m2m_gateway):
     """Istio principal of the M2M ingress gateway serving KServe."""
-    return [f"cluster.local/ns/{kubeflow_model}/sa/{gateway_service_account(m2m_gateway)}"]
+    return [f"cluster.local/ns/{KUBEFLOW_MODEL}/sa/{gateway_service_account(m2m_gateway)}"]
 
 
 @pytest.fixture(scope="module")
-def gateway_ip(lightkube_client, kubeflow_model, m2m_gateway):
+def gateway_ip(lightkube_client, m2m_gateway):
     """LoadBalancer IP of the M2M ingress gateway."""
     return get_service_lb_ip(
-        lightkube_client, kubeflow_model, gateway_service_account(m2m_gateway)
+        lightkube_client, KUBEFLOW_MODEL, gateway_service_account(m2m_gateway)
     )
 
 
 @pytest.fixture(scope="module")
-def issuer_url(kubeflow_model):
+def issuer_url():
     """JWT issuer URL trusted by the gateway's RequestAuthentication."""
-    return get_jwt_issuer_url(kubeflow_model)
+    return get_jwt_issuer_url(KUBEFLOW_MODEL)
 
 
 @pytest.fixture(scope="module")
-def patch_gateway(lightkube_client, kubeflow_model, m2m_gateway):
+def patch_gateway(lightkube_client, m2m_gateway):
     """Patch the M2M Gateway listeners to a wildcard hostname.
 
     Workaround for https://github.com/canonical/service-mesh/issues/102 so KServe's
@@ -108,7 +102,7 @@ def patch_gateway(lightkube_client, kubeflow_model, m2m_gateway):
     issue is fixed and the charm supports wildcard listeners natively.
     """
     patch_gateway_wildcard_hostname(
-        lightkube_client, kubeflow_model, m2m_gateway, WILDCARD_HOSTNAME
+        lightkube_client, KUBEFLOW_MODEL, m2m_gateway, WILDCARD_HOSTNAME
     )
     yield
 
