@@ -10,7 +10,7 @@ The test creates two separate Kubeflow profiles for isolation testing:
 1. `profile1` - First test profile
 2. `profile2` - Second test profile (contains the test pod)
 
-Both profiles are created from the same template (`ambient-profile.yaml.j2`), avoiding any conflicts with existing profiles like `test-kubeflow`.
+Both profiles are created from the shared template (`assets/test-profile.yaml.j2`), avoiding any conflicts with existing profiles like `test-kubeflow`.
 
 It then:
 1. Creates a simple curl pod in the `profile2` namespace
@@ -60,7 +60,7 @@ tox -e uats-local  # ambient tests will be skipped
 
 - `driver/ambient/test_ambient_integration.py` - Main test implementation
 - `driver/ambient/conftest.py` - Pytest configuration and fixtures for ambient tests
-- `assets/ambient-profile.yaml.j2` - Jinja2 template for creating test profiles
+- `assets/test-profile.yaml.j2` - shared Jinja2 template for creating test profiles
 
 ## Expected Behavior
 

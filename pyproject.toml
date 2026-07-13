@@ -36,6 +36,8 @@ lightkube = "*"
 pytest-operator = "*"
 pytest-dependency = "*"
 tenacity = "*"
+requests-oauthlib = "*"
+jubilant = "*"
 
 [tool.poetry.group.fmt]
 optional = true
