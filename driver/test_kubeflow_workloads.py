@@ -123,7 +123,7 @@ def pytest_filter(request):
 
 @pytest.fixture(scope="module")
 def include_ambient(request):
-    """Retrieve the `--include-gpu-tests` flag from Pytest invocation."""
+    """Retrieve the `--include-ambient-tests` flag from Pytest invocation."""
     return True if request.config.getoption("--include-ambient-tests") else False
 
 
