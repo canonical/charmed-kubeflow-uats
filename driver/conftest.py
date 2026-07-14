@@ -113,6 +113,7 @@ def pytest_addoption(parser: Parser):
         help="Defines whether to include the M2M identity integration tests."
         "By default, it is set to False.",
     )
+    parser.addoption(
         "--model",
         default="kubeflow",
         help="Provide the name of the Juju model where Kubeflow is deployed. This is also used"
@@ -125,6 +126,7 @@ def pytest_addoption(parser: Parser):
 def juju(request):
     """Return a Jubilant Juju instance targeting the configured model."""
     return jubilant.Juju(model=request.config.getoption("--model"))
+
 
 def pytest_configure(config):
     """Set the default bundle based on whether ambient tests are enabled."""
