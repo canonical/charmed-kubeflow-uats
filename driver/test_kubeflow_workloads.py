@@ -122,6 +122,12 @@ def pytest_filter(request):
 
 
 @pytest.fixture(scope="module")
+def include_ambient(request):
+    """Retrieve the `--include-ambient-tests` flag from Pytest invocation."""
+    return True if request.config.getoption("--include-ambient-tests") else False
+
+
+@pytest.fixture(scope="module")
 def include_gpu_tests(request):
     """Retrieve the `--include-gpu-tests` flag from Pytest invocation."""
     return True if request.config.getoption("--include-gpu-tests") else False
@@ -232,8 +238,16 @@ def create_poddefault_on_security_policy(request, lightkube_client):
         )
 
 
-@pytest.mark.dependency()
+@pytest.fixture(scope="module")
+def istio_mode(include_ambient):
+    if include_ambient:
+        return "ambient"
+
+    return "sidecar"
+
+
 @pytest.mark.abort_on_fail
+@pytest.mark.dependency()
 async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
     """Test that the correct bundle is selected.
 
@@ -317,6 +331,7 @@ def test_kubeflow_workloads(
     create_poddefault_on_proxy,
     create_poddefault_on_toleration,
     create_poddefault_on_security_policy,
+    istio_mode: str,
 ):
     """Run a K8s Job to execute the notebook tests."""
     if TESTS_LOCAL_RUN:
@@ -334,6 +349,7 @@ def test_kubeflow_workloads(
         lightkube_client.create(resources[0])
 
     log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
+    log.info(f"Istio Mode: {istio_mode}")
     resources = list(
         codecs.load_all_yaml(
             JOB_TEMPLATE_FILE.read_text(),
@@ -346,6 +362,7 @@ def test_kubeflow_workloads(
                 "pytest_cmd": pytest_cmd,
                 "proxy": True if request.config.getoption("proxy") else False,
                 "security_policy": request.config.getoption("security_policy") != "privileged",
+                "istio_mode": istio_mode,
             },
         )
     )

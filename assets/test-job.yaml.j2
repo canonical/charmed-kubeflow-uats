@@ -52,6 +52,9 @@ spec:
               {% endif %}
               python3 -m pip install -r requirements.txt >/dev/null;
               {{ pytest_cmd }}
+          env:
+            - name: ISTIO_MODE
+              value: {{ istio_mode }}
           volumeMounts:
             - name: test-volume
               mountPath: /tests
@@ -67,6 +70,7 @@ spec:
             - --root=/tests
             - --group-write
             - --one-time
+            - --max-sync-failures=3
           volumeMounts:
             - name: test-volume
               mountPath: /tests
