@@ -37,7 +37,11 @@ pytest-operator = "*"
 pytest-dependency = "*"
 tenacity = "*"
 requests-oauthlib = "*"
-jubilant = "*"
+jubilant = "^1.0"
+# multi-tenancy suite dependencies
+python-dotenv = "^1.0"
+kfp = "^2.0"
+boto3 = "^1.0"
 
 [tool.poetry.group.fmt]
 optional = true
