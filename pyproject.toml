@@ -29,36 +29,35 @@ authors = []
 
 [tool.poetry.dependencies]
 python = ">=3.12"
-jubilant = "*"
-jinja2 = "*"
-lightkube = "*"
-requests = "*"
-# pytest is transitive dependencies of other packages
-# pytest = "^7.4"
-pytest-dependency = "*"
-tenacity = "*"
-requests-oauthlib = "*"
+jubilant = ">=1.0,<2.0"
+jinja2 = ">=3.0,<4.0"
+lightkube = "<1.0"
+requests = ">=2.0,<3.0"
+pytest = ">=9.0,<10.0"
+pytest-dependency = "<1.0"
+tenacity = ">=9.0,<10.0"
+requests-oauthlib = ">=2.0,<3.0"
 pytest-jubilant = ">=2.0"
 
 [tool.poetry.group.fmt]
 optional = true
 
 [tool.poetry.group.fmt.dependencies]
-black = {extras=["jupyter"], version="*"}
-isort = "*"
+black = {extras=["jupyter"], version=">=26.0,<27.0"}
+isort = ">=8.0,<9.0"
 
 [tool.poetry.group.lint]
 optional = true
 
 [tool.poetry.group.lint.dependencies]
-black = {extras=["jupyter"], version="*"}
-codespell = "*"
+black = {extras=["jupyter"], version=">=26.0,<27.0"}
+codespell = ">=2.0,<3.0"
 # Flake is transitive dependencies of other packages
 # flake8 = ">=6.0"
-flake8-builtins = "*"
-flake8-copyright = "*"
-isort = "*"
-pep8-naming = "*"
+flake8-builtins = ">=3.0,<4.0"
+flake8-copyright = "<1.0"
+isort = ">=8.0,<9.0"
+pep8-naming = "<1.0"
 pyproject-flake8 = ">=6.0.0"
 
 # Linting tools configuration
