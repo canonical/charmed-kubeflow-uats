@@ -1,10 +1,12 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import contextlib
 import logging
 import os
 import re
 import subprocess
+import sys
 import time
 from functools import reduce
 from pathlib import Path
@@ -31,6 +33,7 @@ from utils import (
 )
 
 log = logging.getLogger(__name__)
+logging.getLogger("jubilant.wait").setLevel("WARNING")
 
 ASSETS_DIR = Path("assets")
 JOB_TEMPLATE_FILE = ASSETS_DIR / "test-job.yaml.j2"
@@ -71,6 +74,27 @@ PODDEFAULT_WITH_TOLERATION_PATH = Path("assets") / "gpu-toleration-poddefault.ya
 PODDEFAULT_WITH_SECURITY_POLICY_PATH = Path("tests") / "security-policy-poddefault.yaml.j2"
 
 KFP_PODDEFAULT_NAME = "access-ml-pipeline"
+
+
+@pytest.fixture(scope="module")
+def juju(request: pytest.FixtureRequest):
+    """Create a temporary or use an existing Juju model for running tests."""
+    keep_models = bool(request.config.getoption("--keep-models"))
+    juju_model = request.config.getoption("--model")
+
+    if juju_model:
+        model_context = contextlib.nullcontext(jubilant.Juju(model=juju_model))
+    else:
+        model_context = jubilant.temp_model(keep=keep_models)
+
+    with model_context as juju:
+        yield juju
+
+        if request.session.testsfailed:
+            log.info("Collecting Juju logs...")
+            time.sleep(0.5)  # Wait for Juju to process logs.
+            logging_message = juju.debug_log(limit=1000)
+            print(logging_message, end="", file=sys.stderr)
 
 
 @pytest.fixture(scope="module")

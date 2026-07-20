@@ -1,7 +1,6 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-import jubilant
 import pytest
 from _pytest.config.argparsing import Parser
 
@@ -120,12 +119,6 @@ def pytest_addoption(parser: Parser):
         " as the Kubernetes namespace of the Kubeflow control plane. If empty, the current Juju"
         " model is used.",
     )
-
-
-@pytest.fixture(scope="module")
-def juju(request):
-    """Return a Jubilant Juju instance targeting the configured model."""
-    return jubilant.Juju(model=request.config.getoption("--model"))
 
 
 def pytest_configure(config):
