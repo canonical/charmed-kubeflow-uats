@@ -55,8 +55,6 @@ applications:
     channel: latest/
   metacontroller-operator:
     channel: latest/
-  minio:
-    channel: latest/
   mlmd:
     channel: latest/
   oidc-gatekeeper:
