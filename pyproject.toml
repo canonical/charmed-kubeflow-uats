@@ -38,6 +38,7 @@ requests = "*"
 pytest-dependency = "*"
 tenacity = "*"
 requests-oauthlib = "*"
+pytest-jubilant = ">=2.0"
 
 [tool.poetry.group.fmt]
 optional = true

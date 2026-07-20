@@ -1052,6 +1052,22 @@ pytest = ">=3.7.0"
 setuptools = "*"
 
 [[package]]
+name = "pytest-jubilant"
+version = "2.1.1"
+description = "Add your description here"
+optional = false
+python-versions = ">=3.8"
+groups = ["main"]
+files = [
+    {file = "pytest_jubilant-2.1.1-py3-none-any.whl", hash = "sha256:d710cf9c41fb8daed6218d7b6ce68f4d4c234c5b0ee066d2be1dc9dd07265d35"},
+    {file = "pytest_jubilant-2.1.1.tar.gz", hash = "sha256:04c083ef1366f92237da79e3d499094ca50f50519a19462f388c38c699ee495a"},
+]
+
+[package.dependencies]
+jubilant = ">=1,<2"
+pytest = ">=8.3.5"
+
+[[package]]
 name = "pytokens"
 version = "0.4.1"
 description = "A Fast, spec compliant Python 3.14+ tokenizer that runs on older Pythons."
@@ -1376,4 +1392,4 @@ h11 = ">=0.16.0,<1"
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.12"
-content-hash = "969ce0fc3ee2a067e2a2e160c61704630754b60e4bc7d429e5d83df48b31424f"
+content-hash = "484bf9feaf89cb5ce0ce390399ef7b0f3809d0f5da219a31edf4b69b72075e08"
