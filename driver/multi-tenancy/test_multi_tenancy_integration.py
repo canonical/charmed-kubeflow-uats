@@ -60,7 +60,7 @@ DATA_PASSING_PIPELINE = str(PIPELINES_DIR / "data_passing_pipeline.yaml")
 # Application names.
 S3_OVERRIDE_APP = "s3-integrator-override"
 # The existing (global) s3-integrator deployed with Kubeflow is always named this.
-S3_GLOBAL_APP = "s3-integrator-kfp"
+S3_GLOBAL_APP = "s3-integrator-global"
 # Distinct name so we never clash with a pre-existing data-kubeflow-integrator.
 DATA_INTEGRATOR_APP = "data-kubeflow-integrator-override"
 RESOURCE_DISPATCHER_APP = "resource-dispatcher"
