@@ -119,6 +119,12 @@ def pytest_addoption(parser: Parser):
         " as the Kubernetes namespace of the Kubeflow control plane. If empty, the current Juju"
         " model is used.",
     )
+    parser.addoption(
+        "--keep-models",
+        action="store_true",
+        default=False,
+        help="keep temporarily-created models",
+    )
 
 
 def pytest_configure(config):
