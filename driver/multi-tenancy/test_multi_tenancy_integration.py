@@ -213,7 +213,7 @@ def deploy_override_s3(juju: jubilant.Juju, s3_override_config: dict[str, str]):
     juju.grant_secret(S3_SECRET_NAME, S3_OVERRIDE_APP)
 
     # Deploy under a distinct name, reusing the global s3-integrator channel.
-    channel = detect_channel(juju, S3_GLOBAL_APP)
+    channel = detect_channel(juju, S3_GLOBAL_APP, "2/edge")
     juju.deploy("s3-integrator", app=S3_OVERRIDE_APP, channel=channel, trust=True)
 
     # Configure endpoint, bucket, and credentials secret.
