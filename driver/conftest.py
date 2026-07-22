@@ -112,6 +112,19 @@ def pytest_addoption(parser: Parser):
         help="Defines whether to include the M2M identity integration tests."
         "By default, it is set to False.",
     )
+    parser.addoption(
+        "--model",
+        default="kubeflow",
+        help="Provide the name of the Juju model where Kubeflow is deployed. This is also used"
+        " as the Kubernetes namespace of the Kubeflow control plane. If empty, the current Juju"
+        " model is used.",
+    )
+    parser.addoption(
+        "--keep-models",
+        action="store_true",
+        default=False,
+        help="keep temporarily-created models",
+    )
 
 
 def pytest_configure(config):
