@@ -63,9 +63,10 @@ By default these tests are skipped unless `--include-multi-tenancy-tests` is pas
 
 ## Notes
 
-- No teardown of the deployed applications: `s3-integrator-override` and
-  `data-kubeflow-integrator-override` (and the `s3_secret_kfp_override` secret) are left
-  running after the suite finishes. Tenant Profiles created during the run are removed.
+- Teardown removes everything the suite created: the `data-kubeflow-integrator-override`
+  and `s3-integrator-override` applications (and their relations), the
+  `s3_secret_kfp_override` user secret, and any tenant Profiles/Pods created during the
+  run.
 - The suite assumes a clean model (these override applications and the secret do not
   already exist) and never removes/reconfigures the pre-existing global `s3-integrator`,
   `resource-dispatcher`, or any pre-existing `data-kubeflow-integrator`.

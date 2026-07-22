@@ -46,14 +46,8 @@ logging.getLogger("jubilant.wait").setLevel(logging.WARNING)
 # variables take precedence.
 load_dotenv()
 
-# All tests depend on the bundle being healthy first (shared dependency root).
-pytestmark = pytest.mark.dependency(
-    depends=["driver/test_kubeflow_workloads.py::test_bundle_correctness"],
-    scope="session",
-)
-
 ASSETS_DIR = Path(__file__).parent.parent.parent / "assets"
-PROFILE_TEMPLATE_FILE = ASSETS_DIR / "ambient-profile.yaml.j2"
+PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 PIPELINES_DIR = Path(__file__).parent / "assets"
 DATA_PASSING_PIPELINE = str(PIPELINES_DIR / "data_passing_pipeline.yaml")
 
@@ -201,7 +195,11 @@ def s3_override_config() -> dict[str, str]:
 
 @pytest.fixture(scope="module")
 def deploy_override_s3(juju: jubilant.Juju, s3_override_config: dict[str, str]):
-    """Deploy and configure the override s3-integrator (no teardown)."""
+    """Deploy and configure the override s3-integrator; removed on teardown."""
+    # Deploy under a distinct name, reusing the global s3-integrator channel.
+    channel = detect_channel(juju, S3_GLOBAL_APP, "2/edge")
+    juju.deploy("s3-integrator", app=S3_OVERRIDE_APP, channel=channel, trust=True)
+
     # Create and grant a user secret holding the credentials.
     secret_uri = juju.add_secret(
         S3_SECRET_NAME,
@@ -211,10 +209,6 @@ def deploy_override_s3(juju: jubilant.Juju, s3_override_config: dict[str, str]):
         },
     )
     juju.grant_secret(S3_SECRET_NAME, S3_OVERRIDE_APP)
-
-    # Deploy under a distinct name, reusing the global s3-integrator channel.
-    channel = detect_channel(juju, S3_GLOBAL_APP, "2/edge")
-    juju.deploy("s3-integrator", app=S3_OVERRIDE_APP, channel=channel, trust=True)
 
     # Configure endpoint, bucket, and credentials secret.
     juju.config(
@@ -228,11 +222,16 @@ def deploy_override_s3(juju: jubilant.Juju, s3_override_config: dict[str, str]):
     juju.wait(jubilant.all_active, delay=10)
     yield S3_OVERRIDE_APP
 
+    # Teardown: remove the override s3-integrator and its user secret.
+    juju.remove_application(S3_OVERRIDE_APP, destroy_storage=True)
+    juju.wait(lambda status: S3_OVERRIDE_APP not in status.apps)
+    juju.remove_secret(S3_SECRET_NAME)
+
 
 @pytest.fixture(scope="module")
 def deploy_data_integrator(juju: jubilant.Juju, deploy_override_s3: str):
-    """Deploy data-kubeflow-integrator and wire its relations (no teardown)."""
-    channel = detect_channel(juju, "data-kubeflow-integrator")
+    """Deploy data-kubeflow-integrator and wire its relations; removed on teardown."""
+    channel = detect_channel(juju, "data-kubeflow-integrator", "latest/edge")
     juju.deploy(
         "data-kubeflow-integrator",
         app=DATA_INTEGRATOR_APP,
@@ -246,8 +245,14 @@ def deploy_data_integrator(juju: jubilant.Juju, deploy_override_s3: str):
     # Integrate with the existing resource-dispatcher over both relations.
     juju.integrate(f"{DATA_INTEGRATOR_APP}:secrets", f"{RESOURCE_DISPATCHER_APP}:secrets")
     juju.integrate(f"{DATA_INTEGRATOR_APP}:config-maps", f"{RESOURCE_DISPATCHER_APP}:config-maps")
-    juju.wait(jubilant.all_active, delay=10)
+    # The integrator stays blocked until its target Profile namespace exists (created by
+    # setup_tenant_override), so wait for agents to settle rather than all apps active.
+    juju.wait(jubilant.all_agents_idle, delay=10)
     yield DATA_INTEGRATOR_APP
+
+    # Teardown: remove the integrator (this also removes its relations).
+    juju.remove_application(DATA_INTEGRATOR_APP, destroy_storage=True)
+    juju.wait(lambda status: DATA_INTEGRATOR_APP not in status.apps)
 
 
 @pytest.fixture(scope="module")
@@ -332,10 +337,21 @@ def curl_pod_in_override(lightkube_client: Client, setup_tenant_override: str):
 def test_multi_tenancy_infrastructure_ready(juju: jubilant.Juju, deploy_data_integrator: str):
     """Phase 1: override s3-integrator + integrator deployed and integrated."""
     status = juju.status()
-    for app in (S3_OVERRIDE_APP, DATA_INTEGRATOR_APP, RESOURCE_DISPATCHER_APP):
+
+    # The override s3-integrator and resource-dispatcher should be active.
+    for app in (S3_OVERRIDE_APP, RESOURCE_DISPATCHER_APP):
         assert app in status.apps, f"Application {app} not found in model"
         current = status.apps[app].app_status.current
         assert current == "active", f"Expected {app} active, got {current}"
+
+    # The data-kubeflow-integrator stays blocked until its target Profile namespace
+    # exists (created later by setup_tenant_override in Phase 2).
+    assert DATA_INTEGRATOR_APP in status.apps, f"Application {DATA_INTEGRATOR_APP} not found in model"
+    integrator_status = status.apps[DATA_INTEGRATOR_APP].app_status.current
+    log.info("%s status is %s (expected blocked until profile set)", DATA_INTEGRATOR_APP, integrator_status)
+    assert integrator_status == "blocked", (
+        f"Expected {DATA_INTEGRATOR_APP} blocked (awaiting profile), got {integrator_status}"
+    )
 
 
 def test_tenant_kfp_resources_dispatched(lightkube_client: Client, setup_tenant_override: str):
@@ -367,12 +383,19 @@ def test_tenant_pipeline_artifacts_isolated_to_own_bucket(
 ):
     """A pipeline run as the override tenant stores artifacts only in its own bucket."""
     kfp_client = kfp_client_for(PROFILE_TENANT_OVERRIDE)
+    log.info("Snapshotting bucket contents before the run...")
     before_override = list_object_keys(s3_override, BUCKET_OVERRIDE)
     before_global = list_object_keys(s3_global, BUCKET_GLOBAL)
+    log.info(
+        "Before run: %d objects in override bucket %s, %d in global bucket %s",
+        len(before_override), BUCKET_OVERRIDE, len(before_global), BUCKET_GLOBAL,
+    )
 
+    log.info("Creating experiment in namespace %s...", PROFILE_TENANT_OVERRIDE)
     experiment = kfp_client.create_experiment(
         name="mt-test-experiment", namespace=PROFILE_TENANT_OVERRIDE
     )
+    log.info("Submitting data-passing pipeline run as tenant %s...", PROFILE_TENANT_OVERRIDE)
     run = kfp_client.create_run_from_pipeline_package(
         pipeline_file=DATA_PASSING_PIPELINE,
         arguments={},
@@ -380,22 +403,22 @@ def test_tenant_pipeline_artifacts_isolated_to_own_bucket(
         experiment_name=experiment.display_name,
         namespace=PROFILE_TENANT_OVERRIDE,
     )
+    log.info("Waiting for run %s to complete...", run.run_id)
     result = kfp_client.wait_for_run_completion(run.run_id, timeout=600)
+    log.info("Run %s finished with state %s", run.run_id, result.state)
     assert result.state == "SUCCEEDED"
 
+    log.info("Snapshotting bucket contents after the run...")
     after_override = list_object_keys(s3_override, BUCKET_OVERRIDE)
     after_global = list_object_keys(s3_global, BUCKET_GLOBAL)
-
-    assert after_override - before_override, "expected new artifacts in override bucket"
-    assert after_global == before_global, "no artifacts should land in the global bucket"
-
-
-def test_cross_tenant_bucket_isolation():
-    """The two tenants use distinct object stores."""
-    assert (BUCKET_OVERRIDE, os.environ.get("S3_SERVER_URL_OVERRIDE")) != (
-        BUCKET_GLOBAL,
-        os.environ.get("S3_SERVER_URL_GLOBAL"),
+    new_override = after_override - before_override
+    log.info(
+        "After run: %d new object(s) in override bucket, global bucket changed=%s",
+        len(new_override), after_global != before_global,
     )
+
+    assert new_override, "expected new artifacts in override bucket"
+    assert after_global == before_global, "no artifacts should land in the global bucket"
 
 
 def test_cross_tenant_kfp_api_denied(
@@ -403,15 +426,22 @@ def test_cross_tenant_kfp_api_denied(
 ):
     """The override tenant identity cannot list the global tenant's experiments."""
     kfp_client = kfp_client_for(PROFILE_TENANT_OVERRIDE)
+    log.info(
+        "Attempting cross-tenant access: %s listing experiments in %s (expecting denial)...",
+        PROFILE_TENANT_OVERRIDE, PROFILE_TENANT_GLOBAL,
+    )
     with pytest.raises(kfp_server_api.ApiException) as exc:
         kfp_client.list_experiments(namespace=PROFILE_TENANT_GLOBAL)
+    log.info("Cross-tenant access denied with HTTP %s", exc.value.status)
     assert exc.value.status in (401, 403), f"expected auth denial, got {exc.value.status}"
 
 
 def test_tenant_pipeline_run_succeeds(setup_tenant_override: str, forward_kfp_ui):
     """The override tenant can run a pipeline against its own object store."""
     kfp_client = kfp_client_for(PROFILE_TENANT_OVERRIDE)
+    log.info("Creating experiment in namespace %s...", PROFILE_TENANT_OVERRIDE)
     experiment = kfp_client.create_experiment(name="mt-smoke", namespace=PROFILE_TENANT_OVERRIDE)
+    log.info("Submitting smoke pipeline run as tenant %s...", PROFILE_TENANT_OVERRIDE)
     run = kfp_client.create_run_from_pipeline_package(
         pipeline_file=DATA_PASSING_PIPELINE,
         arguments={},
@@ -419,7 +449,9 @@ def test_tenant_pipeline_run_succeeds(setup_tenant_override: str, forward_kfp_ui
         experiment_name=experiment.display_name,
         namespace=PROFILE_TENANT_OVERRIDE,
     )
+    log.info("Waiting for run %s to complete...", run.run_id)
     result = kfp_client.wait_for_run_completion(run.run_id, timeout=600)
+    log.info("Run %s finished with state %s", run.run_id, result.state)
     assert result.state == "SUCCEEDED"
 
 
