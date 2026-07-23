@@ -19,16 +19,12 @@ applications:
     channel: 1.11/
   katib-controller:
     channel: 0.19/
-  katib-db:
-    channel: 8.0/
   katib-db-manager:
     channel: 0.19/
   katib-ui:
     channel: 0.19/
   kfp-api:
     channel: 2.16/
-  kfp-db:
-    channel: 8.0/
   kfp-metadata-writer:
     channel: 2.16/
   kfp-persistence:
