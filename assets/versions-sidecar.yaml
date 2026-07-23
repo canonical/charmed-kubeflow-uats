@@ -48,7 +48,7 @@ applications:
   knative-serving:
     channel: 1.16/
   kserve-controller:
-    channel: 0.15/
+    channel: 0.17/
   kubeflow-dashboard:
     channel: 2.0/
   kubeflow-profiles:

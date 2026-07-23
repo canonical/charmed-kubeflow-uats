@@ -3,8 +3,8 @@ docker.io/charmedkubeflow/frontend:2.16.0-c9e8334
 docker.io/charmedkubeflow/kfp-driver:2.16.0-cffd968
 docker.io/charmedkubeflow/kfp-launcher:2.16.0-212e71b
 docker.io/charmedkubeflow/metacontroller:4.11.22-ddba67c
-docker.io/charmedkubeflow/sklearnserver:0.15.2-2994414
-docker.io/charmedkubeflow/storage-initializer:0.15.2-8ecbed2
+docker.io/charmedkubeflow/sklearnserver:0.17.0-58a95a5
+docker.io/charmedkubeflow/storage-initializer:0.17.0-07d37fb
 docker.io/charmedkubeflow/suggestion-goptuna:v0.19.0-3f14187
 docker.io/charmedkubeflow/training-operator:1.9.3-9e9ea13
 docker.io/charmedkubeflow/visualization-server:2.16.0-9756a03
