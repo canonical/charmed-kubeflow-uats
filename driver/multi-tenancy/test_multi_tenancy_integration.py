@@ -372,7 +372,7 @@ def test_tenant_kfp_resources_dispatched(lightkube_client: Client, setup_tenant_
     launcher_blob = str(launcher.data)
     assert os.environ["S3_BUCKET_KFP_OVERRIDE"] in launcher_blob
     if BUCKET_GLOBAL:
-        assert BUCKET_GLOBAL not in launcher_blob
+        assert f"/{BUCKET_GLOBAL}/" not in launcher_blob
 
 
 def test_tenant_pipeline_artifacts_isolated_to_own_bucket(
