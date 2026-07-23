@@ -7,6 +7,7 @@ import re
 import subprocess
 import time
 from functools import reduce
+from itertools import batched
 from pathlib import Path
 
 import pytest
@@ -271,13 +272,14 @@ async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
         ), f"Failed bundle correctness check for charm {name}. Expected: {channel_regex} Found: {app_channel}"
 
     # Check that every charm of the bundle is active/idle
-    await ops_test.model.wait_for_idle(
-        apps=list(charm_list),
-        timeout=3600,
-        idle_period=30,
-        status="active",
-        raise_on_error=True,
-    )
+    for batched_apps in batched(charm_list, 5):
+        await ops_test.model.wait_for_idle(
+            apps=list(batched_apps),
+            timeout=3600,
+            idle_period=30,
+            status="active",
+            raise_on_error=True,
+        )
 
 
 @pytest.mark.dependency()
