@@ -346,12 +346,18 @@ def test_multi_tenancy_infrastructure_ready(juju: jubilant.Juju, deploy_data_int
 
     # The data-kubeflow-integrator stays blocked until its target Profile namespace
     # exists (created later by setup_tenant_override in Phase 2).
-    assert DATA_INTEGRATOR_APP in status.apps, f"Application {DATA_INTEGRATOR_APP} not found in model"
+    assert (
+        DATA_INTEGRATOR_APP in status.apps
+    ), f"Application {DATA_INTEGRATOR_APP} not found in model"
     integrator_status = status.apps[DATA_INTEGRATOR_APP].app_status.current
-    log.info("%s status is %s (expected blocked until profile set)", DATA_INTEGRATOR_APP, integrator_status)
-    assert integrator_status == "blocked", (
-        f"Expected {DATA_INTEGRATOR_APP} blocked (awaiting profile), got {integrator_status}"
+    log.info(
+        "%s status is %s (expected blocked until profile set)",
+        DATA_INTEGRATOR_APP,
+        integrator_status,
     )
+    assert (
+        integrator_status == "blocked"
+    ), f"Expected {DATA_INTEGRATOR_APP} blocked (awaiting profile), got {integrator_status}"
 
 
 def test_tenant_kfp_resources_dispatched(lightkube_client: Client, setup_tenant_override: str):
@@ -388,7 +394,10 @@ def test_tenant_pipeline_artifacts_isolated_to_own_bucket(
     before_global = list_object_keys(s3_global, BUCKET_GLOBAL)
     log.info(
         "Before run: %d objects in override bucket %s, %d in global bucket %s",
-        len(before_override), BUCKET_OVERRIDE, len(before_global), BUCKET_GLOBAL,
+        len(before_override),
+        BUCKET_OVERRIDE,
+        len(before_global),
+        BUCKET_GLOBAL,
     )
 
     log.info("Creating experiment in namespace %s...", PROFILE_TENANT_OVERRIDE)
@@ -414,7 +423,8 @@ def test_tenant_pipeline_artifacts_isolated_to_own_bucket(
     new_override = after_override - before_override
     log.info(
         "After run: %d new object(s) in override bucket, global bucket changed=%s",
-        len(new_override), after_global != before_global,
+        len(new_override),
+        after_global != before_global,
     )
 
     assert new_override, "expected new artifacts in override bucket"
@@ -428,7 +438,8 @@ def test_cross_tenant_kfp_api_denied(
     kfp_client = kfp_client_for(PROFILE_TENANT_OVERRIDE)
     log.info(
         "Attempting cross-tenant access: %s listing experiments in %s (expecting denial)...",
-        PROFILE_TENANT_OVERRIDE, PROFILE_TENANT_GLOBAL,
+        PROFILE_TENANT_OVERRIDE,
+        PROFILE_TENANT_GLOBAL,
     )
     with pytest.raises(kfp_server_api.ApiException) as exc:
         kfp_client.list_experiments(namespace=PROFILE_TENANT_GLOBAL)

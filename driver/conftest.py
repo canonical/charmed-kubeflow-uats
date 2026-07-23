@@ -115,6 +115,19 @@ def pytest_addoption(parser: Parser):
         "By default, it is set to False.",
     )
     parser.addoption(
+        "--model",
+        default="kubeflow",
+        help="Provide the name of the Juju model where Kubeflow is deployed. This is also used"
+        " as the Kubernetes namespace of the Kubeflow control plane. If empty, the current Juju"
+        " model is used.",
+    )
+    parser.addoption(
+        "--keep-models",
+        action="store_true",
+        default=False,
+        help="keep temporarily-created models",
+    )
+    parser.addoption(
         "--include-multi-tenancy-tests",
         action="store_true",
         help="Defines whether to include the multi-tenancy integration tests."
