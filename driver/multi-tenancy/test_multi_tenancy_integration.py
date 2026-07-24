@@ -79,7 +79,11 @@ BUCKET_GLOBAL = os.environ.get("S3_BUCKET_KFP_GLOBAL")
 CURL_POD_NAME = "mt-tenant-curl"
 
 # Charms that indicate the Istio Ambient Mesh is in use.
-_AMBIENT_MESH_APPS = ("istio-beacon-k8s",)
+_AMBIENT_MESH_APPS = (
+    "istio-beacon-k8s",
+    "istio-k8s",
+    "istio-ingress-k8s",
+)
 
 
 def detect_channel(juju: jubilant.Juju, app_name: str, default: str = DEFAULT_CHANNEL) -> str:
@@ -444,7 +448,9 @@ def test_cross_tenant_kfp_api_denied(
     with pytest.raises(kfp_server_api.ApiException) as exc:
         kfp_client.list_experiments(namespace=PROFILE_TENANT_GLOBAL)
     log.info("Cross-tenant access denied with HTTP %s", exc.value.status)
-    assert exc.value.status in (401, 403), f"expected auth denial, got {exc.value.status}"
+    # The tenant is authenticated (valid kubeflow-userid) but not authorized for the
+    # other namespace, so the API must return 403 Forbidden (not 401 Unauthorized).
+    assert exc.value.status == 403, f"expected 403 (access denied), got {exc.value.status}"
 
 
 def test_tenant_pipeline_run_succeeds(setup_tenant_override: str, forward_kfp_ui):
