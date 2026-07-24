@@ -1,9 +1,8 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-import os
+import json
 import subprocess
-from typing import Dict
 
 import nbformat
 
@@ -18,28 +17,36 @@ def format_error_message(traceback: list):
     return "".join(traceback[-2:])
 
 
-def discover_notebooks(directory) -> Dict[str, str]:
-    """Return a dictionary of notebooks in the provided directory.
+def first_error_cell_index(notebook):
+    """Return the 1-based index of the first cell with an error output, or None."""
+    for index, cell in enumerate(notebook.cells, start=1):
+        for output in cell.get("outputs", []):
+            if output.get("output_type") == "error":
+                return index
+    return None
 
-    The dictionary contains a mapping between the notebook names (in alphabetical order) and the
-    absolute paths to the notebook files. Directories containing IPYNB execution checkpoints are
-    ignored.
 
-    Args:
-        directory: The directory to search.
+def render_notebook_html(notebook, file_path):
+    """Render an executed notebook to a standalone HTML file (best effort)."""
+    try:
+        from nbconvert import HTMLExporter
 
-    Returns:
-        A dictionary of notebook name - notebook file absolute path pairs.
-    """
-    notebooks = {}
-    for root, dirs, files in os.walk(directory):
-        # exclude .ipynb_checkpoints directories from the search
-        dirs[:] = [d for d in dirs if d != ".ipynb_checkpoints"]
-        for file in files:
-            if file.endswith(".ipynb"):
-                # file name - absolute file path
-                notebooks[file.split(".ipynb")[0]] = os.path.abspath(os.path.join(root, file))
-    return dict(sorted(notebooks.items()))
+        html, _ = HTMLExporter().from_notebook_node(notebook)
+        with open(file_path, "w", encoding="utf-8") as html_file:
+            html_file.write(html)
+    except Exception as error:
+        print(f"Could not render HTML for {file_path}: {error}")
+
+
+def emit_result_marker(name, status, failing_cell, error):
+    """Print a machine-readable result marker to stdout for the driver to parse."""
+    payload = {
+        "notebook": name,
+        "status": status,
+        "failing_cell": failing_cell,
+        "error": error,
+    }
+    print(f"===UAT-RESULT==={json.dumps(payload)}===END-UAT-RESULT===", flush=True)
 
 
 def save_notebook(notebook, file_path):

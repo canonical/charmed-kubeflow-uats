@@ -16,20 +16,23 @@ import pytest
 import requests
 import yaml
 from lightkube import ApiError, Client, codecs
-from lightkube.generic_resource import (
-    create_global_resource,
-    create_namespaced_resource,
-    load_in_cluster_generic_resources,
-)
+from lightkube.generic_resource import load_in_cluster_generic_resources
 from lightkube.types import CascadeType
+from notebook_jobs import (
+    RUNTIMECLASS_RESOURCE,
+    job_name_for,
+    record_result,
+    render_notebook_job,
+    run_notebook_job,
+)
 from utils import (
+    PODDEFAULT_RESOURCE,
+    PROFILE_RESOURCE,
     assert_namespace_active,
     assert_poddefault_created_in_namespace,
     assert_profile_deleted,
     context_from,
     create_poddefault,
-    fetch_job_logs,
-    wait_for_job,
 )
 
 log = logging.getLogger(__name__)
@@ -40,40 +43,27 @@ JOB_TEMPLATE_FILE = ASSETS_DIR / "test-job.yaml.j2"
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 RUNTIMECLASS_TEMPLATE_FILE = ASSETS_DIR / "runtimeclass.yaml.j2"
 
-TESTS_LOCAL_RUN = eval(os.environ.get("LOCAL"))
 TESTS_LOCAL_DIR = os.path.abspath(Path("tests"))
-TESTS_IMAGE = "charmedkubeflow/jupyter-scipy:1.10.0-fafb9e8"
 
 NAMESPACE = "test-kubeflow"
-PROFILE_RESOURCE = create_global_resource(
-    group="kubeflow.org",
-    version="v1",
-    kind="profile",
-    plural="profiles",
-)
-RUNTIMECLASS_RESOURCE = create_global_resource(
-    group="node.k8s.io",
-    version="v1",
-    kind="runtimeclass",
-    plural="runtimeclasses",
-)
-
-JOB_NAME = "test-kubeflow"
+JOB_PREFIX = "test-nb"
 JOB_RUNTIMECLASS_NAME = "uats"
 
-PYTEST_CMD_BASE = "python3 -m pytest"
+# Directory (inside the Job pod) where each notebook writes its artifacts, and the host
+# directory where the driver stores collected artifacts when --keep-artifacts is set.
+POD_ARTIFACTS_DIR = "/tmp/uat-artifacts"
+ARTIFACTS_ROOT = Path("artifacts")
 
-PODDEFAULT_RESOURCE = create_namespaced_resource(
-    group="kubeflow.org",
-    version="v1alpha1",
-    kind="poddefault",
-    plural="poddefaults",
-)
 PODDEFAULT_WITH_PROXY_PATH = Path("tests") / "proxy-poddefault.yaml.j2"
 PODDEFAULT_WITH_TOLERATION_PATH = Path("assets") / "gpu-toleration-poddefault.yaml.j2"
 PODDEFAULT_WITH_SECURITY_POLICY_PATH = Path("tests") / "security-policy-poddefault.yaml.j2"
 
 KFP_PODDEFAULT_NAME = "access-ml-pipeline"
+
+
+def is_local_run() -> bool:
+    """Return True if the tests run in local (hostPath) mode."""
+    return os.environ.get("LOCAL", "False").strip().lower() in ("true", "1", "yes")
 
 
 @pytest.fixture(scope="module")
@@ -140,28 +130,9 @@ def k8s_default_runtimeclass_handler(request):
 
 
 @pytest.fixture(scope="module")
-def pytest_filter(request):
-    """Retrieve filter from Pytest invocation."""
-    filter = request.config.getoption("filter")
-    return f"-k '{filter}'" if filter else ""
-
-
-@pytest.fixture(scope="module")
 def include_ambient(request):
     """Retrieve the `--include-ambient-tests` flag from Pytest invocation."""
     return True if request.config.getoption("--include-ambient-tests") else False
-
-
-@pytest.fixture(scope="module")
-def include_gpu_tests(request):
-    """Retrieve the `--include-gpu-tests` flag from Pytest invocation."""
-    return True if request.config.getoption("--include-gpu-tests") else False
-
-
-@pytest.fixture(scope="module")
-def include_kubeflow_trainer_tests(request):
-    """Retrieve the `--include-kubeflow-trainer-tests` flag from Pytest invocation."""
-    return True if request.config.getoption("--include-kubeflow-trainer-tests") else False
 
 
 @pytest.fixture(scope="module")
@@ -172,16 +143,27 @@ def tests_checked_out_commit(request):
 
 
 @pytest.fixture(scope="module")
-def pytest_cmd(pytest_filter, include_gpu_tests, include_kubeflow_trainer_tests):
-    """Format the Pytest command."""
-    cmd = PYTEST_CMD_BASE
-    if pytest_filter:
-        cmd += f" {pytest_filter}"
-    if include_gpu_tests:
-        cmd += " --include-gpu-tests"
-    if include_kubeflow_trainer_tests:
-        cmd += " --include-kubeflow-trainer-tests"
-    return cmd
+def notebook_timeout(request):
+    """Return the per-notebook Job timeout (activeDeadlineSeconds) in seconds."""
+    return int(request.config.getoption("--notebook-timeout"))
+
+
+@pytest.fixture(scope="module")
+def keep_artifacts(request):
+    """Return whether to keep notebook artifacts on the host and Jobs in the cluster."""
+    return bool(request.config.getoption("--keep-artifacts"))
+
+
+@pytest.fixture(scope="module")
+def rerun_failed(request):
+    """Return how many times a failed notebook should be retried."""
+    return int(request.config.getoption("--rerun-failed-notebooks"))
+
+
+@pytest.fixture(scope="module")
+def local_run():
+    """Return whether the tests run in local (hostPath) mode."""
+    return is_local_run()
 
 
 @pytest.fixture(scope="module")
@@ -337,70 +319,149 @@ def test_create_profile(lightkube_client, create_profile):
     log.info(f"PodDefaults in {NAMESPACE} namespace are {created_poddefaults_names}.")
 
 
-@pytest.mark.dependency(depends=["test_create_profile"])
-def test_kubeflow_workloads(
-    juju,
-    k8s_default_runtimeclass_handler,
-    lightkube_client,
-    pytest_cmd,
-    tests_checked_out_commit,
-    tests_image,
-    request,
-    create_poddefault_on_proxy,
-    create_poddefault_on_toleration,
-    create_poddefault_on_security_policy,
-    istio_mode: str,
-):
-    """Run a K8s Job to execute the notebook tests."""
-    if TESTS_LOCAL_RUN:
-        log.info("Creating the RuntimeClass for exemption from Pod Security Standards...")
-        resources = list(
-            codecs.load_all_yaml(
-                RUNTIMECLASS_TEMPLATE_FILE.read_text(),
-                context={
-                    "runtimeclass_handler": k8s_default_runtimeclass_handler,
-                    "runtimeclass_name": JOB_RUNTIMECLASS_NAME,
-                },
-            )
-        )
-        assert len(resources) == 1, f"Expected 1 RuntimeClass, got {len(resources)}!"
-        lightkube_client.create(resources[0])
+@pytest.fixture(scope="module")
+def runtimeclass(local_run, k8s_default_runtimeclass_handler, lightkube_client):
+    """Create the RuntimeClass used for PSS exemption in local runs; clean up after."""
+    if not local_run:
+        yield
+        return
 
-    log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
-    log.info(f"Istio Mode: {istio_mode}")
+    log.info("Creating the RuntimeClass for exemption from Pod Security Standards...")
     resources = list(
         codecs.load_all_yaml(
-            JOB_TEMPLATE_FILE.read_text(),
+            RUNTIMECLASS_TEMPLATE_FILE.read_text(),
             context={
-                "job_name": JOB_NAME,
-                "tests_local_run": TESTS_LOCAL_RUN,
-                "tests_local_dir": TESTS_LOCAL_DIR,
-                "tests_image": tests_image,
-                "tests_remote_commit": tests_checked_out_commit,
-                "pytest_cmd": pytest_cmd,
-                "proxy": True if request.config.getoption("proxy") else False,
-                "security_policy": request.config.getoption("security_policy") != "privileged",
-                "kubeflow_namespace": juju.model,
-                "user_namespace": NAMESPACE,
-                "istio_mode": istio_mode,
+                "runtimeclass_handler": k8s_default_runtimeclass_handler,
+                "runtimeclass_name": JOB_RUNTIMECLASS_NAME,
             },
         )
     )
+    assert len(resources) == 1, f"Expected 1 RuntimeClass, got {len(resources)}!"
+    lightkube_client.create(resources[0])
 
-    assert len(resources) == 1, f"Expected 1 Job, got {len(resources)}!"
-    lightkube_client.create(resources[0], namespace=NAMESPACE)
+    yield
 
+    log.info("Deleting the RuntimeClass for the Job...")
     try:
-        wait_for_job(lightkube_client, JOB_NAME, NAMESPACE)
-    except ValueError:
-        pytest.fail(
-            f"Something went wrong while running Job {NAMESPACE}/{JOB_NAME}. Please inspect the"
-            " attached logs for more info..."
-        )
-    finally:
-        log.info("Fetching Job logs...")
-        fetch_job_logs(JOB_NAME, NAMESPACE, TESTS_LOCAL_RUN)
+        lightkube_client.delete(RUNTIMECLASS_RESOURCE, name=JOB_RUNTIMECLASS_NAME)
+    except ApiError as error:
+        if error.status.code != 404:
+            raise
 
-        if TESTS_LOCAL_RUN:
-            log.info("Deleting the RuntimeClass for the Job...")
-            lightkube_client.delete(RUNTIMECLASS_RESOURCE, name=JOB_RUNTIMECLASS_NAME)
+
+def _in_pod_notebook_path(host_path: str, local_run: bool) -> str:
+    """Map a host notebook path to its path inside the Job pod."""
+    relative = os.path.relpath(host_path, start=TESTS_LOCAL_DIR)
+    if local_run:
+        return f"/tests/{relative}"
+    return f"/tests/charmed-kubeflow-uats/tests/{relative}"
+
+
+def _notebook_job_context(
+    job_name,
+    notebook_path,
+    local_run,
+    tests_image,
+    tests_remote_commit,
+    notebook_timeout,
+    keep_artifacts,
+    proxy,
+    security_policy,
+    kubeflow_namespace,
+    istio_mode,
+):
+    """Build the Jinja context for rendering a single-notebook Job."""
+    return {
+        "job_name": job_name,
+        "tests_local_run": local_run,
+        "tests_local_dir": TESTS_LOCAL_DIR,
+        "tests_image": tests_image,
+        "tests_remote_commit": tests_remote_commit,
+        "notebook_path": _in_pod_notebook_path(notebook_path, local_run),
+        "artifacts_dir": POD_ARTIFACTS_DIR,
+        "notebook_timeout": notebook_timeout,
+        "keep_artifacts": keep_artifacts,
+        "proxy": proxy,
+        "security_policy": security_policy,
+        "kubeflow_namespace": kubeflow_namespace,
+        "user_namespace": NAMESPACE,
+        "istio_mode": istio_mode,
+    }
+
+
+def _failure_message(result) -> str:
+    """Build a concise, actionable failure message for a notebook result."""
+    lines = [f"Notebook '{result.name}' {result.status}."]
+    if result.failing_cell is not None:
+        lines.append(f"Failing cell: {result.failing_cell}")
+    if result.error_summary:
+        lines.append(f"Error: {result.error_summary}")
+    if result.artifacts_dir:
+        lines.append(f"Artifacts: {result.artifacts_dir}")
+    if result.log_tail:
+        lines.append(f"Recent logs:\n{result.log_tail}")
+    return "\n".join(lines)
+
+
+@pytest.mark.dependency(depends=["test_create_profile"])
+def test_notebook_workload(
+    notebook,
+    juju,
+    lightkube_client,
+    tests_image,
+    tests_checked_out_commit,
+    istio_mode,
+    local_run,
+    notebook_timeout,
+    keep_artifacts,
+    rerun_failed,
+    runtimeclass,
+    create_poddefault_on_proxy,
+    create_poddefault_on_toleration,
+    create_poddefault_on_security_policy,
+    request,
+):
+    """Run a single UAT notebook as an isolated Kubernetes Job.
+
+    Each notebook runs in its own Job (portable, no shared storage). The notebook's
+    outcome is recovered from its logs, a per-notebook summary is recorded, and the Job
+    is retried up to ``--rerun-failed-notebooks`` times before being reported as failed.
+    """
+    notebook_name = Path(notebook).stem
+    log.info(f"Istio Mode: {istio_mode}")
+
+    result = None
+    for attempt in range(1 + rerun_failed):
+        job_name = job_name_for(JOB_PREFIX, notebook_name)
+        if attempt:
+            job_name = f"{job_name}-retry{attempt}"[:63]
+        context = _notebook_job_context(
+            job_name=job_name,
+            notebook_path=notebook,
+            local_run=local_run,
+            tests_image=tests_image,
+            tests_remote_commit=tests_checked_out_commit,
+            notebook_timeout=notebook_timeout,
+            keep_artifacts=keep_artifacts,
+            proxy=bool(request.config.getoption("proxy")),
+            security_policy=request.config.getoption("security_policy") != "privileged",
+            kubeflow_namespace=juju.model,
+            istio_mode=istio_mode,
+        )
+        manifest = render_notebook_job(str(JOB_TEMPLATE_FILE), context)
+        result = run_notebook_job(
+            client=lightkube_client,
+            notebook_name=notebook_name,
+            manifest=manifest,
+            namespace=NAMESPACE,
+            timeout=notebook_timeout,
+            keep_artifacts=keep_artifacts,
+            artifacts_root=str(ARTIFACTS_ROOT),
+        )
+        record_result(request.config, result)
+        if result.succeeded:
+            break
+        if attempt < rerun_failed:
+            log.warning(f"Notebook '{notebook_name}' {result.status}; retrying ({attempt + 1})...")
+
+    assert result.succeeded, _failure_message(result)

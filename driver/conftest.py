@@ -3,10 +3,17 @@
 
 import pytest
 from _pytest.config.argparsing import Parser
+from notebook_jobs import discover_notebooks, notebook_matches_filter
 
 BUNDLE_URL_SIDECAR = "file:assets/versions-sidecar.yaml"
 BUNDLE_URL_AMBIENT = "file:assets/versions-ambient.yaml"
 TESTS_IMAGE = "ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter-scipy:v1.10.0"
+
+NOTEBOOK_DIRS = {
+    "cpu": "tests/notebooks/cpu",
+    "gpu": "tests/notebooks/gpu",
+    "kubeflow-trainer": "tests/notebooks/kubeflow-trainer",
+}
 
 
 def pytest_addoption(parser: Parser):
@@ -113,17 +120,23 @@ def pytest_addoption(parser: Parser):
         "By default, it is set to False.",
     )
     parser.addoption(
-        "--model",
-        default="kubeflow",
-        help="Provide the name of the Juju model where Kubeflow is deployed. This is also used"
-        " as the Kubernetes namespace of the Kubeflow control plane. If empty, the current Juju"
-        " model is used.",
+        "--notebook-timeout",
+        default=1800,
+        type=int,
+        help="Per-notebook Job timeout in seconds (activeDeadlineSeconds). Default: 1800.",
     )
     parser.addoption(
-        "--keep-models",
+        "--rerun-failed-notebooks",
+        default=0,
+        type=int,
+        help="Number of times to rerun a failed notebook before marking it failed. Default: 0.",
+    )
+    parser.addoption(
+        "--keep-artifacts",
         action="store_true",
         default=False,
-        help="keep temporarily-created models",
+        help="Keep per-notebook artifacts on the host and leave notebook Jobs in the cluster"
+        " for inspection. By default artifacts are discarded and Jobs are deleted.",
     )
 
 
@@ -159,3 +172,48 @@ def pytest_collection_modifyitems(config, items):
 
     dependency_root = "driver/test_kubeflow_workloads.py::test_bundle_correctness"
     items.sort(key=lambda item: 0 if item.nodeid.endswith(dependency_root) else 1)
+
+
+def _select_notebooks(config):
+    """Return the mapping of notebook stem -> host path selected for this run.
+
+    Honours the ``--include-gpu-tests`` / ``--include-kubeflow-trainer-tests`` flags and
+    the ``--filter`` (pytest ``-k`` style) expression.
+    """
+    notebooks = discover_notebooks(NOTEBOOK_DIRS["cpu"])
+    if config.getoption("--include-gpu-tests"):
+        notebooks.update(discover_notebooks(NOTEBOOK_DIRS["gpu"]))
+    if config.getoption("--include-kubeflow-trainer-tests"):
+        notebooks.update(discover_notebooks(NOTEBOOK_DIRS["kubeflow-trainer"]))
+
+    filter_expr = config.getoption("--filter")
+    if filter_expr:
+        notebooks = {
+            name: path
+            for name, path in notebooks.items()
+            if notebook_matches_filter(name, filter_expr)
+        }
+    return dict(sorted(notebooks.items()))
+
+
+def pytest_generate_tests(metafunc):
+    """Parametrise the notebook workload test over the selected notebooks."""
+    if "notebook" not in metafunc.fixturenames:
+        return
+    notebooks = _select_notebooks(metafunc.config)
+    metafunc.parametrize("notebook", list(notebooks.values()), ids=list(notebooks.keys()))
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Print a per-notebook results table at the end of the run."""
+    results = getattr(config, "_notebook_results", None)
+    if not results:
+        return
+    terminalreporter.write_sep("=", "UAT notebook results")
+    for result in results.values():
+        line = f"{result.status:8} {result.name} ({result.duration:.0f}s)"
+        if result.failing_cell is not None:
+            line += f" -> cell {result.failing_cell}: {result.error_summary}"
+        if result.artifacts_dir:
+            line += f" [artifacts: {result.artifacts_dir}]"
+        terminalreporter.write_line(line)

@@ -9,15 +9,13 @@ that gives us confidence that everything works as expected, and are meant to be 
 as well as developers alike.
 
 Charmed Kubeflow UATs are broken down in test scenarios implemented as Python notebooks, which are
-easy to share, understand, and maintain. We provide a **standalone** test suite included in `tests`
-that users can run directly from inside a Notebook with `pytest`, as well as a `driver` that
-automates the execution on an existing Kubeflow cluster. More details on running the tests can be
-found in the [Run the tests](#run-the-tests) section.
+easy to share, understand, and maintain. A `driver` executes them on an existing Kubeflow cluster,
+running each notebook as an isolated Kubernetes Job. More details on running the tests can be found
+in the [Run the tests](#run-the-tests) section.
 
 ## Content
 * [Prerequisites](#prerequisites)
 * [Run the tests](#run-the-tests)
-   * [From inside a notebook](#running-inside-a-notebook)
    * [Using the `driver` ](#running-from-a-configured-management-environment-using-the-driver)
       * [Using a remote commit](#run-tests-from-a-remote-commit)
       * [Using a local copy](#run-tests-from-local-copy)
@@ -28,13 +26,10 @@ found in the [Run the tests](#run-the-tests) section.
       * [Kubeflow+MLflow UATs](#run-kubeflow+mlflow-uats)
       * [Feast UATs](#run-feast-uats)
    * [NVIDIA GPU UAT](#nvidia-gpu-uat)
-      * [From inside a notebook](#run-nvidia-gpu-uat-from-inside-a-notebook)
-      * [Using the `driver`](#run-nvidia-gpu-uat-using-the-driver)
    * [Ambient Integration Test](#ambient-integration-test)
    * [Behind proxy](#run-behind-proxy)
       * [Prerequisites](#prerequisites-2)
         * [Running the KServe UATs](#running-the-kserve-uats)
-      * [From inside a notebook](#running-using-notebook)
       * [Using the `driver`](#running-using-driver)
    * [Developer notes](#developer-notes)
       * [Limitations](#limitations)
@@ -74,9 +69,7 @@ Please refer to the respective documentation for more details on how to install 
 
 ## Run the tests
 
-As mentioned before, when it comes to running the tests, you've got 2 options:
-* Running the `tests` suite directly with `pytest` inside a Jupyter Notebook
-* Running the tests on an existing cluster using the `driver` along with the provided automation
+The tests are run against an existing cluster using the `driver` along with the provided automation.
 
 NOTE: Depending on the version of Charmed Kubeflow you want to test, make sure to checkout to the appropriate branch with `git checkout`:
 - Charmed Kubeflow 1.10 -> `track/1.10`
@@ -87,26 +80,6 @@ The `main` branch is generally used for testing against the `latest/edge` track 
 As part of the tests, the UATs checks that the version of the applications are the ones expected for the various tracks. The different branches
 above point to a different bundle from the [bundle-kubeflow](https://github.com/canonical/bundle-kubeflow) repository to compare the 
 channels in the deployment being tested. The `main` branch allows you to specify the URL of the bundle used for checking by passing the --bundle argument to the tox entrypoints.
-
-### Running inside a Notebook
-
-* Create a new Notebook using the `jupyter-scipy` image:
-   * Navigate to `Advanced options` > `Configurations`
-   * Select all available configurations in order for Kubeflow integrations to work as expected
-   * Launch the Notebook and wait for it to be created
-* From inside the Notebook, start a new terminal session and clone this repo locally:
-
-   ```bash
-   git clone https://github.com/canonical/charmed-kubeflow-uats.git
-   ```
-* Navigate to the `tests` directory:
-
-   ```bash
-   cd charmed-kubeflow-uats/tests
-   ```
-* There are two options here:
-   1. Follow the instructions of the provided [README.md](tests/README.md) to execute the test suite with `pytest`
-   2. For each `.ipynb` test file of interest, open it and run the Notebook.
 
 ### Running from a configured management environment using the `driver`
 
@@ -189,8 +162,8 @@ tox -e uats-remote -- --filter "not kserve"
 tox -e uats-local -- --filter "kfp or katib"
 ```
 
-This simulates the behaviour of running `pytest -k "some filter"` directly on the test suite.
-You can read more about the options provided by Pytest in the corresponding section of the
+This simulates the behaviour of running `pytest -k "some filter"` on the notebook selection.
+You can read more about the `-k` expression syntax in the corresponding section of the Pytest
 [documentation](https://docs.pytest.org/en/7.4.x/reference/reference.html#command-line-flags).
 
 #### Specify a different bundle
@@ -278,27 +251,6 @@ tox -e feast-local
 ```
 
 ### NVIDIA GPU UAT
-
-#### Run NVIDIA GPU UAT from inside a notebook
-
-##### Prerequisites
-If a [taint](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) is used to prevent scheduling unintended workload to GPU nodes, a toleration is needed in order to enable GPU tests to schedule workloads. To ensure that pods created by GPU tests have the proper toleration:
-1. Edit the [PodDefault](./assets/gpu-toleration-poddefault.yaml.j2) to replace the placeholder under `tolerations` with your own toleration e.g.
-```
-  tolerations:
-    - key: "MyKey"
-      value: "gpu"
-      effect: "NoSchedule"
-```
-2. Apply the PodDefault to the namespace where you 'll be running the tests in.
-   ```
-   kubectl apply -f ./assets/gpu-toleration-poddefault.yaml.j2 -n <your_namespace>
-   ```
-
-If no taint is used, there are no prerequisites.
-
-##### Steps
-In order to run the NVIDIA GPU UAT from inside a notebook, follow the same steps described in the [From inside a notebook](#running-inside-a-notebook) section above.
 
 #### Run NVIDIA GPU UAT using the driver
 
@@ -417,19 +369,6 @@ juju config kserve-controller http-proxy=$HTTP_PROXY https-proxy=$HTTPS_PROXY no
 juju config knative-serving http-proxy=$HTTP_PROXY https-proxy=$HTTPS_PROXY no-proxy=$CLUSTER_CIDR,$SERVICE_CLUSTER_IP_RANGE,127.0.0.1,localhost,$NODE_INTERNAL_IP/24,$HOSTNAME,.svc,.local
 ```
 
-#### Running using Notebook
-
-First, edit the [PodDefault](tests/proxy-poddefault.yaml.j2) to replace the placeholders following the [Prerequisites](#prerequisites-2) section.
-
-Then, to run the tests behind proxy using Notebook:
-1. Login to the Dashboard and Create a Profile
-2. Apply the PodDefault to your Profile's namespace, make sure you already followed the Prerequisites
-   section to modify the PodDefault. Apply it with:
-   ```
-   kubectl apply -f ./tests/proxy-poddefault.yaml -n <your_namespace>
-   ```
-3. Continue as described in the [Running inside a Notebook](#running-inside-a-notebook) section above.
-
 #### Running using `driver`
 
 You can pass the `--proxy` flag and set the values for proxies to the tox command and this should automatically apply the required changes to run behind proxy. Given that the environment variables are already set when configuring KServe and KNative:
@@ -445,19 +384,19 @@ considered a configured management environment. That is, essentially, any machin
 access to the underlying Kubernetes cluster. This is crucial, since the driver directly depends on
 a Kubernetes Job to run the tests. More specifically, the `driver` executes the following steps:
 1. Create a Kubeflow Profile (i.e. `test-kubeflow`) to run the tests in
-2. Submit a Kubernetes Job (i.e. `test-kubeflow`) that runs `tests`
-   The Job performs the following:
+2. Submit one Kubernetes Job **per notebook** (the driver parametrises over the selected notebooks).
+   Each Job performs the following:
    * If a `-local` tox environment is run, then it mounts the local `tests` directory to a Pod that uses `jupyter-scipy` as the container image. Else (in `-remote` tox environments), it creates an emptyDir volume which it syncs to the current commit that the repo is checked out locally, using a [git-sync](https://github.com/kubernetes/git-sync/) `initContainer`.
    * Install python dependencies specified in the [requirements.txt](tests/requirements.txt)
-   * Run the test suite by executing `pytest`
-3. Wait until the Job completes (regardless of the outcome)
-4. Collect and report its logs, corresponding to the `pytest` execution of `tests`
-5. Cleanup (remove created Job and Profile)
+   * Execute the single notebook via [`run_notebook.py`](tests/run_notebook.py), which reports the outcome through the Job's exit code and a result marker in its logs
+3. Wait for each Job to complete (regardless of the outcome), retrying failed notebooks when requested
+4. Collect each notebook's result and print a per-notebook summary
+5. Cleanup (remove created Jobs and Profile)
 
 ##### Limitations
 
-With the current implementation we have to wait until the Job completes to fetch its logs. Of
-course this makes for a suboptimal UX, since the user might have to wait long before they learn
-about the outcome of their tests. Ideally, the Job logs should be streamed directly to the `pytest`
-output, providing real-time insight. This is a known limitation that will be addressed in a future
-iteration.
+With the current implementation each notebook's logs are fetched after its Job completes rather than
+streamed in real time, so the outcome of a given notebook is known only once it finishes. Running
+one Job per notebook does provide incremental, per-notebook results (and a summary at the end)
+instead of waiting for the whole suite, but real-time log streaming remains a known limitation that
+will be addressed in a future iteration.
