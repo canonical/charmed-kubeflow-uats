@@ -2,7 +2,7 @@ boto3
 # pin the highest kfp version
 kfp>=2.13,<3.0
 # pin the client to match the version of the deployed MLflow server
-mlflow==2.22.4
+mlflow==3.14.0
 numpy
 pyarrow
 # Pin due to https://github.com/canonical/charmed-kubeflow-uats/issues/218
