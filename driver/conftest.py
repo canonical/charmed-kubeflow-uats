@@ -29,6 +29,8 @@ def pytest_addoption(parser: Parser):
     * Add a `--test-image` option to specify the test image to be used by the driver notebook pod.
     * Add an `--include-ambient-tests` flag to include the ambient integration tests in the
       executed tests.
+    * Add an `--include-multi-tenancy-tests` flag to include the multi-tenancy integration
+      tests in the executed tests.
     """
     parser.addoption(
         "--proxy",
@@ -125,6 +127,12 @@ def pytest_addoption(parser: Parser):
         default=False,
         help="keep temporarily-created models",
     )
+    parser.addoption(
+        "--include-multi-tenancy-tests",
+        action="store_true",
+        help="Defines whether to include the multi-tenancy integration tests."
+        "By default, it is set to False.",
+    )
 
 
 def pytest_configure(config):
@@ -156,6 +164,14 @@ def pytest_collection_modifyitems(config, items):
         for item in items:
             if "/m2m/" in item.nodeid:
                 item.add_marker(skip_m2m)
+
+    if not config.getoption("--include-multi-tenancy-tests", default=False):
+        skip_multi_tenancy = pytest.mark.skip(
+            reason="need --include-multi-tenancy-tests option to run"
+        )
+        for item in items:
+            if "/multi-tenancy/" in item.nodeid:
+                item.add_marker(skip_multi_tenancy)
 
     dependency_root = "driver/test_kubeflow_workloads.py::test_bundle_correctness"
     items.sort(key=lambda item: 0 if item.nodeid.endswith(dependency_root) else 1)

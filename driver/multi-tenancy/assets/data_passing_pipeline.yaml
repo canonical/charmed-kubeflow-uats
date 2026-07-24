@@ -1,0 +1,120 @@
+# PIPELINE DEFINITION
+# Name: v2-data-passing
+# A minimal KFP v2 pipeline that passes an artifact between two steps, exercising the
+# object-store (S3/MinIO) upload/download data path. Caching is disabled so that
+# artifacts are re-uploaded on every run.
+components:
+  comp-read-data:
+    executorLabel: exec-read-data
+    inputDefinitions:
+      artifacts:
+        input_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+  comp-write-data:
+    executorLabel: exec-write-data
+    outputDefinitions:
+      artifacts:
+        output_data:
+          artifactType:
+            schemaTitle: system.Dataset
+            schemaVersion: 0.0.1
+deploymentSpec:
+  executors:
+    exec-read-data:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - read_data
+        command:
+        - sh
+        - -c
+        - |
+          if ! [ -x "$(command -v pip)" ]; then
+              python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
+          fi
+
+          PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<"3.9"' && "$0" "$@"
+        - sh
+        - -ec
+        - |
+          program_path=$(mktemp -d)
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main --component_module_path "$program_path/ephemeral_component.py" "$@"
+        - |
+          import kfp
+          from kfp import dsl
+          from kfp.dsl import *
+          from typing import *
+
+          def read_data(input_data: Input[Dataset]):
+              """Read the message from an input artifact (downloaded from the object store)."""
+              with open(input_data.path, "r") as f:
+                  content = f.read()
+              print(f"Read content from artifact: {content}")
+              assert content == "hello from the producer", f"Unexpected artifact content: {content}"
+        image: python:3.9
+    exec-write-data:
+      container:
+        args:
+        - --executor_input
+        - '{{$}}'
+        - --function_to_execute
+        - write_data
+        command:
+        - sh
+        - -c
+        - |
+          if ! [ -x "$(command -v pip)" ]; then
+              python3 -m ensurepip || python3 -m ensurepip --user || apt-get install python3-pip
+          fi
+
+          PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location 'kfp==2.16.1' '--no-deps' 'typing-extensions>=3.7.4,<5; python_version<"3.9"' && "$0" "$@"
+        - sh
+        - -ec
+        - |
+          program_path=$(mktemp -d)
+          printf "%s" "$0" > "$program_path/ephemeral_component.py"
+          _KFP_RUNTIME=true python3 -m kfp.dsl.executor_main --component_module_path "$program_path/ephemeral_component.py" "$@"
+        - |
+          import kfp
+          from kfp import dsl
+          from kfp.dsl import *
+          from typing import *
+
+          def write_data(output_data: Output[Dataset]):
+              """Write a message to an output artifact (uploaded to the object store)."""
+              message = "hello from the producer"
+              with open(output_data.path, "w") as f:
+                  f.write(message)
+        image: python:3.9
+pipelineInfo:
+  name: v2-data-passing
+root:
+  dag:
+    tasks:
+      read-data:
+        cachingOptions: {}
+        componentRef:
+          name: comp-read-data
+        dependentTasks:
+        - write-data
+        inputs:
+          artifacts:
+            input_data:
+              taskOutputArtifact:
+                outputArtifactKey: output_data
+                producerTask: write-data
+        taskInfo:
+          name: read-data
+      write-data:
+        cachingOptions: {}
+        componentRef:
+          name: comp-write-data
+        taskInfo:
+          name: write-data
+schemaVersion: 2.1.0
+sdkVersion: kfp-2.16.1
