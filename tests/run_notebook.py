@@ -53,18 +53,22 @@ def _raises_exception_failure(notebook):
 def execute_notebook(notebook_path, artifacts_dir=None):
     """Execute one notebook and return ``(name, status, failing_cell, error_text)``.
 
-    ``status`` is ``"PASSED"`` or ``"FAILED"``. Cells tagged ``pytest-skip`` are skipped
-    and each notebook installs its own ``requirements.txt`` before running.
+    ``status`` is ``"PASSED"`` or ``"FAILED"``. The notebook's ``requirements.txt`` (if
+    present) is installed before the kernel starts, and cells tagged ``pytest-skip`` are
+    skipped.
     """
     notebook_name = os.path.splitext(os.path.basename(notebook_path))[0]
     os.chdir(os.path.dirname(notebook_path))
 
+    # Install the notebook's own dependencies before the kernel starts, so they are
+    # available to the kernel from its very first cell.
+    if os.path.exists("requirements.txt"):
+        install_python_requirements()
+
     with open(notebook_path) as handle:
         notebook = nbformat.read(handle, as_version=nbformat.NO_CONVERT)
 
-    ep = ExecutePreprocessor(
-        timeout=-1, kernel_name="python3", on_notebook_start=install_python_requirements
-    )
+    ep = ExecutePreprocessor(timeout=-1, kernel_name="python3")
     ep.skip_cells_with_tag = "pytest-skip"
 
     # nbclient mutates the notebook in place, so keep a reference for saving/inspection
