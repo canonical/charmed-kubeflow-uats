@@ -4,6 +4,9 @@ metadata:
   name: {{ job_name }}
 spec:
   backoffLimit: 0
+  # Fail the Job (reason DeadlineExceeded) if a single notebook runs too long, so one
+  # wedged notebook cannot stall the whole suite.
+  activeDeadlineSeconds: {{ notebook_timeout }}
   template:
     metadata:
       annotations:
@@ -45,13 +48,28 @@ spec:
             - -c
           args:
             - |
+              set -o pipefail
               {% if tests_local_run %}
-              cd /tests;
+              cd /tests
               {% else %}
-              cd /tests/charmed-kubeflow-uats/tests;
+              cd /tests/charmed-kubeflow-uats/tests
               {% endif %}
-              python3 -m pip install -r requirements.txt >/dev/null;
-              {{ pytest_cmd }}
+              mkdir -p "$ARTIFACTS_DIR"
+              python3 -m pip install -r requirements.txt >/dev/null
+              python3 run_notebook.py "$NOTEBOOK_PATH"
+              ret=$?
+              {% if keep_artifacts %}
+              # Emit artifacts as gzip+base64 so the driver can recover them from the
+              # Job logs (portable: no shared/RWX volume required).
+              for artifact in "$ARTIFACTS_DIR"/*; do
+                [ -f "$artifact" ] || continue
+                echo "===UAT-ARTIFACT:$(basename "$artifact")==="
+                gzip -c "$artifact" | base64 -w0
+                echo ""
+                echo "===END-UAT-ARTIFACT==="
+              done
+              {% endif %}
+              exit $ret
           env:
             - name: KUBEFLOW_NAMESPACE
               value: {{ kubeflow_namespace }}
@@ -59,6 +77,10 @@ spec:
               value: {{ user_namespace }}
             - name: ISTIO_MODE
               value: {{ istio_mode }}
+            - name: NOTEBOOK_PATH
+              value: {{ notebook_path }}
+            - name: ARTIFACTS_DIR
+              value: {{ artifacts_dir }}
           volumeMounts:
             - name: test-volume
               mountPath: /tests
