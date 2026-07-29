@@ -6,9 +6,8 @@ browser, and asserting the central dashboard renders.
 
 It borrows login-flow + browser-launch conventions from
 `canonical/tenant-service` `tests/browser` (the Identity team's own specs):
-`ignoreHTTPSErrors` and `--host-resolver-rules` at launch, identifier-first login
-split into `enter_email` / `enter_password`, single worker, `retain-on-failure`
-trace + video.
+`ignoreHTTPSErrors` and `--host-resolver-rules` at launch, single worker, and a
+Playwright trace + screenshot captured on failure for debugging.
 
 The tests live in `driver/ui/`, separate from the main UAT suite, and are skipped
 unless `--include-ui-tests` is passed.

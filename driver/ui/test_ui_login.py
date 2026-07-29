@@ -94,21 +94,25 @@ def context(browser, tmp_path, request):
     """A fresh browser context per test so the negative test has no session.
 
     ``ignore_https_errors`` mirrors tenant-service's ``ignoreHTTPSErrors: true`` (the
-    ingress serves self-signed certs). Traces and videos are retained on failure (the
-    Playwright Python library API records video via ``record_video_dir`` and tracing via
-    ``context.tracing.start``; the ``retain-on-failure`` semantics are implemented
-    manually using the test outcome set by ``pytest_runtest_makereport``).
+    ingress serves self-signed certs). On failure a Playwright trace (DOM snapshots,
+    network log, console output) and a screenshot are saved for debugging; video
+    recording is skipped as overkill for a 2-test suite.
     """
-    context = browser.new_context(
-        ignore_https_errors=True,
-        record_video_dir=str(tmp_path),
-    )
+    context = browser.new_context(ignore_https_errors=True)
     context.tracing.start(screenshots=True, snapshots=True, sources=True)
     yield context
     failed = getattr(request.node, "rep_call", None) and request.node.rep_call.failed
     if failed:
-        context.tracing.stop(path=str(tmp_path / "trace.zip"))
-        log.info(f"Test failed; trace + video saved under {tmp_path}")
+        trace_path = tmp_path / f"{request.node.name}.zip"
+        context.tracing.stop(path=str(trace_path))
+        log.info(f"Test failed; trace saved to {trace_path}")
+        for page in context.pages:
+            screenshot_path = tmp_path / f"{request.node.name}.png"
+            try:
+                page.screenshot(path=str(screenshot_path))
+                log.info(f"Screenshot saved to {screenshot_path}")
+            except Exception as error:
+                log.warning(f"Could not capture failure screenshot: {error}")
     else:
         context.tracing.stop()
     context.close()
