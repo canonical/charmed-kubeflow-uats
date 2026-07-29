@@ -57,6 +57,12 @@ assertion is dropped (per design) and only URL host + dashboard-element are chec
   for this repo — documented as a prerequisite for the solutions CI).
 - `juju` logged in to the controller (used via jubilant) and a valid `KUBECONFIG`
   pointing at the cluster (used via lightkube).
+- A Playwright Chromium browser installed on the runner before running the suite:
+  ```bash
+  poetry run playwright install --with-deps chromium
+  ```
+  (`--with-deps` needs passwordless sudo; the self-hosted runners used by the solutions
+  CI have it.)
 - No host DNS configuration is required: Chromium resolves the in-cluster domains to
   the discovered LoadBalancer IPs via `--host-resolver-rules`.
 
@@ -72,12 +78,11 @@ assertion is dropped (per design) and only URL host + dashboard-element are chec
 ## Running the Test
 
 ```bash
-# Dedicated env (installs Playwright + Chromium for you):
-tox -e ui-local   # tests run from the host
-tox -e ui-remote  # tests run from a cloned git repo
-
-# Or via the shared UATs env (browser must be pre-installed):
+# Local mode (tests run from the host)
 tox -e uats-local -- --include-ui-tests -k ui
+
+# Remote mode (tests run from a cloned git repo)
+tox -e uats-remote -- --include-ui-tests -k ui
 ```
 
 By default (without `--include-ui-tests`) these tests are skipped.
