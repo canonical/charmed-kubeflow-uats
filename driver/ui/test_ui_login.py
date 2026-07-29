@@ -94,22 +94,29 @@ def context(browser, tmp_path, request):
     """A fresh browser context per test so the negative test has no session.
 
     ``ignore_https_errors`` mirrors tenant-service's ``ignoreHTTPSErrors: true`` (the
-    ingress serves self-signed certs). On failure a Playwright trace (DOM snapshots,
-    network log, console output) and a screenshot are saved for debugging; video
-    recording is skipped as overkill for a 2-test suite.
+    ingress serves self-signed certs). Browser console messages and page errors are
+    forwarded to the pytest log so failures can be diagnosed from the output alone.
+    On failure a Playwright trace (DOM snapshots, network log, sources) and a
+    screenshot are also saved as artifacts; video recording is skipped as overkill.
     """
     context = browser.new_context(ignore_https_errors=True)
     context.tracing.start(screenshots=True, snapshots=True, sources=True)
+
+    page = context.new_page()
+    page.on("console", lambda msg: log.info(f"[browser:{msg.type}] {msg.text}"))
+    page.on("pageerror", lambda err: log.error(f"[browser:pageerror] {err}"))
+
     yield context
+
     failed = getattr(request.node, "rep_call", None) and request.node.rep_call.failed
     if failed:
         trace_path = tmp_path / f"{request.node.name}.zip"
         context.tracing.stop(path=str(trace_path))
         log.info(f"Test failed; trace saved to {trace_path}")
-        for page in context.pages:
+        for p in context.pages:
             screenshot_path = tmp_path / f"{request.node.name}.png"
             try:
-                page.screenshot(path=str(screenshot_path))
+                p.screenshot(path=str(screenshot_path))
                 log.info(f"Screenshot saved to {screenshot_path}")
             except Exception as error:
                 log.warning(f"Could not capture failure screenshot: {error}")
@@ -179,7 +186,7 @@ def create_profile(lightkube_client, kratos_user):
 
 def test_unauthenticated_request_is_redirected_to_login(context):
     """An unauthenticated request to the UI is redirected to the IdP login page."""
-    page = context.new_page()
+    page = context.pages[0]
     page.goto(UI_URL)
 
     # oauth2-proxy forward-auth redirects to the IdP login UI on kubeflow.com.
@@ -194,7 +201,7 @@ def test_login_reaches_dashboard(context, kratos_user, create_profile):
     """A valid IdP login reaches the Kubeflow central dashboard."""
     _, email, password, _, _ = kratos_user
 
-    page = context.new_page()
+    page = context.pages[0]
     page.goto(UI_URL)
 
     # Wait for the IdP login page to render before entering credentials.
