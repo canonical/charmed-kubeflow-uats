@@ -8,8 +8,11 @@ from pathlib import Path
 
 import pytest
 
-# Add parent directory to path to share fixtures/utils with the main driver
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add this directory first (so `from helpers import` resolves to ui/helpers.py,
+# not m2m/helpers.py when collecting the whole driver/ tree), then the parent
+# directory to share fixtures/utils with the main driver.
+sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(1, str(Path(__file__).parent.parent))
 
 
 @pytest.hookimpl(hookwrapper=True)
