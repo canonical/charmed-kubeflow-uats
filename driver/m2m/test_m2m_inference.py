@@ -23,15 +23,13 @@ from helpers import (
     authorize_contributor,
     create_oauth_client,
     delete_oauth_client,
-    find_gateway_for_domain,
-    gateway_service_account,
     get_jwt_issuer_url,
-    get_service_lb_ip,
     get_token,
     patch_gateway_wildcard_hostname,
     request_inference,
     wait_for_inferenceservice_ready,
 )
+from ingress import find_gateway_for_domain, gateway_service_account, get_service_lb_ip
 from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import load_in_cluster_generic_resources
 from lightkube.types import CascadeType
