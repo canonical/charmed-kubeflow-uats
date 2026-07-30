@@ -48,10 +48,8 @@ def create_kratos_user(
     """Create a Kratos admin identity and return ``(identity_id, secret_uri)``.
 
     The password is passed via a Juju secret (``password-secret-id``) granted to the
-    ``kratos`` charm, then the ``create-admin-account`` action is run.
-
-    NOTE: verify the exact action name + param keys against the deployed kratos charm
-    revision at implementation time. Research: action ``create-admin-account``, params
+    ``kratos`` charm, then the ``create-admin-account`` action is run. Tested on
+    kratos revision 565 (latest/stable): action ``create-admin-account``, params
     ``username``/``email``/``password-secret-id``, returns ``identity-id``.
     """
     secret_uri = iam_juju.add_secret(
