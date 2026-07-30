@@ -205,11 +205,12 @@ def reach_dashboard(page, profile_namespace: str | None = None) -> None:
 def _assert_profile_visible(page, profile_namespace: str) -> None:
     """Assert that the user's profile namespace is the active namespace in the dashboard.
 
-    The central dashboard selects the active namespace via a ``?ns=<namespace>`` query
-    parameter on the URL. After login it redirects to ``ui.kubeflow.com/?ns=<namespace>``
-    for the user's own profile, so we assert it appears in the URL.
+    The central dashboard SPA sets the active namespace via a ``?ns=<namespace>`` query
+    parameter on the URL *after* the SPA hydrates — not on the initial server redirect.
+    So we wait for the namespace to appear in the URL rather than asserting immediately.
     """
-    assert (
-        profile_namespace in page.url
-    ), f"Expected ?ns={profile_namespace} in URL, got {page.url}"
+    page.wait_for_url(
+        lambda url: is_ui_url(url) and profile_namespace in url,
+        timeout=30_000,
+    )
     log.info(f"Profile namespace '{profile_namespace}' is the active namespace in the dashboard")
