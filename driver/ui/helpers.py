@@ -183,19 +183,26 @@ def goto_login_form(page, max_attempts: int = 3) -> None:
 def reach_dashboard(page, profile_namespace: str | None = None) -> None:
     """Wait for the post-login redirect back to the UI and the dashboard to render.
 
-    Asserts the URL is served by ``ui.kubeflow.com``, the "Welcome" heading is visible,
-    and the user's profile namespace is present in the dashboard.
+    Asserts the URL is served by ``ui.kubeflow.com``, the dashboard page has loaded
+    (title check), and the user's profile namespace is the active namespace in the URL.
+
+    The central dashboard is a Polymer web-components app that uses Shadow DOM, so
+    ``inner_text`` and ``get_by_role`` cannot pierce its shadow roots. The page title
+    ("Kubeflow Central Dashboard") and the ``?ns=`` query parameter are used instead.
     """
     # Hostname match (not substring) so the auth page's `rd=...ui.kubeflow.com...`
     # redirect parameter cannot satisfy the wait before the dashboard is reached.
-    # This fires on the oauth2-proxy callback redirect (ui.kubeflow.com/kubeflow-oauth2-proxy/...)
-    # which then 302s to the dashboard root.
     page.wait_for_url(is_ui_url, timeout=120_000)
 
-    # Wait for the final dashboard URL to settle (the SPA sets ?ns=<namespace>
-    # client-side after hydration). The "Welcome" heading confirms the dashboard
-    # SPA has rendered, by which point the URL has settled.
-    page.get_by_role("heading", name="Welcome").wait_for(state="visible", timeout=60_000)
+    # Wait for the dashboard SPA to settle (API calls complete, namespace selected).
+    page.wait_for_load_state("networkidle", timeout=60_000)
+
+    # Confirm the dashboard page loaded. The title is set in the static HTML so it's
+    # available before the SPA fully hydrates, but combined with the networkidle wait
+    # above it confirms the page actually rendered.
+    assert (
+        page.title() == "Kubeflow Central Dashboard"
+    ), f"Expected dashboard title, got {page.title()!r}"
 
     log.info(f"Dashboard loaded at {page.url}")
 
@@ -207,8 +214,8 @@ def _assert_profile_visible(page, profile_namespace: str) -> None:
     """Assert that the user's profile namespace is the active namespace in the dashboard.
 
     The central dashboard SPA sets the active namespace via a ``?ns=<namespace>`` query
-    parameter on the URL after hydration. By the time the "Welcome" heading is visible
-    the URL should have settled, so a simple assertion is sufficient.
+    parameter on the URL. After login it redirects to ``ui.kubeflow.com/?ns=<namespace>``
+    for the user's own profile.
     """
     assert (
         profile_namespace in page.url
