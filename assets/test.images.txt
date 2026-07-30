@@ -1,4 +1,4 @@
-docker.io/charmedkubeflow/argoexec:3.7.3-dffabf8
+docker.io/charmedkubeflow/argoexec:3.7.17-5627d4c-20260723123257
 docker.io/charmedkubeflow/frontend:2.16.0-c9e8334
 docker.io/charmedkubeflow/kfp-driver:2.16.0-cffd968
 docker.io/charmedkubeflow/kfp-launcher:2.16.0-212e71b
