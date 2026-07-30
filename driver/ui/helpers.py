@@ -22,7 +22,6 @@ from urllib.parse import urlparse
 import jubilant
 from ingress import find_gateway_for_domain, gateway_service_account, get_service_lb_ip
 from lightkube import Client
-from lightkube.resources.core_v1 import Service
 
 log = logging.getLogger(__name__)
 
@@ -93,30 +92,8 @@ def get_ui_lb_ip(client: Client) -> str:
 
 
 def get_auth_lb_ip(client: Client) -> str:
-    """Return the LoadBalancer IP of the IdP (auth) ingress.
-
-    Tries the expected ``traefik-lb`` Service in ``iam-core`` first, then falls back
-    to listing Services in ``iam-core`` and picking the first whose name contains
-    ``traefik`` and exposes a LoadBalancer IP.
-    """
-    try:
-        return get_service_lb_ip(client, IAM_CORE_MODEL, AUTH_SERVICE)
-    except Exception as error:
-        log.info(
-            f"Could not find {IAM_CORE_MODEL}/{AUTH_SERVICE} LoadBalancer IP ({error}); "
-            "falling back to listing Services."
-        )
-    for svc in client.list(Service, namespace=IAM_CORE_MODEL):
-        if "traefik" not in (svc.metadata.name or ""):
-            continue
-        ingress = (svc.status.loadBalancer.ingress or []) if svc.status else []
-        if ingress and ingress[0].ip:
-            ip = ingress[0].ip
-            log.info(f"Found auth LoadBalancer IP {ip} on Service {svc.metadata.name}")
-            return ip
-    raise AssertionError(
-        f"No Service with a LoadBalancer IP containing 'traefik' found in {IAM_CORE_MODEL}"
-    )
+    """Return the LoadBalancer IP of the IdP (auth) traefik ingress."""
+    return get_service_lb_ip(client, IAM_CORE_MODEL, AUTH_SERVICE)
 
 
 def build_host_resolver_rules(ui_ip: str, auth_ip: str) -> str:
