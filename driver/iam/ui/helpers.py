@@ -225,11 +225,22 @@ def reach_dashboard(page: Page, profile_namespace: str) -> None:
 def _assert_profile_visible(page: Page, profile_namespace: str) -> None:
     """Assert that the user's profile namespace is the active namespace in the dashboard.
 
-    The central dashboard SPA sets the active namespace via a ``?ns=<namespace>`` query
-    parameter on the URL. After login it redirects to ``ui.kubeflow.com/?ns=<namespace>``
-    for the user's own profile.
+    Two signals are checked:
+
+    1. The ``?ns=<namespace>`` query parameter is set in the URL (the SPA sets this
+       client-side after hydration).
+    2. The dashboard's ``/api/workgroup/env-info`` API returns the namespace in its
+       response — this confirms the backend has the Profile and the dashboard SPA has
+       queried it. The URL param alone is not sufficient: it can be set before the
+       namespace dropdown in the top-left corner has fully populated, and the dashboard
+       may fall back to a default or empty namespace.
     """
     assert (
         profile_namespace in page.url
     ), f"Expected ?ns={profile_namespace} in URL, got {page.url}"
+
+    env_info = page.request.get(f"https://{UI_DOMAIN}/api/workgroup/env-info")
+    assert (
+        profile_namespace in env_info.text()
+    ), f"Profile namespace '{profile_namespace}' not found in env-info response"
     log.info(f"Profile namespace '{profile_namespace}' is the active namespace in the dashboard")
