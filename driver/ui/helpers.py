@@ -151,14 +151,8 @@ def is_auth_url(url: str) -> bool:
 def reach_dashboard(page, profile_namespace: str | None = None) -> None:
     """Wait for the post-login redirect back to the UI and the dashboard to render.
 
-    Asserts the URL is served by ``ui.kubeflow.com`` and a stable dashboard element is
-    present.
-
-    The ``profile_namespace`` assertion is **best-effort**: it tries to find the
-    namespace in the dashboard's namespace selector, falling back to a content search.
-    If either proves too brittle this assertion is intended to be dropped (per user
-    instruction) — keep ``test_login_reaches_dashboard`` asserting only URL host +
-    dashboard element in that case.
+    Asserts the URL is served by ``ui.kubeflow.com``, the "Welcome" heading is visible,
+    and the user's profile namespace is present in the dashboard.
     """
     # Hostname match (not substring) so the auth page's `rd=...ui.kubeflow.com...`
     # redirect parameter cannot satisfy the wait before the dashboard is reached.
@@ -177,11 +171,10 @@ def reach_dashboard(page, profile_namespace: str | None = None) -> None:
 
 
 def _assert_profile_visible(page, profile_namespace: str) -> None:
-    """Best-effort assertion that the user's profile namespace is selectable.
+    """Assert that the user's profile namespace is present in the dashboard.
 
     Tries the namespace dropdown selector; on failure falls back to checking the
-    namespace appears anywhere in the rendered page content. Any exception here is
-    logged and swallowed (this assertion is droppable per user instruction).
+    namespace appears anywhere in the rendered page content.
     """
     try:
         page.get_by_role("button", name=profile_namespace).wait_for(
@@ -194,15 +187,7 @@ def _assert_profile_visible(page, profile_namespace: str) -> None:
             f"Namespace selector for '{profile_namespace}' not found; trying content fallback"
         )
 
-    try:
-        content = page.content()
-        if profile_namespace in content:
-            log.info(f"Profile namespace '{profile_namespace}' found in page content")
-            return
-    except Exception:
-        pass
-
-    log.warning(
-        f"Could not confirm profile namespace '{profile_namespace}' visibility; "
-        "this assertion is best-effort and is being ignored."
-    )
+    assert (
+        profile_namespace in page.content()
+    ), f"Profile namespace '{profile_namespace}' not found in dashboard"
+    log.info(f"Profile namespace '{profile_namespace}' found in page content")

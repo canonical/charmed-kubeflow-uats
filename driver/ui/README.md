@@ -33,10 +33,6 @@ Given the deployment described under [Prerequisites](#prerequisites), the suite:
 | `test_unauthenticated_request_is_redirected_to_login` | `GET https://ui.kubeflow.com` with no session | redirected to the IdP login page and the "Sign in" heading is visible |
 | `test_login_reaches_dashboard` | fill email + password (single-page login form) | redirected back to `ui.kubeflow.com` and the central dashboard renders |
 
-Profile-namespace visibility is **best-effort**: the suite attempts to confirm the
-user's namespace is selectable in the dashboard; if that proves too brittle the
-assertion is dropped (per design) and only URL host + dashboard-element are checked.
-
 ## Prerequisites
 
 <!-- TODO: point this link at `main` once feat/iam-integration is merged. -->

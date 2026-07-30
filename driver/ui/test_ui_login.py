@@ -152,13 +152,7 @@ def kratos_user(iam_juju):
 
 @pytest.fixture(scope="module")
 def create_profile(lightkube_client, kratos_user):
-    """Create a Profile owned by the Kratos user, then clean it up.
-
-    BEST-EFFORT: if profile-namespace verification is dropped from
-    ``reach_dashboard``, this fixture can be removed from the login test's
-    dependencies too. It is kept so the namespace exists for the best-effort
-    visibility check.
-    """
+    """Create a Profile owned by the Kratos user, then clean it up."""
     username = kratos_user[0]
     log.info(f"Creating Profile {NAMESPACE} owned by {username}...")
     resources = list(
