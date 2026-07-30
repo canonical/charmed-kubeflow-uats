@@ -34,11 +34,11 @@ AUTH_SERVICE = "traefik-lb"
 
 # DNS / URL constants.
 UI_DOMAIN = "ui.kubeflow.com"
-# The IdP (traefik ingress in iam-core) serves the auth + login UI. The exact hostname
-# varies by deployment (e.g. "kubeflow.com" or "auth.kubeflow.com"), so it is NOT
-# hardcoded — the host-resolver-rules wildcard covers any *.kubeflow.com, and the
-# tests assert "not on the UI domain" + "Sign in heading visible" instead of matching
-# a specific auth hostname.
+# The IdP (traefik ingress in iam-core) serves the auth + login UI on this hostname
+# (set via the external_auth_hostname Terraform var in the solutions repo). Both the
+# oauth2-proxy auth endpoint and the identity-platform-login-ui live under it (e.g.
+# "auth.kubeflow.com/ui/login").
+AUTH_DOMAIN = "auth.kubeflow.com"
 UI_URL = f"https://{UI_DOMAIN}"
 
 
@@ -128,12 +128,11 @@ def build_host_resolver_rules(ui_ip: str, auth_ip: str) -> str:
     needing ``/etc/hosts`` entries (and thus root) on the UAT host: Chromium resolves
     the in-cluster domains to the discovered LoadBalancer IPs directly.
 
-    The auth hostname varies by deployment (e.g. ``kubeflow.com`` or
-    ``auth.kubeflow.com``), so a wildcard ``*.kubeflow.com`` plus the apex
-    ``kubeflow.com`` are both mapped to the auth LB IP. The UI domain is mapped first
-    so it takes precedence over the wildcard.
+    The solutions repo's ``test_deployment.py:configure_dns()`` already patches CoreDNS
+    and ``/etc/hosts`` so these domains resolve on the runner, but ``--host-resolver-rules``
+    makes the tests self-sufficient and not dependent on that step.
     """
-    return f"MAP {UI_DOMAIN} {ui_ip}, MAP kubeflow.com {auth_ip}, MAP *.kubeflow.com {auth_ip}"
+    return f"MAP {UI_DOMAIN} {ui_ip}, MAP {AUTH_DOMAIN} {auth_ip}"
 
 
 def login_with_password(page, email: str, password: str) -> None:
@@ -164,15 +163,14 @@ def is_ui_url(url: str) -> bool:
     return urlparse(url).hostname == UI_DOMAIN
 
 
-def is_login_url(url: str) -> bool:
-    """Return True iff ``url`` is on the IdP login page (not the UI host).
+def is_auth_url(url: str) -> bool:
+    """Return True iff ``url`` is served by the IdP (auth) host.
 
-    The auth hostname varies by deployment (e.g. ``kubeflow.com`` or
-    ``auth.kubeflow.com``), so this checks that the hostname is *not* the UI host and
-    the path contains ``login`` — both conditions the oauth2-proxy redirect satisfies.
+    Hostname equality (not a substring) is essential: ``AUTH_DOMAIN`` (``auth.kubeflow.com``)
+    shares the parent domain ``kubeflow.com`` with ``UI_DOMAIN`` (``ui.kubeflow.com``), so a
+    substring check would be satisfied while still on the UI page.
     """
-    parsed = urlparse(url)
-    return parsed.hostname != UI_DOMAIN and "login" in (parsed.path or "")
+    return urlparse(url).hostname == AUTH_DOMAIN
 
 
 def reach_dashboard(page, profile_namespace: str | None = None) -> None:

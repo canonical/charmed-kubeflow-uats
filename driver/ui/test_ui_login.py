@@ -24,6 +24,7 @@ from lightkube.generic_resource import load_in_cluster_generic_resources
 from lightkube.types import CascadeType
 from playwright.sync_api import sync_playwright
 from ui.helpers import (
+    AUTH_DOMAIN,
     IAM_MODEL,
     UI_DOMAIN,
     UI_URL,
@@ -31,7 +32,7 @@ from ui.helpers import (
     create_kratos_user,
     get_auth_lb_ip,
     get_ui_lb_ip,
-    is_login_url,
+    is_auth_url,
     is_ui_url,
     login_with_password,
     reach_dashboard,
@@ -193,7 +194,7 @@ def test_unauthenticated_request_is_redirected_to_login(context):
     # The SPA may not have rendered the form yet even though the HTML loaded.
     page.get_by_role("heading", name="Sign in").wait_for(state="visible", timeout=60_000)
 
-    assert is_login_url(page.url), f"Expected to land on a login page, got {page.url}"
+    assert is_auth_url(page.url), f"Expected to land on {AUTH_DOMAIN}, got {page.url}"
     log.info("✓ Unauthenticated request was redirected to the IdP login page.")
 
 
