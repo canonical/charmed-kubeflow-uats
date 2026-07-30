@@ -157,13 +157,18 @@ def kratos_user(iam_juju):
 
 @pytest.fixture(scope="module")
 def create_profile(lightkube_client, kratos_user):
-    """Create a Profile owned by the Kratos user, then clean it up."""
-    username = kratos_user[0]
-    log.info(f"Creating Profile {NAMESPACE} owned by {username}...")
+    """Create a Profile owned by the Kratos user, then clean it up.
+
+    The Profile owner must be the user's **email**, not their username: the UI
+    gateway's RequestAuthentication forwards the JWT ``email`` claim to the
+    ``kubeflow-userid`` header, so the dashboard queries namespaces by email.
+    """
+    email = kratos_user[1]
+    log.info(f"Creating Profile {NAMESPACE} owned by {email}...")
     resources = list(
         codecs.load_all_yaml(
             PROFILE_TEMPLATE_FILE.read_text(),
-            context={"namespace": NAMESPACE, "owner": username},
+            context={"namespace": NAMESPACE, "owner": email},
         )
     )
     assert len(resources) == 1, f"Expected 1 Profile, got {len(resources)}!"
