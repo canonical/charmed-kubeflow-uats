@@ -46,6 +46,10 @@ log = logging.getLogger(__name__)
 ASSETS_DIR = Path(__file__).parent.parent.parent / "assets"
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 
+# Directory for failure artifacts (Playwright trace + screenshot). Uses a fixed path
+# relative to the repo root so CI can reliably upload them.
+ARTIFACTS_DIR = Path(__file__).parent.parent.parent / "playwright-artifacts"
+
 NAMESPACE = "test-ui-iam"
 
 
@@ -90,14 +94,14 @@ def browser(playwright, ui_ip, auth_ip):
 
 
 @pytest.fixture(scope="function")
-def context(browser, tmp_path, request):
+def context(browser, request):
     """A fresh browser context per test so the negative test has no session.
 
     ``ignore_https_errors`` mirrors tenant-service's ``ignoreHTTPSErrors: true`` (the
     ingress serves self-signed certs). Browser console messages and page errors are
     forwarded to the pytest log so failures can be diagnosed from the output alone.
     On failure a Playwright trace (DOM snapshots, network log, sources) and a
-    screenshot are also saved as artifacts; video recording is skipped as overkill.
+    screenshot are also saved as artifacts under ``playwright-artifacts/``.
     """
     context = browser.new_context(ignore_https_errors=True)
     context.tracing.start(screenshots=True, snapshots=True, sources=True)
@@ -110,11 +114,12 @@ def context(browser, tmp_path, request):
 
     failed = getattr(request.node, "rep_call", None) and request.node.rep_call.failed
     if failed:
-        trace_path = tmp_path / f"{request.node.name}.zip"
+        ARTIFACTS_DIR.mkdir(exist_ok=True)
+        trace_path = ARTIFACTS_DIR / f"{request.node.name}.zip"
         context.tracing.stop(path=str(trace_path))
         log.info(f"Test failed; trace saved to {trace_path}")
         for p in context.pages:
-            screenshot_path = tmp_path / f"{request.node.name}.png"
+            screenshot_path = ARTIFACTS_DIR / f"{request.node.name}.png"
             try:
                 p.screenshot(path=str(screenshot_path))
                 log.info(f"Screenshot saved to {screenshot_path}")

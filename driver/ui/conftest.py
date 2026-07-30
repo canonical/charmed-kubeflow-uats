@@ -20,7 +20,7 @@ def pytest_runtest_makereport(item, call):
     """Expose the call-phase report on the item so fixtures can act on test outcome.
 
     Used by the ``context`` fixture to decide whether to retain the Playwright trace
-    and video (only on failure).
+    and screenshot (only on failure).
     """
     outcome = yield
     report = outcome.get_result()
