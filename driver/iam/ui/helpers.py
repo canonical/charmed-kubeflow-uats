@@ -13,7 +13,7 @@ login split into ``enter_email`` / ``enter_password``.
 
 Ingress-gateway discovery (``find_gateway_for_domain``, ``get_service_lb_ip``,
 ``gateway_service_account``, ``GATEWAY_RESOURCE``) is shared with the
-``driver/m2m`` suite via ``driver/ingress.py``.
+``driver/iam/m2m`` suite via ``driver/ingress.py``.
 """
 
 import logging

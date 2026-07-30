@@ -19,11 +19,7 @@ from pathlib import Path
 
 import jubilant
 import pytest
-from lightkube import ApiError, Client, codecs
-from lightkube.generic_resource import load_in_cluster_generic_resources
-from lightkube.types import CascadeType
-from playwright.sync_api import sync_playwright
-from ui.helpers import (
+from iam.ui.helpers import (
     AUTH_DOMAIN,
     IAM_MODEL,
     UI_DOMAIN,
@@ -38,17 +34,21 @@ from ui.helpers import (
     reach_dashboard,
     remove_kratos_secret,
 )
+from lightkube import ApiError, Client, codecs
+from lightkube.generic_resource import load_in_cluster_generic_resources
+from lightkube.types import CascadeType
+from playwright.sync_api import sync_playwright
 from utils import PROFILE_RESOURCE, assert_namespace_active, assert_profile_deleted
 
 log = logging.getLogger(__name__)
 
 # Assets directory is relative to the repository root.
-ASSETS_DIR = Path(__file__).parent.parent.parent / "assets"
+ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 
 # Directory for failure artifacts (Playwright trace + screenshot). Uses a fixed path
 # relative to the repo root so CI can reliably upload them.
-ARTIFACTS_DIR = Path(__file__).parent.parent.parent / "playwright-artifacts"
+ARTIFACTS_DIR = Path(__file__).parent.parent.parent.parent / "playwright-artifacts"
 
 NAMESPACE = "test-ui-iam"
 

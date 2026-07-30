@@ -38,7 +38,7 @@ from utils import PROFILE_RESOURCE, assert_namespace_active, assert_profile_dele
 log = logging.getLogger(__name__)
 
 # Assets directory is relative to the repository root.
-ASSETS_DIR = Path(__file__).parent.parent.parent / "assets"
+ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 INFERENCE_SERVICE_TEMPLATE_FILE = ASSETS_DIR / "kserve-inference-service.yaml.j2"
 

@@ -107,15 +107,15 @@ def pytest_addoption(parser: Parser):
         "By default, it is set to False.",
     )
     parser.addoption(
-        "--include-m2m-tests",
+        "--include-iam-m2m-tests",
         action="store_true",
-        help="Defines whether to include the M2M identity integration tests."
+        help="Defines whether to include the IAM M2M identity integration tests."
         "By default, it is set to False.",
     )
     parser.addoption(
-        "--include-ui-tests",
+        "--include-iam-ui-tests",
         action="store_true",
-        help="Defines whether to include the UI (Identity login) integration tests."
+        help="Defines whether to include the IAM UI (Identity login) integration tests."
         "By default, it is set to False.",
     )
     parser.addoption(
@@ -140,8 +140,8 @@ def pytest_configure(config):
 
     if (
         config.getoption("--include-ambient-tests")
-        or config.getoption("--include-m2m-tests")
-        or config.getoption("--include-ui-tests")
+        or config.getoption("--include-iam-m2m-tests")
+        or config.getoption("--include-iam-ui-tests")
     ):
         config.option.bundle = BUNDLE_URL_AMBIENT
     else:
@@ -161,16 +161,16 @@ def pytest_collection_modifyitems(config, items):
             if "/ambient/" in item.nodeid:
                 item.add_marker(skip_ambient)
 
-    if not config.getoption("--include-m2m-tests", default=False):
-        skip_m2m = pytest.mark.skip(reason="need --include-m2m-tests option to run")
+    if not config.getoption("--include-iam-m2m-tests", default=False):
+        skip_m2m = pytest.mark.skip(reason="need --include-iam-m2m-tests option to run")
         for item in items:
-            if "/m2m/" in item.nodeid:
+            if "/iam/m2m/" in item.nodeid:
                 item.add_marker(skip_m2m)
 
-    if not config.getoption("--include-ui-tests", default=False):
-        skip_ui = pytest.mark.skip(reason="need --include-ui-tests option to run")
+    if not config.getoption("--include-iam-ui-tests", default=False):
+        skip_ui = pytest.mark.skip(reason="need --include-iam-ui-tests option to run")
         for item in items:
-            if "/ui/" in item.nodeid:
+            if "/iam/ui/" in item.nodeid:
                 item.add_marker(skip_ui)
 
     dependency_root = "driver/test_kubeflow_workloads.py::test_bundle_correctness"

@@ -6,5 +6,5 @@
 import sys
 from pathlib import Path
 
-# Add parent directory to path to share fixtures/utils with the main driver
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Add the driver directory to path so shared modules (utils, ingress) are importable.
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
