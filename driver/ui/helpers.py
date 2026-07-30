@@ -17,11 +17,13 @@ Ingress-gateway discovery (``find_gateway_for_domain``, ``get_service_lb_ip``,
 """
 
 import logging
+import time
 from urllib.parse import urlparse
 
 import jubilant
 from ingress import find_gateway_for_domain, gateway_service_account, get_service_lb_ip
 from lightkube import Client
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 log = logging.getLogger(__name__)
 
@@ -146,6 +148,36 @@ def is_auth_url(url: str) -> bool:
     substring check would be satisfied while still on the UI page.
     """
     return urlparse(url).hostname == AUTH_DOMAIN
+
+
+def goto_login_form(page, max_attempts: int = 3) -> None:
+    """Navigate to the UI, follow the redirect to the IdP login form, and wait for it.
+
+    Retries when the login-ui lands on its /ui/error page (e.g. Kratos briefly
+    500s /self-service/login/browser while mid-restart on a CA-cert rotation),
+    which otherwise leaves the SPA stuck on an error screen with no Email field.
+
+    Waits for the ``Email`` input directly rather than the "Sign in" heading: the
+    heading is server-rendered in the initial HTML and is present even on the error
+    page, so it is not a reliable readiness signal.
+    """
+    for attempt in range(1, max_attempts + 1):
+        page.goto(UI_URL)
+        try:
+            page.get_by_label("Email").wait_for(state="visible", timeout=30_000)
+            return
+        except PlaywrightTimeoutError:
+            if is_auth_url(page.url) and "/ui/error" in page.url and attempt < max_attempts:
+                log.warning(
+                    "Login-ui landed on /ui/error (attempt %d/%d); "
+                    "likely a transient Kratos restart — retrying",
+                    attempt,
+                    max_attempts,
+                )
+                page.context.clear_cookies()
+                time.sleep(10)
+                continue
+            raise
 
 
 def reach_dashboard(page, profile_namespace: str | None = None) -> None:

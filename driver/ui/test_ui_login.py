@@ -27,11 +27,11 @@ from ui.helpers import (
     AUTH_DOMAIN,
     IAM_MODEL,
     UI_DOMAIN,
-    UI_URL,
     build_host_resolver_rules,
     create_kratos_user,
     get_auth_lb_ip,
     get_ui_lb_ip,
+    goto_login_form,
     is_auth_url,
     is_ui_url,
     login_with_password,
@@ -186,11 +186,7 @@ def create_profile(lightkube_client, kratos_user):
 def test_unauthenticated_request_is_redirected_to_login(context):
     """An unauthenticated request to the UI is redirected to the IdP login page."""
     page = context.pages[0]
-    # goto follows the full redirect chain (ui → oauth2-proxy → IdP login) and returns
-    # once the final page loads; no separate wait_for_url is needed.
-    page.goto(UI_URL)
-
-    # The SPA may not have rendered the form yet even though the HTML loaded.
+    goto_login_form(page)
     page.get_by_role("heading", name="Sign in").wait_for(state="visible", timeout=60_000)
 
     assert is_auth_url(page.url), f"Expected to land on {AUTH_DOMAIN}, got {page.url}"
@@ -202,10 +198,7 @@ def test_login_reaches_dashboard(context, kratos_user, create_profile):
     _, email, password, _, _ = kratos_user
 
     page = context.pages[0]
-    page.goto(UI_URL)
-
-    # The SPA may not have rendered the form yet even though the HTML loaded.
-    page.get_by_role("heading", name="Sign in").wait_for(state="visible", timeout=60_000)
+    goto_login_form(page)
 
     login_with_password(page, email, password)
     reach_dashboard(page, profile_namespace=NAMESPACE)
