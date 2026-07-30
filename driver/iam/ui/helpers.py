@@ -23,6 +23,7 @@ from urllib.parse import urlparse
 import jubilant
 from ingress import find_gateway_for_domain, gateway_service_account, get_service_lb_ip
 from lightkube import Client
+from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
 log = logging.getLogger(__name__)
@@ -117,7 +118,7 @@ def build_host_resolver_rules(ui_ip: str, auth_ip: str) -> str:
     return f"MAP {UI_DOMAIN} {ui_ip}, MAP {AUTH_DOMAIN} {auth_ip}"
 
 
-def login_with_password(page, email: str, password: str) -> None:
+def login_with_password(page: Page, email: str, password: str) -> None:
     """Fill credentials and submit the identity-platform-login-ui form.
 
     The deployed ``identity-platform-login-ui`` renders a single-page form with an
@@ -155,7 +156,7 @@ def is_auth_url(url: str) -> bool:
     return urlparse(url).hostname == AUTH_DOMAIN
 
 
-def goto_login_form(page, max_attempts: int = 3) -> None:
+def goto_login_form(page: Page, max_attempts: int = 3) -> None:
     """Navigate to the UI, follow the redirect to the IdP login form, and wait for it.
 
     Retries when the login-ui lands on its /ui/error page (e.g. Kratos briefly
@@ -185,7 +186,7 @@ def goto_login_form(page, max_attempts: int = 3) -> None:
             raise
 
 
-def reach_dashboard(page, profile_namespace: str | None = None) -> None:
+def reach_dashboard(page: Page, profile_namespace: str | None = None) -> None:
     """Wait for the post-login redirect back to the UI and the dashboard to render.
 
     Asserts the URL is served by ``ui.kubeflow.com``, the dashboard page has loaded
@@ -215,7 +216,7 @@ def reach_dashboard(page, profile_namespace: str | None = None) -> None:
         _assert_profile_visible(page, profile_namespace)
 
 
-def _assert_profile_visible(page, profile_namespace: str) -> None:
+def _assert_profile_visible(page: Page, profile_namespace: str) -> None:
     """Assert that the user's profile namespace is the active namespace in the dashboard.
 
     The central dashboard SPA sets the active namespace via a ``?ns=<namespace>`` query
