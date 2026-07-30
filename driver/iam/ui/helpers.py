@@ -12,7 +12,7 @@ The browser-launch + login-flow conventions are borrowed from
 login split into ``enter_email`` / ``enter_password``.
 
 Ingress-gateway discovery (``find_gateway_for_domain``, ``get_service_lb_ip``,
-``gateway_service_account``, ``GATEWAY_RESOURCE``) is shared with the
+``gateway_proxy_name``, ``GATEWAY_RESOURCE``) is shared with the
 ``driver/iam/m2m`` suite via ``driver/ingress.py``.
 """
 
@@ -21,7 +21,7 @@ import time
 from urllib.parse import urlparse
 
 import jubilant
-from ingress import find_gateway_for_domain, gateway_service_account, get_service_lb_ip
+from ingress import find_gateway_for_domain, gateway_proxy_name, get_service_lb_ip
 from lightkube import Client
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
@@ -96,7 +96,7 @@ def remove_kratos_user(iam_juju: jubilant.Juju, identity_id: str, secret_uri: st
 def get_ui_lb_ip(client: Client) -> str:
     """Return the LoadBalancer IP of the istio Gateway serving the Kubeflow UI."""
     gateway = find_gateway_for_domain(client, KUBEFLOW_MODEL, UI_DOMAIN)
-    return get_service_lb_ip(client, KUBEFLOW_MODEL, gateway_service_account(gateway))
+    return get_service_lb_ip(client, KUBEFLOW_MODEL, gateway_proxy_name(gateway))
 
 
 def get_auth_lb_ip(client: Client) -> str:

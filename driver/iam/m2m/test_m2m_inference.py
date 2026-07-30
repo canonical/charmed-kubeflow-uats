@@ -29,7 +29,7 @@ from helpers import (
     request_inference,
     wait_for_inferenceservice_ready,
 )
-from ingress import find_gateway_for_domain, gateway_service_account, get_service_lb_ip
+from ingress import find_gateway_for_domain, gateway_proxy_name, get_service_lb_ip
 from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import load_in_cluster_generic_resources
 from lightkube.types import CascadeType
@@ -74,15 +74,13 @@ def m2m_gateway(lightkube_client):
 @pytest.fixture(scope="module")
 def gateway_principals(m2m_gateway):
     """Istio principal of the M2M ingress gateway serving KServe."""
-    return [f"cluster.local/ns/{KUBEFLOW_MODEL}/sa/{gateway_service_account(m2m_gateway)}"]
+    return [f"cluster.local/ns/{KUBEFLOW_MODEL}/sa/{gateway_proxy_name(m2m_gateway)}"]
 
 
 @pytest.fixture(scope="module")
 def gateway_ip(lightkube_client, m2m_gateway):
     """LoadBalancer IP of the M2M ingress gateway."""
-    return get_service_lb_ip(
-        lightkube_client, KUBEFLOW_MODEL, gateway_service_account(m2m_gateway)
-    )
+    return get_service_lb_ip(lightkube_client, KUBEFLOW_MODEL, gateway_proxy_name(m2m_gateway))
 
 
 @pytest.fixture(scope="module")
