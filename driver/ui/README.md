@@ -35,9 +35,8 @@ Given the deployment described under [Prerequisites](#prerequisites), the suite:
 
 ## Prerequisites
 
-<!-- TODO: point this link at `main` once feat/iam-integration is merged. -->
 - A Kubeflow + Identity Platform deployment with an ambient service mesh — e.g. the
-  [`kubeflow-ambient-iam`](https://github.com/canonical/charmed-kubeflow-solutions/tree/feat/iam-integration/terraform-refactoring/tests/kubeflow-ambient-iam)
+  [`kubeflow-ambient-iam`](https://github.com/canonical/charmed-kubeflow-solutions/tree/main/terraform/tests/kubeflow-ambient-iam)
   test setup in `charmed-kubeflow-solutions` — which provides:
   - Juju models `iam`, `iam-core` and `kubeflow`.
   - A Kratos identity service (`iam` model).

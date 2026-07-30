@@ -171,23 +171,13 @@ def reach_dashboard(page, profile_namespace: str | None = None) -> None:
 
 
 def _assert_profile_visible(page, profile_namespace: str) -> None:
-    """Assert that the user's profile namespace is present in the dashboard.
+    """Assert that the user's profile namespace is the active namespace in the dashboard.
 
-    Tries the namespace dropdown selector; on failure falls back to checking the
-    namespace appears anywhere in the rendered page content.
+    The central dashboard selects the active namespace via a ``?ns=<namespace>`` query
+    parameter on the URL. After login it redirects to ``ui.kubeflow.com/?ns=<namespace>``
+    for the user's own profile, so we assert it appears in the URL.
     """
-    try:
-        page.get_by_role("button", name=profile_namespace).wait_for(
-            state="visible", timeout=30_000
-        )
-        log.info(f"Profile namespace '{profile_namespace}' is selectable in the dashboard")
-        return
-    except Exception:
-        log.info(
-            f"Namespace selector for '{profile_namespace}' not found; trying content fallback"
-        )
-
     assert (
-        profile_namespace in page.content()
-    ), f"Profile namespace '{profile_namespace}' not found in dashboard"
-    log.info(f"Profile namespace '{profile_namespace}' found in page content")
+        profile_namespace in page.url
+    ), f"Expected ?ns={profile_namespace} in URL, got {page.url}"
+    log.info(f"Profile namespace '{profile_namespace}' is the active namespace in the dashboard")
