@@ -188,12 +188,13 @@ def reach_dashboard(page, profile_namespace: str | None = None) -> None:
     """
     # Hostname match (not substring) so the auth page's `rd=...ui.kubeflow.com...`
     # redirect parameter cannot satisfy the wait before the dashboard is reached.
+    # This fires on the oauth2-proxy callback redirect (ui.kubeflow.com/kubeflow-oauth2-proxy/...)
+    # which then 302s to the dashboard root.
     page.wait_for_url(is_ui_url, timeout=120_000)
 
-    # Stable dashboard element: the central dashboard renders a "Welcome" heading.
-    # Verified against the kubeflow-ambient-iam deployment's central-dashboard. A
-    # generic `heading.first` fallback is deliberately avoided: the IdP auth page also
-    # has a "Sign in" heading, which would let a stuck auth page pass.
+    # Wait for the final dashboard URL to settle (the SPA sets ?ns=<namespace>
+    # client-side after hydration). The "Welcome" heading confirms the dashboard
+    # SPA has rendered, by which point the URL has settled.
     page.get_by_role("heading", name="Welcome").wait_for(state="visible", timeout=60_000)
 
     log.info(f"Dashboard loaded at {page.url}")
@@ -206,11 +207,10 @@ def _assert_profile_visible(page, profile_namespace: str) -> None:
     """Assert that the user's profile namespace is the active namespace in the dashboard.
 
     The central dashboard SPA sets the active namespace via a ``?ns=<namespace>`` query
-    parameter on the URL *after* the SPA hydrates — not on the initial server redirect.
-    So we wait for the namespace to appear in the URL rather than asserting immediately.
+    parameter on the URL after hydration. By the time the "Welcome" heading is visible
+    the URL should have settled, so a simple assertion is sufficient.
     """
-    page.wait_for_url(
-        lambda url: is_ui_url(url) and profile_namespace in url,
-        timeout=30_000,
-    )
+    assert (
+        profile_namespace in page.url
+    ), f"Expected ?ns={profile_namespace} in URL, got {page.url}"
     log.info(f"Profile namespace '{profile_namespace}' is the active namespace in the dashboard")
