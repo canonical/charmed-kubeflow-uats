@@ -168,6 +168,10 @@ def goto_login_form(page: Page, max_attempts: int = 3) -> None:
     page, so it is not a reliable readiness signal.
     """
     for attempt in range(1, max_attempts + 1):
+        # goto follows the full redirect chain (ui.kubeflow.com → oauth2-proxy →
+        # auth.kubeflow.com/ui/login) and returns only once the final page's load
+        # event fires, so the Email label search runs on the login page, not the
+        # UI page — no risk of matching a label before the redirect completes.
         page.goto(KUBEFLOW_UI_URL)
         try:
             page.get_by_label("Email").wait_for(state="visible", timeout=30_000)
