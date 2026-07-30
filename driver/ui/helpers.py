@@ -34,11 +34,11 @@ AUTH_SERVICE = "traefik-lb"
 
 # DNS / URL constants.
 UI_DOMAIN = "ui.kubeflow.com"
-# The IdP (traefik ingress in iam-core) serves the auth + login UI. Note this is the
-# apex domain "kubeflow.com", NOT "auth.kubeflow.com": the oauth2-proxy redirect and
-# the identity-platform-login-ui both live under "kubeflow.com" (e.g.
-# "kubeflow.com/ui/login"). Discovered against the kubeflow-ambient-iam deployment.
-AUTH_DOMAIN = "kubeflow.com"
+# The IdP (traefik ingress in iam-core) serves the auth + login UI. The exact hostname
+# varies by deployment (e.g. "kubeflow.com" or "auth.kubeflow.com"), so it is NOT
+# hardcoded — the host-resolver-rules wildcard covers any *.kubeflow.com, and the
+# tests assert "not on the UI domain" + "Sign in heading visible" instead of matching
+# a specific auth hostname.
 UI_URL = f"https://{UI_DOMAIN}"
 
 
@@ -127,8 +127,13 @@ def build_host_resolver_rules(ui_ip: str, auth_ip: str) -> str:
     Mirrors tenant-service's ``--host-resolver-rules=MAP dex 127.0.0.1``. This avoids
     needing ``/etc/hosts`` entries (and thus root) on the UAT host: Chromium resolves
     the in-cluster domains to the discovered LoadBalancer IPs directly.
+
+    The auth hostname varies by deployment (e.g. ``kubeflow.com`` or
+    ``auth.kubeflow.com``), so a wildcard ``*.kubeflow.com`` plus the apex
+    ``kubeflow.com`` are both mapped to the auth LB IP. The UI domain is mapped first
+    so it takes precedence over the wildcard.
     """
-    return f"MAP {UI_DOMAIN} {ui_ip}, MAP {AUTH_DOMAIN} {auth_ip}"
+    return f"MAP {UI_DOMAIN} {ui_ip}, MAP kubeflow.com {auth_ip}, MAP *.kubeflow.com {auth_ip}"
 
 
 def login_with_password(page, email: str, password: str) -> None:
@@ -159,15 +164,15 @@ def is_ui_url(url: str) -> bool:
     return urlparse(url).hostname == UI_DOMAIN
 
 
-def is_auth_url(url: str) -> bool:
-    """Return True iff ``url`` is served by the IdP (auth) host.
+def is_login_url(url: str) -> bool:
+    """Return True iff ``url`` is on the IdP login page (not the UI host).
 
-    Hostname equality (not a substring) is essential here because ``AUTH_DOMAIN`` is
-    the apex ``kubeflow.com``, which is a substring of the UI host ``ui.kubeflow.com``:
-    a substring check would be satisfied *while still on the UI page* before the
-    redirect to the login page ever happens.
+    The auth hostname varies by deployment (e.g. ``kubeflow.com`` or
+    ``auth.kubeflow.com``), so this checks that the hostname is *not* the UI host and
+    the path contains ``login`` — both conditions the oauth2-proxy redirect satisfies.
     """
-    return urlparse(url).hostname == AUTH_DOMAIN
+    parsed = urlparse(url)
+    return parsed.hostname != UI_DOMAIN and "login" in (parsed.path or "")
 
 
 def reach_dashboard(page, profile_namespace: str | None = None) -> None:

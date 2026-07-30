@@ -30,7 +30,7 @@ Given the deployment described under [Prerequisites](#prerequisites), the suite:
 
 | Test | Action | Expected |
 | --- | --- | --- |
-| `test_unauthenticated_request_is_redirected_to_login` | `GET https://ui.kubeflow.com` with no session | redirected to `kubeflow.com` (the IdP ingress) and the "Sign in" heading is visible |
+| `test_unauthenticated_request_is_redirected_to_login` | `GET https://ui.kubeflow.com` with no session | redirected to the IdP login page and the "Sign in" heading is visible |
 | `test_login_reaches_dashboard` | fill email + password (single-page login form) | redirected back to `ui.kubeflow.com` and the central dashboard renders |
 
 Profile-namespace visibility is **best-effort**: the suite attempts to confirm the
@@ -46,8 +46,9 @@ assertion is dropped (per design) and only URL host + dashboard-element are chec
   - Juju models `iam`, `iam-core` and `kubeflow`.
   - A Kratos identity service (`iam` model).
   - The `identity-platform-login-ui` behind a `traefik-lb` Service in `iam-core`
-    serving the apex domain `kubeflow.com` (both the oauth2-proxy auth endpoint and
-    the login UI live under `kubeflow.com`, e.g. `kubeflow.com/ui/login`).
+    serving the auth hostname (set via the `external_auth_hostname` Terraform var,
+    e.g. `auth.kubeflow.com`). Both the oauth2-proxy auth endpoint and the login UI
+    live under this hostname (e.g. `auth.kubeflow.com/ui/login`).
   - An istio ingress `Gateway` serving `ui.kubeflow.com` (deployed via the
     `istio-ingress-k8s` charm; its app name is discovered at runtime).
   - `oauth2-proxy` (`kubeflow` model) performing forward-auth against the IdP.
