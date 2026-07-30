@@ -73,13 +73,18 @@ def create_kratos_user(
     return identity_id, secret_uri
 
 
-def remove_kratos_secret(iam_juju: jubilant.Juju, secret_uri: str) -> None:
-    """Best-effort removal of the Juju secret backing a Kratos test user.
+def remove_kratos_user(iam_juju: jubilant.Juju, identity_id: str, secret_uri: str) -> None:
+    """Delete a Kratos identity and its backing Juju secret.
 
-    The Kratos identity itself is **not** deleted (the charm exposes no delete
-    action); this is acceptable in an ephemeral CI environment. Only the secret is
-    cleaned up so it does not accumulate.
+    Uses the ``delete-identity`` action on the kratos charm to remove the identity,
+    then removes the Juju secret. Both are best-effort (errors are logged, not raised).
     """
+    try:
+        iam_juju.run("kratos/0", "delete-identity", {"identity-id": identity_id})
+        log.info(f"Deleted Kratos identity {identity_id}")
+    except Exception as error:
+        log.warning(f"Could not delete Kratos identity {identity_id}: {error}")
+
     try:
         iam_juju.remove_secret(secret_uri)
         log.info(f"Removed Juju secret {secret_uri}")

@@ -22,8 +22,7 @@ Given the deployment described under [Prerequisites](#prerequisites), the suite:
    thus no root) is needed on the UAT host.
 2. Creates a Kratos identity via the `create-admin-account` Juju action, passing the
    password through a Juju secret (`password-secret-id`) granted to `kratos`. The
-   identity persists (no delete action exists); only the Juju secret is removed in
-   teardown.
+   identity is deleted in teardown via the `delete-identity` action.
 3. Creates a Kubeflow `Profile` (`test-ui-iam`) owned by the Kratos `username`
    directly via lightkube (bypassing `github-profiles-automator`/PMR).
 4. Asserts:

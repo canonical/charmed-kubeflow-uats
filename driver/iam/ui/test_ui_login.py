@@ -32,7 +32,7 @@ from iam.ui.helpers import (
     is_ui_url,
     login_with_password,
     reach_dashboard,
-    remove_kratos_secret,
+    remove_kratos_user,
 )
 from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import load_in_cluster_generic_resources
@@ -138,10 +138,9 @@ def iam_juju():
 
 @pytest.fixture(scope="module")
 def kratos_user(iam_juju):
-    """Create a Kratos user + Juju secret; yield its credentials; clean up the secret.
+    """Create a Kratos user + Juju secret; yield its credentials; clean up both.
 
-    The Kratos identity itself is not deleted (no delete action exists; acceptable in
-    ephemeral CI). A unique username/email is generated per run.
+    A unique username/email is generated per run.
     """
     stamp = str(int(time.time()))
     username = f"uat-ui-{stamp}"
@@ -152,7 +151,7 @@ def kratos_user(iam_juju):
 
     yield username, email, password, identity_id, secret_uri
 
-    remove_kratos_secret(iam_juju, secret_uri)
+    remove_kratos_user(iam_juju, identity_id, secret_uri)
 
 
 @pytest.fixture(scope="module")
