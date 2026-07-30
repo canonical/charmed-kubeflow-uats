@@ -168,7 +168,7 @@ def create_profile(lightkube_client, kratos_user):
     resources = list(
         codecs.load_all_yaml(
             PROFILE_TEMPLATE_FILE.read_text(),
-            context={"namespace": NAMESPACE, "owner": email},
+            context={"namespace": NAMESPACE, "owner_name": email},
         )
     )
     assert len(resources) == 1, f"Expected 1 Profile, got {len(resources)}!"
