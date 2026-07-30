@@ -201,9 +201,8 @@ def s3_override_config() -> dict[str, str]:
 def deploy_override_s3(juju: jubilant.Juju, s3_override_config: dict[str, str]):
     """Deploy and configure the override s3-integrator; removed on teardown."""
     # Deploy under a distinct name, reusing the global s3-integrator channel.
-    # TODO: Update pin after fix is merged
-    # channel = detect_channel(juju, S3_GLOBAL_APP, "2/edge")
-    juju.deploy("s3-integrator", app=S3_OVERRIDE_APP, channel="2/edge", trust=True)
+    channel = detect_channel(juju, S3_GLOBAL_APP, "2/edge")
+    juju.deploy("s3-integrator", app=S3_OVERRIDE_APP, channel=channel, trust=True)
 
     # Create and grant a user secret holding the credentials.
     secret_uri = juju.add_secret(
