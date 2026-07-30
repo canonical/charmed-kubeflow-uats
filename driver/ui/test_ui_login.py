@@ -44,7 +44,7 @@ log = logging.getLogger(__name__)
 
 # Assets directory is relative to the repository root.
 ASSETS_DIR = Path(__file__).parent.parent.parent / "assets"
-PROFILE_TEMPLATE_FILE = ASSETS_DIR / "ui-profile.yaml.j2"
+PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 
 NAMESPACE = "test-ui-iam"
 
