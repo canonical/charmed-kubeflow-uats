@@ -190,7 +190,7 @@ def goto_login_form(page: Page, max_attempts: int = 3) -> None:
             raise
 
 
-def reach_dashboard(page: Page, profile_namespace: str | None = None) -> None:
+def reach_dashboard(page: Page, profile_namespace: str) -> None:
     """Wait for the post-login redirect back to the UI and the dashboard to render.
 
     Asserts the URL is served by ``ui.kubeflow.com``, the dashboard page has loaded
@@ -199,6 +199,9 @@ def reach_dashboard(page: Page, profile_namespace: str | None = None) -> None:
     The central dashboard is a Polymer web-components app that uses Shadow DOM, so
     ``inner_text`` and ``get_by_role`` cannot pierce its shadow roots. The page title
     ("Kubeflow Central Dashboard") and the ``?ns=`` query parameter are used instead.
+
+    A Profile must exist for the user before calling this — without one, the dashboard
+    shows an intermediate "Welcome" page instead of the main view.
     """
     # Hostname match (not substring) so the auth page's `rd=...ui.kubeflow.com...`
     # redirect parameter cannot satisfy the wait before the dashboard is reached.
@@ -216,8 +219,7 @@ def reach_dashboard(page: Page, profile_namespace: str | None = None) -> None:
 
     log.info(f"Dashboard loaded at {page.url}")
 
-    if profile_namespace:
-        _assert_profile_visible(page, profile_namespace)
+    _assert_profile_visible(page, profile_namespace)
 
 
 def _assert_profile_visible(page: Page, profile_namespace: str) -> None:
