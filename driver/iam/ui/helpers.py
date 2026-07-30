@@ -41,7 +41,7 @@ UI_DOMAIN = "ui.kubeflow.com"
 # oauth2-proxy auth endpoint and the identity-platform-login-ui live under it (e.g.
 # "auth.kubeflow.com/ui/login").
 AUTH_DOMAIN = "auth.kubeflow.com"
-UI_URL = f"https://{UI_DOMAIN}"
+KUBEFLOW_UI_URL = f"https://{UI_DOMAIN}"
 
 
 def create_kratos_user(
@@ -168,7 +168,7 @@ def goto_login_form(page: Page, max_attempts: int = 3) -> None:
     page, so it is not a reliable readiness signal.
     """
     for attempt in range(1, max_attempts + 1):
-        page.goto(UI_URL)
+        page.goto(KUBEFLOW_UI_URL)
         try:
             page.get_by_label("Email").wait_for(state="visible", timeout=30_000)
             return
