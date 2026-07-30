@@ -46,6 +46,12 @@ Given the deployment described under [Prerequisites](#prerequisites), the suite:
   - An istio ingress `Gateway` serving `ui.kubeflow.com` (deployed via the
     `istio-ingress-k8s` charm; its app name is discovered at runtime).
   - `oauth2-proxy` (`kubeflow` model) performing forward-auth against the IdP.
+  - An `AuthorizationPolicy` (ext-authz, CUSTOM action) and `RequestAuthentication`
+    (JWT verification with `outputClaimToHeaders: email → kubeflow-userid`) attached
+    to the UI `Gateway`. The ext-authz policy delegates unauthenticated requests to
+    oauth2-proxy; the RequestAuthentication verifies the forwarded JWT and injects the
+    user's email as the `kubeflow-userid` header, which the dashboard uses to query
+    namespaces. Without these, the login flow cannot complete.
 - **MFA disabled**: `kratos` must be deployed with `enforce_mfa=False`, otherwise a
   TOTP step breaks the headless login. This is a deployment-time step (out of scope
   for this repo — documented as a prerequisite for the solutions CI).
