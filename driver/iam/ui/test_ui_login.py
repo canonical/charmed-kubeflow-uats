@@ -118,8 +118,8 @@ def context(browser, request):
         trace_path = ARTIFACTS_DIR / f"{request.node.name}.zip"
         context.tracing.stop(path=str(trace_path))
         log.info(f"Test failed; trace saved to {trace_path}")
-        for p in context.pages:
-            screenshot_path = ARTIFACTS_DIR / f"{request.node.name}.png"
+        for i, p in enumerate(context.pages):
+            screenshot_path = ARTIFACTS_DIR / f"{request.node.name}-page{i}.png"
             try:
                 p.screenshot(path=str(screenshot_path))
                 log.info(f"Screenshot saved to {screenshot_path}")
