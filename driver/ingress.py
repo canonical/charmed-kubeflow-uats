@@ -65,8 +65,8 @@ def find_gateway_for_domain(client: Client, namespace: str, domain: str) -> str:
     )
 
 
-def gateway_proxy_name(gateway: str) -> str:
-    """Return the istio proxy resource name for a Gateway.
+def gateway_service_name(gateway: str) -> str:
+    """Return the LoadBalancer Service name for a Gateway.
 
     The istio-ingress-k8s charm names the ServiceAccount, the LoadBalancer Service,
     and the Deployment after the app (``<gateway>-istio``). This single name is used
