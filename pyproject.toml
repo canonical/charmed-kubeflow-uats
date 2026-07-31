@@ -38,6 +38,7 @@ pytest-dependency = "<1.0"
 tenacity = "^9"
 requests-oauthlib = "^2"
 pytest-jubilant = "^2"
+playwright = "^1"
 
 [tool.poetry.group.fmt]
 optional = true
