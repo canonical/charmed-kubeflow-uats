@@ -109,9 +109,15 @@ def pytest_addoption(parser: Parser):
         "By default, it is set to False.",
     )
     parser.addoption(
-        "--include-m2m-tests",
+        "--include-iam-m2m-tests",
         action="store_true",
-        help="Defines whether to include the M2M identity integration tests."
+        help="Defines whether to include the IAM M2M identity integration tests."
+        "By default, it is set to False.",
+    )
+    parser.addoption(
+        "--include-iam-ui-tests",
+        action="store_true",
+        help="Defines whether to include the IAM UI (Identity login) integration tests."
         "By default, it is set to False.",
     )
     parser.addoption(
@@ -140,13 +146,17 @@ def pytest_configure(config):
     if config.getoption("--bundle") is not None:
         return
 
-    if config.getoption("--include-ambient-tests") or config.getoption("--include-m2m-tests"):
+    if (
+        config.getoption("--include-ambient-tests")
+        or config.getoption("--include-iam-m2m-tests")
+        or config.getoption("--include-iam-ui-tests")
+    ):
         config.option.bundle = BUNDLE_URL_AMBIENT
     else:
         config.option.bundle = BUNDLE_URL_SIDECAR
 
 
-def pytest_collection_modifyitems(config, items):
+def pytest_collection_modifyitems(config, items):  # noqa C901
     """Ensure dependency roots are collected before tests that depend on them.
 
     pytest-dependency skips immediately when a dependency has not run yet,
@@ -159,11 +169,17 @@ def pytest_collection_modifyitems(config, items):
             if "/ambient/" in item.nodeid:
                 item.add_marker(skip_ambient)
 
-    if not config.getoption("--include-m2m-tests", default=False):
-        skip_m2m = pytest.mark.skip(reason="need --include-m2m-tests option to run")
+    if not config.getoption("--include-iam-m2m-tests", default=False):
+        skip_m2m = pytest.mark.skip(reason="need --include-iam-m2m-tests option to run")
         for item in items:
-            if "/m2m/" in item.nodeid:
+            if "/iam/m2m/" in item.nodeid:
                 item.add_marker(skip_m2m)
+
+    if not config.getoption("--include-iam-ui-tests", default=False):
+        skip_ui = pytest.mark.skip(reason="need --include-iam-ui-tests option to run")
+        for item in items:
+            if "/iam/ui/" in item.nodeid:
+                item.add_marker(skip_ui)
 
     if not config.getoption("--include-multi-tenancy-tests", default=False):
         skip_multi_tenancy = pytest.mark.skip(

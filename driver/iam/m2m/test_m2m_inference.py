@@ -23,15 +23,13 @@ from helpers import (
     authorize_contributor,
     create_oauth_client,
     delete_oauth_client,
-    find_gateway_for_domain,
-    gateway_service_account,
     get_jwt_issuer_url,
-    get_service_lb_ip,
     get_token,
     patch_gateway_wildcard_hostname,
     request_inference,
     wait_for_inferenceservice_ready,
 )
+from ingress import find_gateway_for_domain, gateway_service_name, get_service_lb_ip
 from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import load_in_cluster_generic_resources
 from lightkube.types import CascadeType
@@ -40,7 +38,7 @@ from utils import PROFILE_RESOURCE, assert_namespace_active, assert_profile_dele
 log = logging.getLogger(__name__)
 
 # Assets directory is relative to the repository root.
-ASSETS_DIR = Path(__file__).parent.parent.parent / "assets"
+ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 INFERENCE_SERVICE_TEMPLATE_FILE = ASSETS_DIR / "kserve-inference-service.yaml.j2"
 
@@ -76,15 +74,13 @@ def m2m_gateway(lightkube_client):
 @pytest.fixture(scope="module")
 def gateway_principals(m2m_gateway):
     """Istio principal of the M2M ingress gateway serving KServe."""
-    return [f"cluster.local/ns/{KUBEFLOW_MODEL}/sa/{gateway_service_account(m2m_gateway)}"]
+    return [f"cluster.local/ns/{KUBEFLOW_MODEL}/sa/{gateway_service_name(m2m_gateway)}"]
 
 
 @pytest.fixture(scope="module")
 def gateway_ip(lightkube_client, m2m_gateway):
     """LoadBalancer IP of the M2M ingress gateway."""
-    return get_service_lb_ip(
-        lightkube_client, KUBEFLOW_MODEL, gateway_service_account(m2m_gateway)
-    )
+    return get_service_lb_ip(lightkube_client, KUBEFLOW_MODEL, gateway_service_name(m2m_gateway))
 
 
 @pytest.fixture(scope="module")

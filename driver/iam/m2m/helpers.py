@@ -18,9 +18,9 @@ import jubilant
 import requests
 import tenacity
 import urllib3
+from ingress import GATEWAY_RESOURCE
 from lightkube import Client
 from lightkube.generic_resource import create_namespaced_resource
-from lightkube.resources.core_v1 import Service
 from lightkube.resources.rbac_authorization_v1 import RoleBinding
 from lightkube.types import PatchType
 from oauthlib.oauth2 import BackendApplicationClient
@@ -30,14 +30,6 @@ log = logging.getLogger(__name__)
 
 # Disable the noisy warnings emitted when talking to the self-signed endpoints.
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-# Generic Gateway API resource, used to discover and patch the ingress Gateway.
-GATEWAY_RESOURCE = create_namespaced_resource(
-    group="gateway.networking.k8s.io",
-    version="v1",
-    kind="Gateway",
-    plural="gateways",
-)
 
 # Generic KServe InferenceService resource.
 INFERENCE_SERVICE_RESOURCE = create_namespaced_resource(
@@ -147,54 +139,6 @@ def get_token(client_id: str, client_secret: str, issuer_url: str) -> str:
     )
     log.info(f"Obtained access token for client {client_id}")
     return token["access_token"]
-
-
-def get_service_lb_ip(client: Client, namespace: str, service: str) -> str:
-    """Return the LoadBalancer IP of a Kubernetes Service."""
-    svc = client.get(Service, name=service, namespace=namespace)
-    ingress = (svc.status.loadBalancer.ingress or []) if svc.status else []
-    assert ingress, f"Service {namespace}/{service} has no LoadBalancer IP yet"
-    ip = ingress[0].ip
-    assert ip, f"Service {namespace}/{service} has no LoadBalancer IP yet"
-    return ip
-
-
-def find_gateway_for_domain(client: Client, namespace: str, domain: str) -> str:
-    """Return the name of the istio Gateway serving the given domain.
-
-    The Gateway is identified by a listener whose hostname matches ``domain`` (either
-    exactly or as a wildcard subdomain), so the underlying charm/app name does not
-    need to be known in advance.
-
-    Args:
-        client: The lightkube client to use.
-        namespace: The namespace to look for Gateways in.
-        domain: The domain the Gateway should serve, e.g. ``api.kubeflow.com``.
-
-    Returns:
-        The name of the matching Gateway (equal to the charm app name).
-    """
-    for gateway in client.list(GATEWAY_RESOURCE, namespace=namespace):
-        spec = gateway.spec or {}
-        if spec.get("gatewayClassName") != "istio":
-            continue
-        for listener in spec.get("listeners", []):
-            hostname = listener.get("hostname", "") or ""
-            if hostname == domain or hostname.endswith(f".{domain}"):
-                name = gateway.metadata.name
-                log.info(f"Discovered istio Gateway '{name}' serving domain {domain}")
-                return name
-    raise AssertionError(
-        f"No istio Gateway serving domain {domain} found in namespace {namespace}"
-    )
-
-
-def gateway_service_account(gateway: str) -> str:
-    """Return the name of the ServiceAccount / LoadBalancer Service for a Gateway.
-
-    The istio-ingress-k8s charm names both after the app (``<gateway>-istio``).
-    """
-    return f"{gateway}-istio"
 
 
 def patch_gateway_wildcard_hostname(

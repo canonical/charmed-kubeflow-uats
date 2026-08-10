@@ -38,6 +38,7 @@ pytest-dependency = "<1.0"
 tenacity = "^9"
 requests-oauthlib = "^2"
 pytest-jubilant = "^2"
+playwright = "^1"
 # multi-tenancy suite dependencies
 python-dotenv = "^1.0"
 kfp = "^2.0"
