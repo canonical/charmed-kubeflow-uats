@@ -17,16 +17,12 @@ applications:
     channel: latest/
   katib-controller:
     channel: latest/
-  katib-db:
-    channel: 8.0/
   katib-db-manager:
     channel: latest/
   katib-ui:
     channel: latest/
   kfp-api:
     channel: latest/
-  kfp-db:
-    channel: 8.0/
   kfp-metadata-writer:
     channel: latest/
   kfp-persistence:
@@ -59,8 +55,6 @@ applications:
     channel: latest/
   metacontroller-operator:
     channel: latest/
-  minio:
-    channel: latest/
   mlmd:
     channel: latest/
   oidc-gatekeeper:
@@ -73,3 +67,5 @@ applications:
     channel: latest/
   training-operator:
     channel: latest/
+  mysql-db:
+    channel: 8.0/
