@@ -128,6 +128,13 @@ def pytest_addoption(parser: Parser):
         "By default, it is set to False.",
     )
     parser.addoption(
+        "--model",
+        default="kubeflow",
+        help="Provide the name of the Juju model where Kubeflow is deployed. This is also used"
+        " as the Kubernetes namespace of the Kubeflow control plane. If empty, the current Juju"
+        " model is used.",
+    )
+    parser.addoption(
         "--notebook-timeout",
         default=1800,
         type=int,
@@ -138,6 +145,12 @@ def pytest_addoption(parser: Parser):
         default=0,
         type=int,
         help="Number of times to rerun a failed notebook before marking it failed. Default: 0.",
+    )
+    parser.addoption(
+        "--keep-models",
+        action="store_true",
+        default=False,
+        help="keep temporarily-created models",
     )
     parser.addoption(
         "--keep-artifacts",
