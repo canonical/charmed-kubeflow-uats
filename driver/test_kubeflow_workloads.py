@@ -246,7 +246,6 @@ def istio_mode(include_ambient):
     return "sidecar"
 
 
-@pytest.mark.abort_on_fail
 @pytest.mark.dependency()
 def test_bundle_correctness(juju, charm_list):
     """Test that the correct bundle is selected.
