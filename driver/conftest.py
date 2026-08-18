@@ -33,9 +33,21 @@ def pytest_addoption(parser: Parser):
       of your Kubernetes cluster. The default one for MicroK8s is otherwise assumed.
     * Add a `--security-policy` option to specify the security policy (privileged or baseline)
       defined in `kubeflow-profiles` for the testing namespace.
+    * Add a `--bundle` option to specify the bundle (URL or local file) used for the
+      bundle-correctness check.
     * Add a `--test-image` option to specify the test image to be used by the driver notebook pod.
     * Add an `--include-ambient-tests` flag to include the ambient integration tests in the
       executed tests.
+    * Add an `--include-iam-m2m-tests` flag to include the IAM M2M identity integration tests.
+    * Add an `--include-iam-ui-tests` flag to include the IAM UI (Identity login) tests.
+    * Add a `--model` option to specify the Juju model (and Kubeflow control-plane namespace)
+      where Kubeflow is deployed.
+    * Add a `--notebook-timeout` option to set the per-notebook Job timeout in seconds
+      (activeDeadlineSeconds).
+    * Add a `--rerun-failed-notebooks` option to set how many times a failed notebook is retried.
+    * Add a `--keep-models` flag to keep temporarily-created Juju models.
+    * Add a `--keep-artifacts` flag to keep per-notebook artifacts on the host and leave the
+      notebook Jobs in the cluster for inspection.
     * Add an `--include-multi-tenancy-tests` flag to include the multi-tenancy integration
       tests in the executed tests.
     """
