@@ -1,0 +1,211 @@
+# Copyright 2026 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+"""UI (Identity login) integration tests.
+
+These tests log in to the Kubeflow dashboard through the Canonical Identity
+Platform (IdP) using a headless Chromium browser, and assert the dashboard loads.
+
+They assume a Kubeflow + Identity Platform deployment with an ambient service mesh
+(e.g. the ``kubeflow-ambient-iam`` setup in charmed-kubeflow-solutions): Juju models
+``iam``, ``iam-core`` and ``kubeflow``, a Kratos identity, the
+``identity-platform-login-ui`` behind a ``traefik-lb`` Service, and an istio ingress
+gateway serving ``ui.kubeflow.com``.
+"""
+
+import logging
+import time
+from pathlib import Path
+
+import jubilant
+import pytest
+from iam.ui.helpers import (
+    AUTH_DOMAIN,
+    IAM_MODEL,
+    UI_DOMAIN,
+    build_host_resolver_rules,
+    create_kratos_user,
+    get_auth_lb_ip,
+    get_ui_lb_ip,
+    goto_login_form,
+    is_auth_url,
+    is_ui_url,
+    login_with_password,
+    reach_dashboard,
+    remove_kratos_user,
+)
+from lightkube import ApiError, Client, codecs
+from lightkube.generic_resource import load_in_cluster_generic_resources
+from lightkube.types import CascadeType
+from playwright.sync_api import sync_playwright
+from utils import PROFILE_RESOURCE, assert_namespace_active, assert_profile_deleted
+
+log = logging.getLogger(__name__)
+
+# Assets directory is relative to the repository root.
+ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
+PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
+
+# Directory for failure artifacts (Playwright trace + screenshot). Uses a fixed path
+# relative to the repo root so CI can reliably upload them.
+ARTIFACTS_DIR = Path(__file__).parent.parent.parent.parent / "playwright-artifacts"
+
+NAMESPACE = "test-ui-iam"
+
+
+@pytest.fixture(scope="module")
+def lightkube_client():
+    """Initialise a Lightkube Client."""
+    client = Client(trust_env=False)
+    load_in_cluster_generic_resources(client)
+    return client
+
+
+@pytest.fixture(scope="module")
+def ui_ip(lightkube_client):
+    """LoadBalancer IP of the istio Gateway serving the Kubeflow UI."""
+    return get_ui_lb_ip(lightkube_client)
+
+
+@pytest.fixture(scope="module")
+def auth_ip(lightkube_client):
+    """LoadBalancer IP of the IdP (auth) ingress."""
+    return get_auth_lb_ip(lightkube_client)
+
+
+@pytest.fixture(scope="module")
+def playwright():
+    """Start a Playwright instance for the module."""
+    with sync_playwright() as p:
+        yield p
+
+
+@pytest.fixture(scope="module")
+def browser(playwright, ui_ip, auth_ip):
+    """Launch headless Chromium with host-resolver-rules pointing the in-cluster
+    domains at their discovered LoadBalancer IPs (no ``/etc/hosts`` / root needed)."""
+    args = [
+        "--no-sandbox",
+        "--host-resolver-rules=" + build_host_resolver_rules(ui_ip, auth_ip),
+    ]
+    browser = playwright.chromium.launch(headless=True, args=args)
+    yield browser
+    browser.close()
+
+
+@pytest.fixture(scope="function")
+def context(browser, request):
+    """A fresh browser context per test so the negative test has no session.
+
+    ``ignore_https_errors`` mirrors tenant-service's ``ignoreHTTPSErrors: true`` (the
+    ingress serves self-signed certs). Browser console messages and page errors are
+    forwarded to the pytest log so failures can be diagnosed from the output alone.
+    On failure a Playwright trace (DOM snapshots, network log, sources) and a
+    screenshot are also saved as artifacts under ``playwright-artifacts/``.
+    """
+    context = browser.new_context(ignore_https_errors=True)
+    context.tracing.start(screenshots=True, snapshots=True, sources=True)
+
+    page = context.new_page()
+    page.on("console", lambda msg: log.info(f"[browser:{msg.type}] {msg.text}"))
+    page.on("pageerror", lambda err: log.error(f"[browser:pageerror] {err}"))
+
+    yield context
+
+    failed = getattr(request.node, "rep_call", None) and request.node.rep_call.failed
+    if failed:
+        ARTIFACTS_DIR.mkdir(exist_ok=True)
+        trace_path = ARTIFACTS_DIR / f"{request.node.name}.zip"
+        context.tracing.stop(path=str(trace_path))
+        log.info(f"Test failed; trace saved to {trace_path}")
+        for i, p in enumerate(context.pages):
+            screenshot_path = ARTIFACTS_DIR / f"{request.node.name}-page{i}.png"
+            try:
+                p.screenshot(path=str(screenshot_path))
+                log.info(f"Screenshot saved to {screenshot_path}")
+            except Exception as error:
+                log.warning(f"Could not capture failure screenshot: {error}")
+    else:
+        context.tracing.stop()
+    context.close()
+
+
+@pytest.fixture(scope="module")
+def iam_juju():
+    """A Jubilant handle to the IAM model (where Kratos lives)."""
+    return jubilant.Juju(model=IAM_MODEL)
+
+
+@pytest.fixture(scope="module")
+def kratos_user(iam_juju):
+    """Create a Kratos user + Juju secret; yield its credentials; clean up both.
+
+    A unique username/email is generated per run.
+    """
+    stamp = str(int(time.time()))
+    username = f"uat-ui-{stamp}"
+    email = f"{username}@kubeflow-uats.local"
+    password = "Uat-Ui-Pass-1234!"
+
+    identity_id, secret_uri = create_kratos_user(iam_juju, username, email, password)
+
+    yield username, email, password, identity_id, secret_uri
+
+    remove_kratos_user(iam_juju, identity_id, secret_uri)
+
+
+@pytest.fixture(scope="module")
+def create_profile(lightkube_client, kratos_user):
+    """Create a Profile owned by the Kratos user, then clean it up.
+
+    The Profile owner must be the user's **email**, not their username: the UI
+    gateway's RequestAuthentication forwards the JWT ``email`` claim to the
+    ``kubeflow-userid`` header, so the dashboard queries namespaces by email.
+    """
+    email = kratos_user[1]
+    log.info(f"Creating Profile {NAMESPACE} owned by {email}...")
+    resources = list(
+        codecs.load_all_yaml(
+            PROFILE_TEMPLATE_FILE.read_text(),
+            context={"namespace": NAMESPACE, "owner_name": email},
+        )
+    )
+    assert len(resources) == 1, f"Expected 1 Profile, got {len(resources)}!"
+    lightkube_client.create(resources[0])
+
+    assert_namespace_active(lightkube_client, NAMESPACE)
+
+    yield NAMESPACE
+
+    log.info(f"Deleting Profile {NAMESPACE}...")
+    try:
+        lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE, cascade=CascadeType.FOREGROUND)
+        assert_profile_deleted(lightkube_client, NAMESPACE, log)
+    except ApiError as error:
+        if error.status.code != 404:
+            raise
+        log.info(f"Profile {NAMESPACE} already deleted")
+
+
+def test_unauthenticated_request_is_redirected_to_login(context):
+    """An unauthenticated request to the UI is redirected to the IdP login page."""
+    page = context.pages[0]
+    goto_login_form(page)
+    page.get_by_role("heading", name="Sign in").wait_for(state="visible", timeout=60_000)
+
+    assert is_auth_url(page.url), f"Expected to land on {AUTH_DOMAIN}, got {page.url}"
+    log.info("✓ Unauthenticated request was redirected to the IdP login page.")
+
+
+def test_login_reaches_dashboard(context, kratos_user, create_profile):
+    """A valid IdP login reaches the Kubeflow central dashboard."""
+    _, email, password, _, _ = kratos_user
+
+    page = context.pages[0]
+    goto_login_form(page)
+
+    login_with_password(page, email, password)
+    reach_dashboard(page, profile_namespace=NAMESPACE)
+
+    assert is_ui_url(page.url), f"Expected dashboard on host {UI_DOMAIN}, got {page.url}"
+    log.info("✓ Login reached the Kubeflow dashboard.")

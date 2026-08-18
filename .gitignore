@@ -1,8 +1,10 @@
 .tox/
 venv/
+.venv/
 __pycache__/
 .pytest_cache/
 .ipynb_checkpoints/
 .idea/
 .vscode/
+playwright-artifacts/
 artifacts/
