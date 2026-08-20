@@ -81,6 +81,10 @@ spec:
               value: {{ notebook_path }}
             - name: ARTIFACTS_DIR
               value: {{ artifacts_dir }}
+            - name: RETRY_TIMEOUT
+              value: "{{ retry_timeout }}"
+            - name: KEEP_ARTIFACTS
+              value: "{{ 'true' if keep_artifacts else 'false' }}"
           volumeMounts:
             - name: test-volume
               mountPath: /tests

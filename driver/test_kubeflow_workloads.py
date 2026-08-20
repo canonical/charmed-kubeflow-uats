@@ -161,6 +161,12 @@ def rerun_failed(request):
 
 
 @pytest.fixture(scope="module")
+def retry_timeout(request):
+    """Return the max retry timeout (seconds) exposed to notebooks as RETRY_TIMEOUT."""
+    return int(request.config.getoption("--retry-timeout"))
+
+
+@pytest.fixture(scope="module")
 def local_run():
     """Return whether the tests run in local (hostPath) mode."""
     return is_local_run()
@@ -175,7 +181,7 @@ def lightkube_client():
 
 
 @pytest.fixture(scope="module")
-def create_profile(lightkube_client):
+def create_profile(lightkube_client, keep_artifacts):
     """Create Profile and handle cleanup at the end of the module tests."""
     log.info(f"Creating Profile {NAMESPACE}...")
     resources = list(
@@ -188,6 +194,10 @@ def create_profile(lightkube_client):
     lightkube_client.create(resources[0])
 
     yield
+
+    if keep_artifacts:
+        log.info(f"Keeping Profile {NAMESPACE} (--keep-artifacts set)")
+        return
 
     # delete the Profile at the end of the module tests
     log.info(f"Deleting Profile {NAMESPACE}...")
@@ -363,6 +373,7 @@ def _notebook_job_context(
     tests_image,
     tests_remote_commit,
     notebook_timeout,
+    retry_timeout,
     keep_artifacts,
     proxy,
     security_policy,
@@ -379,6 +390,7 @@ def _notebook_job_context(
         "notebook_path": _in_pod_notebook_path(notebook_path, local_run),
         "artifacts_dir": POD_ARTIFACTS_DIR,
         "notebook_timeout": notebook_timeout,
+        "retry_timeout": retry_timeout,
         "keep_artifacts": keep_artifacts,
         "proxy": proxy,
         "security_policy": security_policy,
@@ -412,6 +424,7 @@ def test_notebook_workload(
     istio_mode,
     local_run,
     notebook_timeout,
+    retry_timeout,
     keep_artifacts,
     rerun_failed,
     runtimeclass,
@@ -441,6 +454,7 @@ def test_notebook_workload(
             tests_image=tests_image,
             tests_remote_commit=tests_checked_out_commit,
             notebook_timeout=notebook_timeout,
+            retry_timeout=retry_timeout,
             keep_artifacts=keep_artifacts,
             proxy=bool(request.config.getoption("proxy")),
             security_policy=request.config.getoption("security_policy") != "privileged",

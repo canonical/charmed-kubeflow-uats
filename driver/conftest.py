@@ -45,9 +45,12 @@ def pytest_addoption(parser: Parser):
     * Add a `--notebook-timeout` option to set the per-notebook Job timeout in seconds
       (activeDeadlineSeconds).
     * Add a `--rerun-failed-notebooks` option to set how many times a failed notebook is retried.
+    * Add a `--retry-timeout` option to set the maximum time (seconds) for the tenacity retry
+      decorators in the notebooks (exposed to each notebook as the `RETRY_TIMEOUT` env var).
     * Add a `--keep-models` flag to keep temporarily-created Juju models.
-    * Add a `--keep-artifacts` flag to keep per-notebook artifacts on the host and leave the
-      notebook Jobs in the cluster for inspection.
+    * Add a `--keep-artifacts` flag to keep everything for inspection (host artifacts, notebook
+      Jobs, the Profile, and the workloads notebooks create); exposed as the `KEEP_ARTIFACTS`
+      env var. By default all of it is cleaned up.
     * Add an `--include-multi-tenancy-tests` flag to include the multi-tenancy integration
       tests in the executed tests.
     """
@@ -159,6 +162,13 @@ def pytest_addoption(parser: Parser):
         help="Number of times to rerun a failed notebook before marking it failed. Default: 0.",
     )
     parser.addoption(
+        "--retry-timeout",
+        default=600,
+        type=int,
+        help="Maximum time in seconds for the tenacity retry decorators in the notebooks,"
+        " exposed to each notebook as the RETRY_TIMEOUT environment variable. Default: 600.",
+    )
+    parser.addoption(
         "--keep-models",
         action="store_true",
         default=False,
@@ -168,8 +178,10 @@ def pytest_addoption(parser: Parser):
         "--keep-artifacts",
         action="store_true",
         default=False,
-        help="Keep per-notebook artifacts on the host and leave notebook Jobs in the cluster"
-        " for inspection. By default artifacts are discarded and Jobs are deleted.",
+        help="Keep everything created for inspection: per-notebook artifacts on the host, the"
+        " notebook Jobs, the test Profile, and the workloads the notebooks create (inference"
+        " services, training jobs, etc.). Exposed to notebooks as the KEEP_ARTIFACTS env var."
+        " By default all of these are cleaned up.",
     )
     parser.addoption(
         "--include-multi-tenancy-tests",
