@@ -23,6 +23,7 @@ import re
 import subprocess
 import time
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -50,10 +51,21 @@ _ARTIFACT_RE = re.compile(
     re.DOTALL,
 )
 
-# Terminal statuses reported for a single notebook run.
-STATUS_PASSED = "PASSED"
-STATUS_FAILED = "FAILED"
-STATUS_TIMEOUT = "TIMEOUT"
+
+class NotebookStatus(StrEnum):
+    """Terminal status reported for a single notebook run."""
+
+    PASSED = "PASSED"
+    FAILED = "FAILED"
+    TIMEOUT = "TIMEOUT"
+
+    @classmethod
+    def coerce(cls, value, default: "NotebookStatus") -> "NotebookStatus":
+        """Return the status matching ``value``, or ``default`` if it is not a known one."""
+        try:
+            return cls(value)
+        except ValueError:
+            return default
 
 
 @dataclass
@@ -61,7 +73,7 @@ class NotebookResult:
     """Outcome of running a single notebook as a Kubernetes Job."""
 
     name: str
-    status: str  # one of STATUS_PASSED / STATUS_FAILED / STATUS_TIMEOUT
+    status: NotebookStatus
     duration: float = 0.0
     failing_cell: Optional[int] = None
     error_summary: str = ""
@@ -71,7 +83,7 @@ class NotebookResult:
     @property
     def succeeded(self) -> bool:
         """Return whether the notebook run passed."""
-        return self.status == STATUS_PASSED
+        return self.status == NotebookStatus.PASSED
 
 
 def discover_notebooks(directory: str) -> Dict[str, str]:
@@ -136,22 +148,24 @@ def record_result(config, result: NotebookResult) -> None:
     store[result.name] = result
 
 
-def _terminal_status(job) -> Optional[str]:
+def _terminal_status(job) -> Optional[NotebookStatus]:
     """Return the Job's terminal status, or None if it is still running."""
     status = job.status
     if status is None:
         return None
     if status.succeeded:
-        return STATUS_PASSED
+        return NotebookStatus.PASSED
     if status.failed:
         for condition in status.conditions or []:
             if condition.type == "Failed" and condition.reason == "DeadlineExceeded":
-                return STATUS_TIMEOUT
-        return STATUS_FAILED
+                return NotebookStatus.TIMEOUT
+        return NotebookStatus.FAILED
     return None
 
 
-def _wait_for_terminal_status(client: Client, job_name: str, namespace: str, timeout: int) -> str:
+def _wait_for_terminal_status(
+    client: Client, job_name: str, namespace: str, timeout: int
+) -> NotebookStatus:
     """Poll a Job until it reaches a terminal status or the wait budget elapses."""
     retryer = tenacity.Retrying(
         wait=tenacity.wait_fixed(10),
@@ -160,14 +174,14 @@ def _wait_for_terminal_status(client: Client, job_name: str, namespace: str, tim
         reraise=True,
     )
 
-    def _check() -> Optional[str]:
+    def _check() -> Optional[NotebookStatus]:
         job = client.get(Job, name=job_name, namespace=namespace)
         return _terminal_status(job)
 
     try:
         return retryer(_check)
     except tenacity.RetryError:
-        return STATUS_TIMEOUT
+        return NotebookStatus.TIMEOUT
 
 
 def _job_logs(job_name: str, namespace: str) -> str:
@@ -244,14 +258,18 @@ def run_notebook_job(
     logs = _job_logs(job_name, namespace)
     payload = _parse_payload(logs)
     # A deadline kill always wins; otherwise trust the runner's own status if present.
-    status = job_status if job_status == STATUS_TIMEOUT else payload.get("status", job_status)
+    status = (
+        NotebookStatus.TIMEOUT
+        if job_status == NotebookStatus.TIMEOUT
+        else NotebookStatus.coerce(payload.get("status"), job_status)
+    )
     result = NotebookResult(
         name=notebook_name,
         status=status,
         duration=duration,
         failing_cell=payload.get("failing_cell"),
         error_summary=payload.get("error", "")
-        or (_tail(logs, 20) if status != STATUS_PASSED else ""),
+        or (_tail(logs, 20) if status != NotebookStatus.PASSED else ""),
         log_tail=_tail(logs, 20),
     )
 
