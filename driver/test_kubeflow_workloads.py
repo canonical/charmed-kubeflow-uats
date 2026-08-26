@@ -43,10 +43,8 @@ JOB_TEMPLATE_FILE = ASSETS_DIR / "test-job.yaml.j2"
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 RUNTIMECLASS_TEMPLATE_FILE = ASSETS_DIR / "runtimeclass.yaml.j2"
 
+TESTS_LOCAL_RUN = eval(os.environ.get("LOCAL"))
 TESTS_LOCAL_DIR = os.path.abspath(Path("tests"))
-
-# Environment variable that selects local (hostPath) mode.
-LOCAL_RUN_ENV_VAR = "LOCAL"
 
 NAMESPACE = "test-kubeflow"
 JOB_PREFIX = "test-nb"
@@ -67,11 +65,6 @@ PODDEFAULT_WITH_TOLERATION_PATH = Path("assets") / "gpu-toleration-poddefault.ya
 PODDEFAULT_WITH_SECURITY_POLICY_PATH = Path("tests") / "security-policy-poddefault.yaml.j2"
 
 KFP_PODDEFAULT_NAME = "access-ml-pipeline"
-
-
-def is_local_run() -> bool:
-    """Return True if the tests run in local (hostPath) mode."""
-    return os.environ.get(LOCAL_RUN_ENV_VAR, "False").strip().lower() in ("true", "1", "yes")
 
 
 @pytest.fixture(scope="module")
@@ -172,12 +165,6 @@ def rerun_failed(request):
 def retry_timeout(request):
     """Return the max retry timeout (seconds) exposed to notebooks as RETRY_TIMEOUT."""
     return int(request.config.getoption("--retry-timeout"))
-
-
-@pytest.fixture(scope="module")
-def local_run():
-    """Return whether the tests run in local (hostPath) mode."""
-    return is_local_run()
 
 
 @pytest.fixture(scope="module")
@@ -337,9 +324,9 @@ def test_create_profile(lightkube_client, create_profile):
 
 
 @pytest.fixture(scope="module")
-def runtimeclass(local_run, k8s_default_runtimeclass_handler, lightkube_client):
+def runtimeclass(k8s_default_runtimeclass_handler, lightkube_client):
     """Create the RuntimeClass used for PSS exemption in local runs; clean up after."""
-    if not local_run:
+    if not TESTS_LOCAL_RUN:
         yield
         return
 
@@ -430,7 +417,6 @@ def test_notebook_workload(
     tests_image,
     tests_checked_out_commit,
     istio_mode,
-    local_run,
     notebook_timeout,
     retry_timeout,
     keep_artifacts,
@@ -458,7 +444,7 @@ def test_notebook_workload(
         context = _notebook_job_context(
             job_name=job_name,
             notebook_path=notebook,
-            local_run=local_run,
+            local_run=TESTS_LOCAL_RUN,
             tests_image=tests_image,
             tests_remote_commit=tests_checked_out_commit,
             notebook_timeout=notebook_timeout,
