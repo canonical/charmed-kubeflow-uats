@@ -41,12 +41,19 @@ RUNTIMECLASS_RESOURCE = create_global_resource(
     plural="runtimeclasses",
 )
 
-# Markers emitted by the in-cluster runner and parsed from the Job logs.
+# Markers emitted by the in-cluster runner and parsed here; keep in sync with the emitters:
+# the result marker in tests/utils.py (emit_result_marker) and the artifact marker in
+# assets/test-job.yaml.j2.
 _RESULT_RE = re.compile(r"===UAT-RESULT===(?P<payload>.*?)===END-UAT-RESULT===", re.DOTALL)
 _ARTIFACT_RE = re.compile(
     r"===UAT-ARTIFACT:(?P<name>[^=]+)===\n(?P<blob>.*?)\n===END-UAT-ARTIFACT===",
     re.DOTALL,
 )
+
+# Terminal statuses reported for a single notebook run.
+STATUS_PASSED = "PASSED"
+STATUS_FAILED = "FAILED"
+STATUS_TIMEOUT = "TIMEOUT"
 
 
 @dataclass
@@ -54,7 +61,7 @@ class NotebookResult:
     """Outcome of running a single notebook as a Kubernetes Job."""
 
     name: str
-    status: str  # "PASSED", "FAILED", or "TIMEOUT"
+    status: str  # one of STATUS_PASSED / STATUS_FAILED / STATUS_TIMEOUT
     duration: float = 0.0
     failing_cell: Optional[int] = None
     error_summary: str = ""
@@ -64,7 +71,7 @@ class NotebookResult:
     @property
     def succeeded(self) -> bool:
         """Return whether the notebook run passed."""
-        return self.status == "PASSED"
+        return self.status == STATUS_PASSED
 
 
 def discover_notebooks(directory: str) -> Dict[str, str]:
@@ -135,12 +142,12 @@ def _terminal_status(job) -> Optional[str]:
     if status is None:
         return None
     if status.succeeded:
-        return "PASSED"
+        return STATUS_PASSED
     if status.failed:
         for condition in status.conditions or []:
             if condition.type == "Failed" and condition.reason == "DeadlineExceeded":
-                return "TIMEOUT"
-        return "FAILED"
+                return STATUS_TIMEOUT
+        return STATUS_FAILED
     return None
 
 
@@ -160,7 +167,7 @@ def _wait_for_terminal_status(client: Client, job_name: str, namespace: str, tim
     try:
         return retryer(_check)
     except tenacity.RetryError:
-        return "TIMEOUT"
+        return STATUS_TIMEOUT
 
 
 def _job_logs(job_name: str, namespace: str) -> str:
@@ -237,13 +244,14 @@ def run_notebook_job(
     logs = _job_logs(job_name, namespace)
     payload = _parse_payload(logs)
     # A deadline kill always wins; otherwise trust the runner's own status if present.
-    status = job_status if job_status == "TIMEOUT" else payload.get("status", job_status)
+    status = job_status if job_status == STATUS_TIMEOUT else payload.get("status", job_status)
     result = NotebookResult(
         name=notebook_name,
         status=status,
         duration=duration,
         failing_cell=payload.get("failing_cell"),
-        error_summary=payload.get("error", "") or (_tail(logs, 20) if status != "PASSED" else ""),
+        error_summary=payload.get("error", "")
+        or (_tail(logs, 20) if status != STATUS_PASSED else ""),
         log_tail=_tail(logs, 20),
     )
 

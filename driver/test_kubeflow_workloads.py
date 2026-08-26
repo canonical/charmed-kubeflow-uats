@@ -45,6 +45,9 @@ RUNTIMECLASS_TEMPLATE_FILE = ASSETS_DIR / "runtimeclass.yaml.j2"
 
 TESTS_LOCAL_DIR = os.path.abspath(Path("tests"))
 
+# Environment variable that selects local (hostPath) mode.
+LOCAL_RUN_ENV_VAR = "LOCAL"
+
 NAMESPACE = "test-kubeflow"
 JOB_PREFIX = "test-nb"
 JOB_RUNTIMECLASS_NAME = "uats"
@@ -53,6 +56,11 @@ JOB_RUNTIMECLASS_NAME = "uats"
 # directory where the driver stores collected artifacts when --keep-artifacts is set.
 POD_ARTIFACTS_DIR = "/tmp/uat-artifacts"
 ARTIFACTS_ROOT = Path("artifacts")
+
+# The tests directory inside the Job pod: the hostPath mount (local) or the git-synced
+# repo's tests dir (remote). Kept in sync with the volume/git-sync setup in test-job.yaml.j2.
+POD_TESTS_DIR_LOCAL = "/tests"
+POD_TESTS_DIR_REMOTE = "/tests/charmed-kubeflow-uats/tests"
 
 PODDEFAULT_WITH_PROXY_PATH = Path("tests") / "proxy-poddefault.yaml.j2"
 PODDEFAULT_WITH_TOLERATION_PATH = Path("assets") / "gpu-toleration-poddefault.yaml.j2"
@@ -63,7 +71,7 @@ KFP_PODDEFAULT_NAME = "access-ml-pipeline"
 
 def is_local_run() -> bool:
     """Return True if the tests run in local (hostPath) mode."""
-    return os.environ.get("LOCAL", "False").strip().lower() in ("true", "1", "yes")
+    return os.environ.get(LOCAL_RUN_ENV_VAR, "False").strip().lower() in ("true", "1", "yes")
 
 
 @pytest.fixture(scope="module")
@@ -361,9 +369,8 @@ def runtimeclass(local_run, k8s_default_runtimeclass_handler, lightkube_client):
 def _in_pod_notebook_path(host_path: str, local_run: bool) -> str:
     """Map a host notebook path to its path inside the Job pod."""
     relative = os.path.relpath(host_path, start=TESTS_LOCAL_DIR)
-    if local_run:
-        return f"/tests/{relative}"
-    return f"/tests/charmed-kubeflow-uats/tests/{relative}"
+    base = POD_TESTS_DIR_LOCAL if local_run else POD_TESTS_DIR_REMOTE
+    return f"{base}/{relative}"
 
 
 def _notebook_job_context(
@@ -384,6 +391,7 @@ def _notebook_job_context(
     return {
         "job_name": job_name,
         "tests_local_run": local_run,
+        "pod_tests_dir": POD_TESTS_DIR_LOCAL if local_run else POD_TESTS_DIR_REMOTE,
         "tests_local_dir": TESTS_LOCAL_DIR,
         "tests_image": tests_image,
         "tests_remote_commit": tests_remote_commit,

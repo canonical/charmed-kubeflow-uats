@@ -30,8 +30,9 @@ def _persist_artifacts(notebook, notebook_path, notebook_name, artifacts_dir):
         # persist the notebook output to the original file for debugging purposes
         save_notebook(notebook, notebook_path)
     except PermissionError as error:
-        # If the notebook cannot be saved in-place, log the error and continue
-        print(f"Permission error while saving notebook: {error}")
+        # The original notebook may sit on a read-only / foreign-owned mount; the artifacts
+        # dir below is a writable tmp path, so continue and still save there.
+        print(f"Could not save notebook in place: {error}")
     if artifacts_dir:
         os.makedirs(artifacts_dir, exist_ok=True)
         save_notebook(notebook, os.path.join(artifacts_dir, f"{notebook_name}.ipynb"))

@@ -46,6 +46,7 @@ def emit_result_marker(name, status, failing_cell, error):
         "failing_cell": failing_cell,
         "error": error,
     }
+    # Format must match _RESULT_RE in driver/notebook_jobs.py.
     print(f"===UAT-RESULT==={json.dumps(payload)}===END-UAT-RESULT===", flush=True)
 
 

@@ -181,7 +181,9 @@ def pytest_addoption(parser: Parser):
         help="Keep everything created for inspection: per-notebook artifacts on the host, the"
         " notebook Jobs, the test Profile, and the workloads the notebooks create (inference"
         " services, training jobs, etc.). Exposed to notebooks as the KEEP_ARTIFACTS env var."
-        " By default all of these are cleaned up.",
+        " By default all of these are cleaned up. NOTE: cleanup is best-effort and not"
+        " exhaustive across all notebooks, so the default does not guarantee a full restore of"
+        " the deployment state.",
     )
     parser.addoption(
         "--include-multi-tenancy-tests",
