@@ -200,6 +200,17 @@ def _tail(text: str, lines: int) -> str:
     return "\n".join(text.splitlines()[-lines:])
 
 
+def _strip_marker_blocks(logs: str) -> str:
+    """Return ``logs`` without the runner's result/artifact marker blocks.
+
+    The artifact blobs are large gzip+base64 payloads; dropping them (and the result
+    marker) keeps the human-facing error summary and log tail readable.
+    """
+    stripped = _ARTIFACT_RE.sub("", logs)
+    stripped = _RESULT_RE.sub("", stripped)
+    return stripped.strip()
+
+
 def _parse_payload(logs: str) -> dict:
     """Return the structured result payload emitted by the runner, or an empty dict."""
     match = _RESULT_RE.search(logs)
@@ -257,6 +268,8 @@ def run_notebook_job(
 
     logs = _job_logs(job_name, namespace)
     payload = _parse_payload(logs)
+    # Drop the marker blocks (esp. the large base64 artifacts) from the human-facing tail.
+    readable_logs = _strip_marker_blocks(logs)
     # A deadline kill always wins; otherwise trust the runner's own status if present.
     status = (
         NotebookStatus.TIMEOUT
@@ -269,8 +282,8 @@ def run_notebook_job(
         duration=duration,
         failing_cell=payload.get("failing_cell"),
         error_summary=payload.get("error", "")
-        or (_tail(logs, 20) if status != NotebookStatus.PASSED else ""),
-        log_tail=_tail(logs, 20),
+        or (_tail(readable_logs, 20) if status != NotebookStatus.PASSED else ""),
+        log_tail=_tail(readable_logs, 20),
     )
 
     if keep_artifacts:
