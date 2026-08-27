@@ -138,6 +138,7 @@ def get_token(client_id: str, client_secret: str, issuer_url: str) -> str:
         verify=False,
     )
     log.info(f"Obtained access token for client {client_id}")
+    log.info(f"Token: {token}")
     return token["access_token"]
 
 
