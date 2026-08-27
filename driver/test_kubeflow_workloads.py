@@ -20,6 +20,7 @@ from lightkube.generic_resource import load_in_cluster_generic_resources
 from lightkube.types import CascadeType
 from notebook_jobs import (
     RUNTIMECLASS_RESOURCE,
+    NotebookResult,
     job_name_for,
     record_result,
     render_notebook_job,
@@ -395,7 +396,7 @@ def _notebook_job_context(
     }
 
 
-def _failure_message(result) -> str:
+def _failure_message(result: NotebookResult) -> str:
     """Build a concise, actionable failure message for a notebook result."""
     lines = [f"Notebook '{result.name}' {result.status}."]
     if result.failing_cell is not None:
@@ -404,8 +405,8 @@ def _failure_message(result) -> str:
         lines.append(f"Error: {result.error_summary}")
     if result.artifacts_dir:
         lines.append(f"Artifacts: {result.artifacts_dir}")
-    if result.log_tail:
-        lines.append(f"Recent logs:\n{result.log_tail}")
+    if result.logs:
+        lines.append(f"Recent logs:\n{result.logs}")
     return "\n".join(lines)
 
 

@@ -77,7 +77,7 @@ class NotebookResult:
     duration: float = 0.0
     failing_cell: Optional[int] = None
     error_summary: str = ""
-    log_tail: str = ""
+    logs: str = ""
     artifacts_dir: Optional[str] = None
 
     @property
@@ -282,8 +282,8 @@ def run_notebook_job(
         duration=duration,
         failing_cell=payload.get("failing_cell"),
         error_summary=payload.get("error", "")
-        or (_tail(readable_logs, 20) if status != NotebookStatus.PASSED else ""),
-        log_tail=_tail(readable_logs, 20),
+        or (readable_logs if status != NotebookStatus.PASSED else ""),
+        logs=readable_logs,
     )
 
     if keep_artifacts:
