@@ -472,4 +472,7 @@ def test_notebook_workload(
         if attempt < rerun_failed:
             log.warning(f"Notebook '{notebook_name}' {result.status}; retrying ({attempt + 1})...")
 
-    assert result.succeeded, _failure_message(result)
+    if not result.succeeded:
+        # pytrace=False keeps the output to our concise message, dropping pytest's
+        # assert introspection (the noisy "where False = NotebookResult(...)" dump).
+        pytest.fail(_failure_message(result), pytrace=False)
