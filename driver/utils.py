@@ -7,7 +7,12 @@ from typing import Dict
 
 import tenacity
 from lightkube import ApiError, Client, codecs
-from lightkube.generic_resource import create_global_resource, create_namespaced_resource
+from lightkube.generic_resource import (
+    GenericGlobalResource,
+    GenericNamespacedResource,
+    create_global_resource,
+    create_namespaced_resource,
+)
 from lightkube.resources.core_v1 import Namespace, Pod, ServiceAccount
 
 PROFILE_RESOURCE = create_global_resource(
@@ -90,6 +95,69 @@ def assert_service_account_exists(
     except ApiError:
         log.info(f"Waiting for ServiceAccount {name} to be created in namespace {namespace}..")
     assert service_account is not None, f"Waited too long for ServiceAccount {name} to be created."
+
+
+@tenacity.retry(
+    wait=tenacity.wait_exponential(multiplier=2, min=1, max=10),
+    stop=tenacity.stop_after_attempt(30),
+    reraise=True,
+)
+def assert_resource_deleted(
+    client: Client,
+    resource_type: type[GenericGlobalResource | GenericNamespacedResource],
+    resource_name: str,
+    logger: logging.Logger,
+):
+    """Assert that the specified resource is deleted.
+
+    Retries multiple times to allow for the resource to be deleted.
+    """
+    deleted = False
+    try:
+        client.get(resource_type, resource_name)
+    except ApiError as error:
+        if error.status.code != 404:
+            logger.info(
+                f"Unable to get resource {resource_name} (kind: {resource_type.kind}) (status: {error.status.code})"
+            )
+            raise
+        else:
+            deleted = True
+
+    logger.info(
+        f"Waiting for resource {resource_name} (kind: {resource_type.kind}) to be deleted.."
+    )
+
+    assert (
+        deleted
+    ), f"Waited too long for resource {resource_name} (kind: {resource_type.kind}) to be deleted!"
+
+
+@tenacity.retry(
+    wait=tenacity.wait_exponential(multiplier=2, min=1, max=10),
+    stop=tenacity.stop_after_attempt(30),
+    reraise=True,
+)
+def assert_runtimeclass_deleted(client, runtimeclass_name, logger: logging.Logger):
+    """Assert that the Profile is deleted.
+
+    Retries multiple times to allow for the Profile to be deleted.
+    """
+    deleted = False
+    try:
+        client.get(PROFILE_RESOURCE, runtimeclass_name)
+    except ApiError as error:
+        if error.status.code != 404:
+            logger.info(
+                f"Unable to get RuntimeClass {runtimeclass_name} (status: {error.status.code})"
+            )
+            raise
+        else:
+            deleted = True
+
+    logger.info(f"Waiting for RuntimeClass {runtimeclass_name} to be deleted..")
+
+    assert deleted, f"Waited too long for RuntimeClass {runtimeclass_name} to be deleted!"
 
 
 @tenacity.retry(

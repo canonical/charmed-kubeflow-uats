@@ -1,6 +1,6 @@
 # Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
-"""Execute a single UAT notebook, persist its artifacts, and report the result.
+"""Execute a single UAT notebook and report the result.
 
 This is the entrypoint run inside each per-notebook Job (``python3 run_notebook.py
 <path>``). The driver is the test framework (one Job per notebook, pass/fail, retries,
@@ -19,24 +19,7 @@ from utils import (
     first_error_cell_index,
     format_error_message,
     install_python_requirements,
-    render_notebook_html,
-    save_notebook,
 )
-
-
-def _persist_artifacts(notebook, notebook_path, notebook_name, artifacts_dir):
-    """Save the executed notebook in place and, if configured, to the artifacts dir."""
-    try:
-        # persist the notebook output to the original file for debugging purposes
-        save_notebook(notebook, notebook_path)
-    except PermissionError as error:
-        # The original notebook may sit on a read-only / foreign-owned mount; the artifacts
-        # dir below is a writable tmp path, so continue and still save there.
-        print(f"Could not save notebook in place: {error}")
-    if artifacts_dir:
-        os.makedirs(artifacts_dir, exist_ok=True)
-        save_notebook(notebook, os.path.join(artifacts_dir, f"{notebook_name}.ipynb"))
-        render_notebook_html(notebook, os.path.join(artifacts_dir, f"{notebook_name}.html"))
 
 
 def _raises_exception_failure(notebook):
@@ -51,7 +34,7 @@ def _raises_exception_failure(notebook):
     return None
 
 
-def execute_notebook(notebook_path, artifacts_dir=None):
+def execute_notebook(notebook_path):
     """Execute one notebook and return ``(name, status, failing_cell, error_text)``.
 
     ``status`` is ``"PASSED"`` or ``"FAILED"``. The notebook's ``requirements.txt`` (if
@@ -72,7 +55,7 @@ def execute_notebook(notebook_path, artifacts_dir=None):
     ep = ExecutePreprocessor(timeout=-1, kernel_name="python3")
     ep.skip_cells_with_tag = "pytest-skip"
 
-    # nbclient mutates the notebook in place, so keep a reference for saving/inspection
+    # nbclient mutates the notebook in place, so keep a reference for inspection
     # even if execution raises partway through.
     executed = notebook
     failing_cell = None
@@ -84,8 +67,6 @@ def execute_notebook(notebook_path, artifacts_dir=None):
         failing_cell = first_error_cell_index(executed)
         error_text = f"{error.ename}: {error.evalue}"
         print(format_error_message(error.traceback))
-    finally:
-        _persist_artifacts(executed, notebook_path, notebook_name, artifacts_dir)
 
     # A cell tagged `raises-exception` that still errors is treated as a failure.
     if failing_cell is None:
@@ -105,9 +86,7 @@ def main(argv=None):
         print("usage: run_notebook.py <notebook-path>  (or set NOTEBOOK_PATH)")
         return 2
 
-    name, status, failing_cell, error_text = execute_notebook(
-        notebook_path, os.getenv("ARTIFACTS_DIR")
-    )
+    name, status, failing_cell, error_text = execute_notebook(notebook_path)
     emit_result_marker(name, status, failing_cell, error_text)
     if status != "PASSED":
         print(f"Notebook '{name}' FAILED at cell {failing_cell}: {error_text}")

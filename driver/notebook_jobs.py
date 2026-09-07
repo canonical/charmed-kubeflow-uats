@@ -8,13 +8,11 @@ here makes the test body thin and lets each piece be reasoned about (and unit-te
 independently.
 
 The reliable channel for a notebook's outcome is its **logs**: the in-cluster runner
-prints a machine-readable result marker (and, when artifacts are kept, gzip+base64
-blobs) to stdout, which ``kubectl logs`` retrieves even from a completed pod. This
-avoids any dependency on shared (RWX) storage, keeping the suite portable.
+prints a machine-readable result marker to stdout, which ``kubectl logs`` retrieves even
+from a completed pod. On failure the driver saves those logs to a file for debugging.
+This avoids any dependency on shared (RWX) storage, keeping the suite portable.
 """
 
-import base64
-import gzip
 import hashlib
 import json
 import logging
@@ -42,14 +40,9 @@ RUNTIMECLASS_RESOURCE = create_global_resource(
     plural="runtimeclasses",
 )
 
-# Markers emitted by the in-cluster runner and parsed here; keep in sync with the emitters:
-# the result marker in tests/utils.py (emit_result_marker) and the artifact marker in
-# assets/test-job.yaml.j2.
+# Result marker emitted by the in-cluster runner and parsed here; keep in sync with the
+# emitter in tests/utils.py (emit_result_marker).
 _RESULT_RE = re.compile(r"===UAT-RESULT===(?P<payload>.*?)===END-UAT-RESULT===", re.DOTALL)
-_ARTIFACT_RE = re.compile(
-    r"===UAT-ARTIFACT:(?P<name>[^=]+)===\n(?P<blob>.*?)\n===END-UAT-ARTIFACT===",
-    re.DOTALL,
-)
 
 
 class NotebookStatus(StrEnum):
@@ -78,7 +71,7 @@ class NotebookResult:
     failing_cell: Optional[int] = None
     error_summary: str = ""
     logs: str = ""
-    artifacts_dir: Optional[str] = None
+    log_file: Optional[str] = None
 
     @property
     def succeeded(self) -> bool:
@@ -201,14 +194,11 @@ def _tail(text: str, lines: int) -> str:
 
 
 def _strip_marker_blocks(logs: str) -> str:
-    """Return ``logs`` without the runner's result/artifact marker blocks.
+    """Return ``logs`` without the runner's result marker block.
 
-    The artifact blobs are large gzip+base64 payloads; dropping them (and the result
-    marker) keeps the human-facing error summary and log tail readable.
+    Dropping the machine-readable marker keeps the human-facing error summary readable.
     """
-    stripped = _ARTIFACT_RE.sub("", logs)
-    stripped = _RESULT_RE.sub("", stripped)
-    return stripped.strip()
+    return _RESULT_RE.sub("", logs).strip()
 
 
 def _parse_payload(logs: str) -> dict:
@@ -222,17 +212,13 @@ def _parse_payload(logs: str) -> dict:
         return {}
 
 
-def _extract_artifacts(logs: str, dest_dir: Path) -> None:
-    """Decode gzip+base64 artifact blobs from ``logs`` into ``dest_dir``."""
+def _save_logs(logs: str, notebook_name: str, dest_root: str) -> Path:
+    """Write a notebook's Job logs to ``<dest_root>/<notebook_name>.log``; return the path."""
+    dest_dir = Path(dest_root)
     dest_dir.mkdir(parents=True, exist_ok=True)
-    for match in _ARTIFACT_RE.finditer(logs):
-        name = match.group("name").strip()
-        try:
-            data = gzip.decompress(base64.b64decode(match.group("blob")))
-        except (ValueError, OSError) as error:
-            log.warning(f"Failed to decode artifact {name}: {error}")
-            continue
-        (dest_dir / name).write_bytes(data)
+    log_path = dest_dir / f"{notebook_name}.log"
+    log_path.write_text(logs)
+    return log_path
 
 
 def _delete_job(client: Client, job_name: str, namespace: str) -> None:
@@ -255,9 +241,9 @@ def run_notebook_job(
 ) -> NotebookResult:
     """Create the Job for one notebook, wait for it, and return its result.
 
-    The notebook's logs carry the structured result and, when ``keep_artifacts`` is
-    set, the base64-encoded artifacts. The Job is deleted unless ``keep_artifacts`` is
-    set (in which case it is left in the cluster for inspection).
+    The notebook's logs carry the structured result marker; on failure/timeout they are
+    saved to a file for debugging. The Job is deleted unless ``keep_artifacts`` is set
+    (in which case it is left in the cluster for inspection).
     """
     job_name = manifest.metadata.name
     log.info(f"Running notebook '{notebook_name}' as Job {namespace}/{job_name}...")
@@ -268,7 +254,7 @@ def run_notebook_job(
 
     logs = _job_logs(job_name, namespace)
     payload = _parse_payload(logs)
-    # Drop the marker blocks (esp. the large base64 artifacts) from the human-facing tail.
+    # Drop the result marker from the human-facing tail.
     readable_logs = _strip_marker_blocks(logs)
     # A deadline kill always wins; otherwise trust the runner's own status if present.
     status = (
@@ -286,11 +272,10 @@ def run_notebook_job(
         logs=readable_logs,
     )
 
-    if keep_artifacts:
-        dest = Path(artifacts_root) / notebook_name
-        _extract_artifacts(logs, dest)
-        result.artifacts_dir = str(dest)
-    else:
+    if status != NotebookStatus.PASSED:
+        result.log_file = str(_save_logs(logs, notebook_name, artifacts_root))
+
+    if not keep_artifacts:
         _delete_job(client, job_name, namespace)
 
     log.info(f"Notebook '{notebook_name}' finished: {result.status} in {duration:.0f}s")

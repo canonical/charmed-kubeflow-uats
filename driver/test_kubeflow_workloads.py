@@ -31,7 +31,7 @@ from utils import (
     PROFILE_RESOURCE,
     assert_namespace_active,
     assert_poddefault_created_in_namespace,
-    assert_profile_deleted,
+    assert_resource_deleted,
     context_from,
     create_poddefault,
 )
@@ -51,9 +51,7 @@ NAMESPACE = "test-kubeflow"
 JOB_PREFIX = "test-nb"
 JOB_RUNTIMECLASS_NAME = "uats"
 
-# Directory (inside the Job pod) where each notebook writes its artifacts, and the host
-# directory where the driver stores collected artifacts when --keep-artifacts is set.
-POD_ARTIFACTS_DIR = "/tmp/uat-artifacts"
+# Host directory where the driver saves a notebook's Job logs (on failure/timeout).
 ARTIFACTS_ROOT = Path("artifacts")
 
 # The tests directory inside the Job pod: the hostPath mount (local) or the git-synced
@@ -198,7 +196,7 @@ def create_profile(lightkube_client, keep_artifacts):
     # delete the Profile at the end of the module tests
     log.info(f"Deleting Profile {NAMESPACE}...")
     lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE, cascade=CascadeType.FOREGROUND)
-    assert_profile_deleted(lightkube_client, NAMESPACE, log)
+    assert_resource_deleted(PROFILE_RESOURCE, lightkube_client, NAMESPACE, log)
 
 
 @pytest.fixture(scope="function")
@@ -346,12 +344,17 @@ def runtimeclass(k8s_default_runtimeclass_handler, lightkube_client):
 
     yield
 
+    if keep_artifacts:
+        log.info(f"Keeping RuntimeClass {JOB_RUNTIMECLASS_NAME} (--keep-artifacts set)")
+        return
+
     log.info("Deleting the RuntimeClass for the Job...")
     try:
         lightkube_client.delete(RUNTIMECLASS_RESOURCE, name=JOB_RUNTIMECLASS_NAME)
     except ApiError as error:
         if error.status.code != 404:
             raise
+    assert_resource_deleted(RUNTIMECLASS_RESOURCE, lightkube_client, JOB_RUNTIMECLASS_NAME)
 
 
 def _in_pod_notebook_path(host_path: str, local_run: bool) -> str:
@@ -384,7 +387,6 @@ def _notebook_job_context(
         "tests_image": tests_image,
         "tests_remote_commit": tests_remote_commit,
         "notebook_path": _in_pod_notebook_path(notebook_path, local_run),
-        "artifacts_dir": POD_ARTIFACTS_DIR,
         "notebook_timeout": notebook_timeout,
         "retry_timeout": retry_timeout,
         "keep_artifacts": keep_artifacts,
@@ -403,8 +405,8 @@ def _failure_message(result: NotebookResult) -> str:
         lines.append(f"Failing cell: {result.failing_cell}")
     if result.error_summary:
         lines.append(f"Error: {result.error_summary}")
-    if result.artifacts_dir:
-        lines.append(f"Artifacts: {result.artifacts_dir}")
+    if result.log_file:
+        lines.append(f"Logs: {result.log_file}")
     if result.logs:
         lines.append(f"Recent logs:\n{result.logs}")
     return "\n".join(lines)

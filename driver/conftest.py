@@ -48,9 +48,10 @@ def pytest_addoption(parser: Parser):
     * Add a `--retry-timeout` option to set the maximum time (seconds) for the tenacity retry
       decorators in the notebooks (exposed to each notebook as the `RETRY_TIMEOUT` env var).
     * Add a `--keep-models` flag to keep temporarily-created Juju models.
-    * Add a `--keep-artifacts` flag to keep everything for inspection (host artifacts, notebook
-      Jobs, the Profile, and the workloads notebooks create); exposed as the `KEEP_ARTIFACTS`
-      env var. By default all of it is cleaned up.
+    * Add a `--keep-artifacts` flag to keep the notebook Jobs, the Profile, and the workloads
+      notebooks create in the cluster for inspection; exposed as the `KEEP_ARTIFACTS` env var.
+      By default all of it is cleaned up. (A failed notebook's Job logs are always saved to a
+      file, regardless of this flag.)
     * Add an `--include-multi-tenancy-tests` flag to include the multi-tenancy integration
       tests in the executed tests.
     """
@@ -178,12 +179,12 @@ def pytest_addoption(parser: Parser):
         "--keep-artifacts",
         action="store_true",
         default=False,
-        help="Keep everything created for inspection: per-notebook artifacts on the host, the"
-        " notebook Jobs, the test Profile, and the workloads the notebooks create (inference"
-        " services, training jobs, etc.). Exposed to notebooks as the KEEP_ARTIFACTS env var."
-        " By default all of these are cleaned up. NOTE: cleanup is best-effort and not"
-        " exhaustive across all notebooks, so the default does not guarantee a full restore of"
-        " the deployment state.",
+        help="Keep created resources for inspection: the notebook Jobs, the test Profile, and"
+        " the workloads the notebooks create (inference services, training jobs, etc.). Exposed"
+        " to notebooks as the KEEP_ARTIFACTS env var. By default all of these are cleaned up."
+        " A failed notebook's Job logs are saved to a file regardless of this flag. NOTE:"
+        " cleanup is best-effort and not exhaustive across all notebooks, so the default does"
+        " not guarantee a full restore of the deployment state.",
     )
     parser.addoption(
         "--include-multi-tenancy-tests",
@@ -285,6 +286,6 @@ def pytest_terminal_summary(terminalreporter, exitstatus, config):
         line = f"{result.status:8} {result.name} ({result.duration:.0f}s)"
         if result.failing_cell is not None:
             line += f" -> cell {result.failing_cell}: {result.error_summary}"
-        if result.artifacts_dir:
-            line += f" [artifacts: {result.artifacts_dir}]"
+        if result.log_file:
+            line += f" [logs: {result.log_file}]"
         terminalreporter.write_line(line)
