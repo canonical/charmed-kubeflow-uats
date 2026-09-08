@@ -6,7 +6,6 @@ import logging
 import os
 import re
 import subprocess
-import sys
 import time
 from functools import reduce
 from pathlib import Path
@@ -80,16 +79,10 @@ def juju(request: pytest.FixtureRequest):
     with model_context as juju:
         yield juju
 
-        if request.session.testsfailed:
-            log.info("Collecting Juju logs...")
-            time.sleep(0.5)  # Wait for Juju to process logs.
-            logging_message = juju.debug_log(limit=1000)
-            print(logging_message, end="", file=sys.stderr)
-
 
 @pytest.fixture(scope="module")
-def charm_list(request):
-    url = request.config.getoption("--bundle")
+def charm_list(request: pytest.FixtureRequest):
+    url: str = request.config.getoption("--bundle")
 
     if not url:
         return {}
@@ -120,48 +113,48 @@ def charm_list(request):
 
 
 @pytest.fixture(scope="module")
-def tests_image(request):
+def tests_image(request: pytest.FixtureRequest):
     return request.config.getoption("--test-image")
 
 
 @pytest.fixture(scope="module")
-def k8s_default_runtimeclass_handler(request):
+def k8s_default_runtimeclass_handler(request: pytest.FixtureRequest):
     return request.config.getoption("--k8s-default-runtimeclass-handler")
 
 
 @pytest.fixture(scope="module")
-def include_ambient(request):
+def include_ambient(request: pytest.FixtureRequest):
     """Retrieve the `--include-ambient-tests` flag from Pytest invocation."""
     return True if request.config.getoption("--include-ambient-tests") else False
 
 
 @pytest.fixture(scope="module")
-def tests_checked_out_commit(request):
+def tests_checked_out_commit():
     """Retrieve active git commit."""
     head = subprocess.check_output(["git", "rev-parse", "HEAD"])
     return head.decode("UTF-8").rstrip()
 
 
 @pytest.fixture(scope="module")
-def notebook_timeout(request):
+def notebook_timeout(request: pytest.FixtureRequest):
     """Return the per-notebook Job timeout (activeDeadlineSeconds) in seconds."""
     return int(request.config.getoption("--notebook-timeout"))
 
 
 @pytest.fixture(scope="module")
-def keep_artifacts(request):
+def keep_artifacts(request: pytest.FixtureRequest):
     """Return whether to keep notebook artifacts on the host and Jobs in the cluster."""
     return bool(request.config.getoption("--keep-artifacts"))
 
 
 @pytest.fixture(scope="module")
-def rerun_failed(request):
+def rerun_failed(request: pytest.FixtureRequest):
     """Return how many times a failed notebook should be retried."""
     return int(request.config.getoption("--rerun-failed-notebooks"))
 
 
 @pytest.fixture(scope="module")
-def retry_timeout(request):
+def retry_timeout(request: pytest.FixtureRequest):
     """Return the max retry timeout (seconds) exposed to notebooks as RETRY_TIMEOUT."""
     return int(request.config.getoption("--retry-timeout"))
 
@@ -175,7 +168,7 @@ def lightkube_client():
 
 
 @pytest.fixture(scope="module")
-def create_profile(lightkube_client, keep_artifacts):
+def create_profile(lightkube_client: Client, keep_artifacts: bool):
     """Create Profile and handle cleanup at the end of the module tests."""
     log.info(f"Creating Profile {NAMESPACE}...")
     resources = list(
@@ -187,7 +180,7 @@ def create_profile(lightkube_client, keep_artifacts):
     assert len(resources) == 1, f"Expected 1 Profile, got {len(resources)}!"
     lightkube_client.create(resources[0])
 
-    yield
+    yield NAMESPACE
 
     if keep_artifacts:
         log.info(f"Keeping Profile {NAMESPACE} (--keep-artifacts set)")
@@ -200,7 +193,7 @@ def create_profile(lightkube_client, keep_artifacts):
 
 
 @pytest.fixture(scope="function")
-def create_poddefault_on_proxy(request, lightkube_client):
+def create_poddefault_on_proxy(request: pytest.FixtureRequest, lightkube_client: Client):
     """Create PodDefault with proxy env variables for the Notebook inside the Job."""
     # Simply yield if the proxy flag is not set
     if not request.config.getoption("proxy"):
@@ -212,7 +205,7 @@ def create_poddefault_on_proxy(request, lightkube_client):
 
 
 @pytest.fixture(scope="function")
-def create_poddefault_on_toleration(request, lightkube_client):
+def create_poddefault_on_toleration(request: pytest.FixtureRequest, lightkube_client: Client):
     """Create PodDefault with toleration for workload pods created by GPU tests."""
     # Simply yield if the proxy flag is not set
     if not request.config.getoption("toleration"):
@@ -227,7 +220,7 @@ def create_poddefault_on_toleration(request, lightkube_client):
 
 
 @pytest.fixture(scope="function")
-def create_poddefault_on_security_policy(request, lightkube_client):
+def create_poddefault_on_security_policy(request: pytest.FixtureRequest, lightkube_client: Client):
     """Create PodDefault with security policy env variables for the Notebook inside the Job."""
     # Simply yield if the option is not set
     if not request.config.getoption("security_policy"):
@@ -243,7 +236,7 @@ def create_poddefault_on_security_policy(request, lightkube_client):
 
 
 @pytest.fixture(scope="module")
-def istio_mode(include_ambient):
+def istio_mode(include_ambient: pytest.FixtureRequest):
     if include_ambient:
         return "ambient"
 
@@ -251,7 +244,7 @@ def istio_mode(include_ambient):
 
 
 @pytest.mark.dependency()
-def test_bundle_correctness(juju, charm_list):
+def test_bundle_correctness(juju: pytest.FixtureRequest, charm_list: pytest.FixtureRequest):
     """Test that the correct bundle is selected.
 
     Tests are specific to each Charmed Kubeflow version release. This test makes sure that
@@ -283,7 +276,7 @@ def test_bundle_correctness(juju, charm_list):
 
 
 @pytest.mark.dependency()
-def test_create_profile(lightkube_client, create_profile):
+def test_create_profile(lightkube_client: Client, create_profile: pytest.FixtureRequest):
     """Test Profile creation.
 
     This test relies on the create_profile fixture, which handles the Profile creation and
@@ -292,14 +285,14 @@ def test_create_profile(lightkube_client, create_profile):
     try:
         profile_created = lightkube_client.get(
             PROFILE_RESOURCE,
-            name=NAMESPACE,
+            name=create_profile,
         )
     except ApiError as e:
         if e.status == 404:
             profile_created = False
         else:
             raise
-    assert profile_created, f"Profile {NAMESPACE} not found!"
+    assert profile_created, f"Profile {create_profile} not found!"
 
     assert_namespace_active(lightkube_client, NAMESPACE)
 
@@ -323,7 +316,9 @@ def test_create_profile(lightkube_client, create_profile):
 
 
 @pytest.fixture(scope="module")
-def runtimeclass(k8s_default_runtimeclass_handler, lightkube_client):
+def runtimeclass(
+    k8s_default_runtimeclass_handler: pytest.FixtureRequest, lightkube_client: Client
+):
     """Create the RuntimeClass used for PSS exemption in local runs; clean up after."""
     if not TESTS_LOCAL_RUN:
         yield
