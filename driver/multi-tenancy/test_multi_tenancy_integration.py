@@ -142,7 +142,7 @@ def _delete_profile(client: Client, namespace: str) -> None:
     """Delete a Kubeflow Profile, tolerating a missing one."""
     try:
         client.delete(PROFILE_RESOURCE, name=namespace, cascade=CascadeType.FOREGROUND)
-        assert_resource_deleted(client, PROFILE_RESOURCE, namespace, namespace, log)
+        assert_resource_deleted(client, PROFILE_RESOURCE, namespace, namespace)
     except ApiError as error:
         if error.status.code != 404:
             raise

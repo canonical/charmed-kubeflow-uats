@@ -118,12 +118,12 @@ def create_profile(lightkube_client):
 
     assert_namespace_active(lightkube_client, NAMESPACE)
 
-    yield NAMESPACE
+    yield
 
     log.info(f"Deleting Profile {NAMESPACE}...")
     try:
         lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE, cascade=CascadeType.FOREGROUND)
-        assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, NAMESPACE, NAMESPACE, log)
+        assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, NAMESPACE, NAMESPACE)
     except ApiError as error:
         if error.status.code != 404:
             raise

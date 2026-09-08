@@ -16,7 +16,6 @@ import requests
 import yaml
 from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import load_in_cluster_generic_resources
-from lightkube.types import CascadeType
 from notebook_jobs import (
     RUNTIMECLASS_RESOURCE,
     NotebookResult,
@@ -46,7 +45,7 @@ RUNTIMECLASS_TEMPLATE_FILE = ASSETS_DIR / "runtimeclass.yaml.j2"
 TESTS_LOCAL_RUN = eval(os.environ.get("LOCAL"))
 TESTS_LOCAL_DIR = os.path.abspath(Path("tests"))
 
-NAMESPACE = "test-kubeflow"
+NAMESPACE = PROFILE_NAME = "test-kubeflow"
 JOB_PREFIX = "test-nb"
 JOB_RUNTIMECLASS_NAME = "uats"
 
@@ -170,7 +169,7 @@ def lightkube_client():
 @pytest.fixture(scope="module")
 def create_profile(lightkube_client: Client, keep_artifacts: bool):
     """Create Profile and handle cleanup at the end of the module tests."""
-    log.info(f"Creating Profile {NAMESPACE}...")
+    log.info(f"Creating Profile {PROFILE_NAME}...")
     resources = list(
         codecs.load_all_yaml(
             PROFILE_TEMPLATE_FILE.read_text(),
@@ -180,32 +179,39 @@ def create_profile(lightkube_client: Client, keep_artifacts: bool):
     assert len(resources) == 1, f"Expected 1 Profile, got {len(resources)}!"
     lightkube_client.create(resources[0])
 
-    yield NAMESPACE
+    yield PROFILE_NAME
 
     if keep_artifacts:
-        log.info(f"Keeping Profile {NAMESPACE} (--keep-artifacts set)")
+        log.info(f"Keeping Profile {PROFILE_NAME} (--keep-artifacts set)")
         return
 
     # delete the Profile at the end of the module tests
-    log.info(f"Deleting Profile {NAMESPACE}...")
-    lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE, cascade=CascadeType.FOREGROUND)
-    assert_resource_deleted(PROFILE_RESOURCE, lightkube_client, NAMESPACE, log)
+    log.info(f"Deleting Profile {PROFILE_NAME}...")
+    assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, PROFILE_NAME)
 
 
 @pytest.fixture(scope="function")
-def create_poddefault_on_proxy(request: pytest.FixtureRequest, lightkube_client: Client):
+def create_poddefault_on_proxy(
+    request: pytest.FixtureRequest, lightkube_client: Client, keep_artifacts: bool
+):
     """Create PodDefault with proxy env variables for the Notebook inside the Job."""
     # Simply yield if the proxy flag is not set
     if not request.config.getoption("proxy"):
         yield
     else:
         yield from create_poddefault(
-            PODDEFAULT_WITH_PROXY_PATH, context_from("proxy", request), NAMESPACE, lightkube_client
+            PODDEFAULT_WITH_PROXY_PATH,
+            context_from("proxy", request),
+            NAMESPACE,
+            lightkube_client,
+            keep_artifacts,
         )
 
 
 @pytest.fixture(scope="function")
-def create_poddefault_on_toleration(request: pytest.FixtureRequest, lightkube_client: Client):
+def create_poddefault_on_toleration(
+    request: pytest.FixtureRequest, lightkube_client: Client, keep_artifacts: bool
+):
     """Create PodDefault with toleration for workload pods created by GPU tests."""
     # Simply yield if the proxy flag is not set
     if not request.config.getoption("toleration"):
@@ -216,11 +222,14 @@ def create_poddefault_on_toleration(request: pytest.FixtureRequest, lightkube_cl
             context_from("toleration", request),
             NAMESPACE,
             lightkube_client,
+            keep_artifacts,
         )
 
 
 @pytest.fixture(scope="function")
-def create_poddefault_on_security_policy(request: pytest.FixtureRequest, lightkube_client: Client):
+def create_poddefault_on_security_policy(
+    request: pytest.FixtureRequest, lightkube_client: Client, keep_artifacts: bool
+):
     """Create PodDefault with security policy env variables for the Notebook inside the Job."""
     # Simply yield if the option is not set
     if not request.config.getoption("security_policy"):
@@ -232,6 +241,7 @@ def create_poddefault_on_security_policy(request: pytest.FixtureRequest, lightku
             security_policy_context,
             NAMESPACE,
             lightkube_client,
+            keep_artifacts,
         )
 
 
@@ -285,14 +295,14 @@ def test_create_profile(lightkube_client: Client, create_profile: pytest.Fixture
     try:
         profile_created = lightkube_client.get(
             PROFILE_RESOURCE,
-            name=create_profile,
+            name=PROFILE_NAME,
         )
     except ApiError as e:
         if e.status == 404:
             profile_created = False
         else:
             raise
-    assert profile_created, f"Profile {create_profile} not found!"
+    assert profile_created, f"Profile {PROFILE_NAME} not found!"
 
     assert_namespace_active(lightkube_client, NAMESPACE)
 
@@ -317,7 +327,9 @@ def test_create_profile(lightkube_client: Client, create_profile: pytest.Fixture
 
 @pytest.fixture(scope="module")
 def runtimeclass(
-    k8s_default_runtimeclass_handler: pytest.FixtureRequest, lightkube_client: Client
+    k8s_default_runtimeclass_handler: pytest.FixtureRequest,
+    lightkube_client: Client,
+    keep_artifacts: bool,
 ):
     """Create the RuntimeClass used for PSS exemption in local runs; clean up after."""
     if not TESTS_LOCAL_RUN:
@@ -342,14 +354,7 @@ def runtimeclass(
     if keep_artifacts:
         log.info(f"Keeping RuntimeClass {JOB_RUNTIMECLASS_NAME} (--keep-artifacts set)")
         return
-
-    log.info("Deleting the RuntimeClass for the Job...")
-    try:
-        lightkube_client.delete(RUNTIMECLASS_RESOURCE, name=JOB_RUNTIMECLASS_NAME)
-    except ApiError as error:
-        if error.status.code != 404:
-            raise
-    assert_resource_deleted(RUNTIMECLASS_RESOURCE, lightkube_client, JOB_RUNTIMECLASS_NAME)
+    assert_resource_deleted(lightkube_client, RUNTIMECLASS_RESOURCE, JOB_RUNTIMECLASS_NAME)
 
 
 def _in_pod_notebook_path(host_path: str, local_run: bool) -> str:
@@ -388,20 +393,14 @@ def _notebook_job_context(
         "proxy": proxy,
         "security_policy": security_policy,
         "kubeflow_namespace": kubeflow_namespace,
-        "user_namespace": NAMESPACE,
+        "user_namespace": PROFILE_NAME,
         "istio_mode": istio_mode,
     }
 
 
 def _failure_message(result: NotebookResult) -> str:
-    """Build a concise, actionable failure message for a notebook result."""
+    """Build a failure message with the full Job logs and the saved-log path."""
     lines = [f"Notebook '{result.name}' {result.status}."]
-    if result.failing_cell is not None:
-        lines.append(f"Failing cell: {result.failing_cell}")
-    if result.error_summary:
-        lines.append(f"Error: {result.error_summary}")
-    if result.log_file:
-        lines.append(f"Logs path: {result.log_file}")
     if result.logs:
         lines.append(f"Job logs:\n{result.logs}")
     return "\n".join(lines)
@@ -411,19 +410,19 @@ def _failure_message(result: NotebookResult) -> str:
 def test_notebook_workload(
     notebook,
     juju,
-    lightkube_client,
+    lightkube_client: Client,
     tests_image,
-    tests_checked_out_commit,
-    istio_mode,
-    notebook_timeout,
-    retry_timeout,
-    keep_artifacts,
-    rerun_failed,
+    tests_checked_out_commit: str,
+    istio_mode: str,
+    notebook_timeout: int,
+    retry_timeout: int,
+    keep_artifacts: bool,
+    rerun_failed: bool,
     runtimeclass,
     create_poddefault_on_proxy,
     create_poddefault_on_toleration,
     create_poddefault_on_security_policy,
-    request,
+    request: pytest.FixtureRequest,
 ):
     """Run a single UAT notebook as an isolated Kubernetes Job.
 

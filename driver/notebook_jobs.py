@@ -7,14 +7,13 @@ result parsing used by the driver's parametrised notebook test. Keeping these pi
 here makes the test body thin and lets each piece be reasoned about (and unit-tested)
 independently.
 
-The reliable channel for a notebook's outcome is its **logs**: the in-cluster runner
-prints a machine-readable result marker to stdout, which ``kubectl logs`` retrieves even
-from a completed pod. On failure the driver saves those logs to a file for debugging.
-This avoids any dependency on shared (RWX) storage, keeping the suite portable.
+A notebook's outcome is the **Job's status** (driven by the pod's exit code): success →
+PASSED, a non-zero exit → FAILED, and a Job deadline → TIMEOUT. On failure the driver
+saves the pod logs to a file for debugging. This needs no shared (RWX) storage, keeping
+the suite portable.
 """
 
 import hashlib
-import json
 import logging
 import os
 import re
@@ -40,10 +39,6 @@ RUNTIMECLASS_RESOURCE = create_global_resource(
     plural="runtimeclasses",
 )
 
-# Result marker emitted by the in-cluster runner and parsed here; keep in sync with the
-# emitter in tests/utils.py (emit_result_marker).
-_RESULT_RE = re.compile(r"===UAT-RESULT===(?P<payload>.*?)===END-UAT-RESULT===", re.DOTALL)
-
 
 class NotebookStatus(StrEnum):
     """Terminal status reported for a single notebook run."""
@@ -51,14 +46,6 @@ class NotebookStatus(StrEnum):
     PASSED = "PASSED"
     FAILED = "FAILED"
     TIMEOUT = "TIMEOUT"
-
-    @classmethod
-    def coerce(cls, value, default: "NotebookStatus") -> "NotebookStatus":
-        """Return the status matching ``value``, or ``default`` if it is not a known one."""
-        try:
-            return cls(value)
-        except ValueError:
-            return default
 
 
 @dataclass
@@ -68,10 +55,8 @@ class NotebookResult:
     name: str
     status: NotebookStatus
     duration: float = 0.0
-    failing_cell: Optional[int] = None
-    error_summary: str = ""
-    logs: str = ""
     log_file: Optional[str] = None
+    logs: str = ""
 
     @property
     def succeeded(self) -> bool:
@@ -188,25 +173,6 @@ def _job_logs(client: Client, job_name: str, namespace: str) -> str:
     return "".join(logs)
 
 
-def _strip_marker_blocks(logs: str) -> str:
-    """Return ``logs`` without the runner's result marker block.
-
-    Dropping the machine-readable marker keeps the human-facing error summary readable.
-    """
-    return _RESULT_RE.sub("", logs).strip()
-
-
-def _parse_payload(logs: str) -> dict:
-    """Return the structured result payload emitted by the runner, or an empty dict."""
-    match = _RESULT_RE.search(logs)
-    if not match:
-        return {}
-    try:
-        return json.loads(match.group("payload").strip())
-    except json.JSONDecodeError:
-        return {}
-
-
 def _save_logs(logs: str, notebook_name: str, dest_root: str) -> Path:
     """Write a notebook's Job logs to ``<dest_root>/<notebook_name>.log``; return the path."""
     dest_dir = Path(dest_root)
@@ -236,39 +202,22 @@ def run_notebook_job(
 ) -> NotebookResult:
     """Create the Job for one notebook, wait for it, and return its result.
 
-    The notebook's logs carry the structured result marker; on failure/timeout they are
-    saved to a file for debugging. The Job is deleted unless ``keep_artifacts`` is set
-    (in which case it is left in the cluster for inspection).
+    The outcome is the Job's status: PASSED (exit 0), FAILED (non-zero exit), or TIMEOUT
+    (Job deadline). On failure the pod logs are saved to a file for debugging. The Job is
+    deleted unless ``keep_artifacts`` is set (kept in the cluster for inspection).
     """
     job_name = manifest.metadata.name
     log.info(f"Running notebook '{notebook_name}' as Job {namespace}/{job_name}...")
     start = time.monotonic()
     client.create(manifest, namespace=namespace)
-    job_status = _wait_for_terminal_status(client, job_name, namespace, timeout)
+    status = _wait_for_terminal_status(client, job_name, namespace, timeout)
     duration = time.monotonic() - start
 
-    logs = _job_logs(client, job_name, namespace)
-    payload = _parse_payload(logs)
-    # Drop the result marker from the human-facing tail.
-    readable_logs = _strip_marker_blocks(logs)
-    # A deadline kill always wins; otherwise trust the runner's own status if present.
-    status = (
-        NotebookStatus.TIMEOUT
-        if job_status == NotebookStatus.TIMEOUT
-        else NotebookStatus.coerce(payload.get("status"), job_status)
-    )
-    result = NotebookResult(
-        name=notebook_name,
-        status=status,
-        duration=duration,
-        failing_cell=payload.get("failing_cell"),
-        error_summary=payload.get("error", "")
-        or (readable_logs if status != NotebookStatus.PASSED else ""),
-        logs=readable_logs,
-    )
-
+    result = NotebookResult(name=notebook_name, status=status, duration=duration)
     if status != NotebookStatus.PASSED:
+        logs = _job_logs(client, job_name, namespace)
         result.log_file = str(_save_logs(logs, notebook_name, artifacts_root))
+        result.logs = logs
 
     if not keep_artifacts:
         _delete_job(client, job_name, namespace)

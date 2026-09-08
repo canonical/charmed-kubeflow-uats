@@ -14,6 +14,7 @@ from lightkube.generic_resource import (
     create_namespaced_resource,
 )
 from lightkube.resources.core_v1 import Namespace, Pod, ServiceAccount
+from lightkube.types import CascadeType
 
 PROFILE_RESOURCE = create_global_resource(
     group="kubeflow.org",
@@ -106,32 +107,37 @@ def assert_resource_deleted(
     client: Client,
     resource_type: type[GenericGlobalResource | GenericNamespacedResource],
     resource_name: str,
-    namespace: str | None,
-    logger: logging.Logger,
+    namespace: str | None = None,
 ):
     """Assert that the specified resource is deleted.
 
     Retries multiple times to allow for the resource to be deleted.
     """
+    # class .kind is a property object; the real kind string is in the API metadata.
+    kind = resource_type._api_info.resource.kind
+    log.info(f"Deleting resource {resource_name} (kind: {kind})...")
+    try:
+        client.delete(
+            resource_type, name=resource_name, namespace=namespace, cascade=CascadeType.FOREGROUND
+        )
+    except ApiError as error:
+        if error.status.code != 404:
+            raise
     deleted = False
     try:
         client.get(resource_type, resource_name, namespace=namespace)
     except ApiError as error:
         if error.status.code != 404:
-            logger.info(
-                f"Unable to get resource {resource_name} (kind: {resource_type.kind}) (status: {error.status.code})"
+            log.info(
+                f"Unable to get resource {resource_name} (kind: {kind}) (status: {error.status.code})"
             )
             raise
         else:
             deleted = True
 
-    logger.info(
-        f"Waiting for resource {resource_name} (kind: {resource_type.kind}) to be deleted.."
-    )
+    log.info(f"Waiting for resource {resource_name} (kind: {kind}) to be deleted..")
 
-    assert (
-        deleted
-    ), f"Waited too long for resource {resource_name} (kind: {resource_type.kind}) to be deleted!"
+    assert deleted, f"Waited too long for resource {resource_name} (kind: {kind}) to be deleted!"
 
 
 def context_from(argument: str, request) -> Dict[str, str]:
@@ -144,7 +150,11 @@ def context_from(argument: str, request) -> Dict[str, str]:
 
 
 def create_poddefault(
-    poddefault_path: str, poddefault_context: Dict[str, str], namespace: str, lightkube_client
+    poddefault_path: str,
+    poddefault_context: Dict[str, str],
+    namespace: str,
+    lightkube_client: Client,
+    keep_artifacts: bool,
 ):
     """Apply the PodDefault from the path after rendering it with the passed context.
 
@@ -162,14 +172,10 @@ def create_poddefault(
 
     yield
 
-    # delete the PodDefault at the end of the module tests
-    poddefault_resource = codecs.load_all_yaml(
-        poddefault_path.read_text(),
-        poddefault_context,
-    )
-    poddefault_name = poddefault_resource[0].metadata.name
-    log.info(f"Deleting {poddefault_name} PodDefault...")
-    lightkube_client.delete(PODDEFAULT_RESOURCE, name=poddefault_name, namespace=namespace)
+    if keep_artifacts:
+        log.info(f"Keeping PodDefault {poddefault_name} (--keep-artifacts set)")
+        return
+    assert_resource_deleted(lightkube_client, PODDEFAULT_RESOURCE, poddefault_name, namespace)
 
 
 @tenacity.retry(

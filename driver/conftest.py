@@ -4,6 +4,7 @@
 import pytest
 from _pytest.config.argparsing import Parser
 from notebook_jobs import discover_notebooks, notebook_matches_filter
+from test_kubeflow_workloads import NotebookResult
 
 BUNDLE_URL_SIDECAR = "file:assets/versions-sidecar.yaml"
 BUNDLE_URL_AMBIENT = "file:assets/versions-ambient.yaml"
@@ -278,14 +279,12 @@ def pytest_generate_tests(metafunc):
 
 def pytest_terminal_summary(terminalreporter, exitstatus, config):
     """Print a per-notebook results table at the end of the run."""
-    results = getattr(config, "_notebook_results", None)
+    results: dict[str, NotebookResult] = getattr(config, "_notebook_results", None)
     if not results:
         return
     terminalreporter.write_sep("=", "UAT notebook results")
     for result in results.values():
         line = f"{result.status:8} {result.name} ({result.duration:.0f}s)"
-        if result.failing_cell is not None:
-            line += f" -> cell {result.failing_cell}: {result.error_summary}"
         if result.log_file:
-            line += f" [logs: {result.log_file}]"
+            line += f" [logs saved to: {result.log_file}]"
         terminalreporter.write_line(line)
