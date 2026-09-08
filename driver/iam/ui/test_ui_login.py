@@ -38,7 +38,7 @@ from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import load_in_cluster_generic_resources
 from lightkube.types import CascadeType
 from playwright.sync_api import sync_playwright
-from utils import PROFILE_RESOURCE, assert_namespace_active, assert_profile_deleted
+from utils import PROFILE_RESOURCE, assert_namespace_active, assert_resource_deleted
 
 log = logging.getLogger(__name__)
 
@@ -180,7 +180,7 @@ def create_profile(lightkube_client, kratos_user):
     log.info(f"Deleting Profile {NAMESPACE}...")
     try:
         lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE, cascade=CascadeType.FOREGROUND)
-        assert_profile_deleted(lightkube_client, NAMESPACE, log)
+        assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, NAMESPACE, NAMESPACE, log)
     except ApiError as error:
         if error.status.code != 404:
             raise

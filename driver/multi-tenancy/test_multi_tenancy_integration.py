@@ -33,7 +33,7 @@ from utils import (
     PROFILE_RESOURCE,
     assert_namespace_active,
     assert_pod_running,
-    assert_profile_deleted,
+    assert_resource_deleted,
     assert_service_account_exists,
     exec_in_pod,
 )
@@ -142,7 +142,7 @@ def _delete_profile(client: Client, namespace: str) -> None:
     """Delete a Kubeflow Profile, tolerating a missing one."""
     try:
         client.delete(PROFILE_RESOURCE, name=namespace, cascade=CascadeType.FOREGROUND)
-        assert_profile_deleted(client, namespace, log)
+        assert_resource_deleted(client, PROFILE_RESOURCE, namespace, namespace, log)
     except ApiError as error:
         if error.status.code != 404:
             raise

@@ -14,7 +14,7 @@ from utils import (
     PROFILE_RESOURCE,
     assert_namespace_active,
     assert_pod_running,
-    assert_profile_deleted,
+    assert_resource_deleted,
     assert_service_account_exists,
     exec_in_pod,
 )
@@ -62,7 +62,7 @@ def _create_and_cleanup_profile(client: Client, namespace: str):
     log.info(f"Deleting Profile {namespace}...")
     try:
         client.delete(PROFILE_RESOURCE, name=namespace, cascade=CascadeType.FOREGROUND)
-        assert_profile_deleted(client, namespace, log)
+        assert_resource_deleted(client, PROFILE_RESOURCE, namespace, namespace, log)
     except ApiError as e:
         if e.status.code != 404:
             raise
