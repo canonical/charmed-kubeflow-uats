@@ -401,9 +401,9 @@ def _failure_message(result: NotebookResult) -> str:
     if result.error_summary:
         lines.append(f"Error: {result.error_summary}")
     if result.log_file:
-        lines.append(f"Logs: {result.log_file}")
+        lines.append(f"Logs path: {result.log_file}")
     if result.logs:
-        lines.append(f"Recent logs:\n{result.logs}")
+        lines.append(f"Job logs:\n{result.logs}")
     return "\n".join(lines)
 
 

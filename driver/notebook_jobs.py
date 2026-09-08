@@ -18,7 +18,6 @@ import json
 import logging
 import os
 import re
-import subprocess
 import time
 from dataclasses import dataclass
 from enum import StrEnum
@@ -29,6 +28,7 @@ import tenacity
 from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import create_global_resource
 from lightkube.resources.batch_v1 import Job
+from lightkube.resources.core_v1 import Pod
 from lightkube.types import CascadeType
 
 log = logging.getLogger(__name__)
@@ -177,20 +177,15 @@ def _wait_for_terminal_status(
         return NotebookStatus.TIMEOUT
 
 
-def _job_logs(job_name: str, namespace: str) -> str:
-    """Return the combined logs of a Job's pod (works on completed pods)."""
-    result = subprocess.run(
-        ["kubectl", "logs", "-n", namespace, f"job/{job_name}", "--tail=-1"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return result.stdout or ""
-
-
-def _tail(text: str, lines: int) -> str:
-    """Return the last ``lines`` lines of ``text``."""
-    return "\n".join(text.splitlines()[-lines:])
+def _job_logs(client: Client, job_name: str, namespace: str) -> str:
+    """Return the logs of a Job's pod (works on completed pods)."""
+    logs = []
+    for pod in client.list(Pod, namespace=namespace, labels={"job-name": job_name}):
+        try:
+            logs.extend(client.log(pod.metadata.name, namespace=namespace, container=job_name))
+        except ApiError as error:
+            log.warning(f"Could not fetch logs for pod {pod.metadata.name}: {error}")
+    return "".join(logs)
 
 
 def _strip_marker_blocks(logs: str) -> str:
@@ -252,7 +247,7 @@ def run_notebook_job(
     job_status = _wait_for_terminal_status(client, job_name, namespace, timeout)
     duration = time.monotonic() - start
 
-    logs = _job_logs(job_name, namespace)
+    logs = _job_logs(client, job_name, namespace)
     payload = _parse_payload(logs)
     # Drop the result marker from the human-facing tail.
     readable_logs = _strip_marker_blocks(logs)
