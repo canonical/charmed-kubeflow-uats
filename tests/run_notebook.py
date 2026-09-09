@@ -4,9 +4,10 @@
 
 Run inside each per-notebook Job (``python3 run_notebook.py <path>``). The driver is the
 test framework (one Job per notebook, retries, summary); the pod runs one notebook and
-signals the outcome through its **exit code** (0 = passed, non-zero = failed). Its logs
-are the debugging record. Cells tagged ``pytest-skip`` are skipped; a cell tagged
-``raises-exception`` that errors still counts as a failure.
+signals the outcome through its **exit code** (0 = passed, non-zero = failed). Each cell's
+output is echoed to stdout as it runs so the driver can stream it live. Cells tagged
+``pytest-skip`` are skipped; a cell tagged ``raises-exception`` that errors still counts
+as a failure.
 """
 
 import os
@@ -16,6 +17,24 @@ import nbformat
 from nbclient.exceptions import CellExecutionError
 from nbconvert.preprocessors import ExecutePreprocessor
 from utils import install_python_requirements
+
+
+class _StreamingExecutePreprocessor(ExecutePreprocessor):
+    """Execute a notebook, echoing each cell's stream/result outputs to stdout live."""
+
+    def output(self, outs, msg, display_id, cell_index):
+        try:
+            msg_type = msg.get("msg_type")
+            content = msg.get("content", {})
+            if msg_type == "stream":
+                print(content.get("text", ""), end="", flush=True)
+            elif msg_type in ("execute_result", "display_data"):
+                text = content.get("data", {}).get("text/plain")
+                if text:
+                    print(text, flush=True)
+        except Exception:  # never let output echoing break execution
+            pass
+        return super().output(outs, msg, display_id, cell_index)
 
 
 def _report_cell_errors(notebook) -> bool:
@@ -42,7 +61,7 @@ def notebook_passed(notebook_path) -> bool:
     with open(notebook_path) as handle:
         notebook = nbformat.read(handle, as_version=nbformat.NO_CONVERT)
 
-    ep = ExecutePreprocessor(timeout=-1, kernel_name="python3")
+    ep = _StreamingExecutePreprocessor(timeout=-1, kernel_name="python3")
     ep.skip_cells_with_tag = "pytest-skip"
     try:
         ep.preprocess(notebook, {"metadata": {"path": "./"}})

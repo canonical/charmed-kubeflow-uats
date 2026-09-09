@@ -4,7 +4,8 @@
 import pytest
 from _pytest.config.argparsing import Parser
 from notebook_jobs import discover_notebooks, notebook_matches_filter
-from test_kubeflow_workloads import NotebookResult
+
+from driver.notebook_jobs import NotebookResult
 
 BUNDLE_URL_SIDECAR = "file:assets/versions-sidecar.yaml"
 BUNDLE_URL_AMBIENT = "file:assets/versions-ambient.yaml"

@@ -18,7 +18,6 @@ from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import load_in_cluster_generic_resources
 from notebook_jobs import (
     RUNTIMECLASS_RESOURCE,
-    NotebookResult,
     job_name_for,
     record_result,
     render_notebook_job,
