@@ -108,6 +108,8 @@ cd charmed-kubeflow-uats/
 
 Then in order to run UATs, there are couple options:
 
+> Each notebook runs as its own Kubernetes Job, and its logs are streamed to the console in real time as it runs. On failure, the full Job logs are printed and also saved under `artifacts/<notebook>.log`.
+
 #### Run tests from a remote commit
 In this case, tests are fetched from a remote commit of `charmed-kubeflow-uats` repository. In order to define the commit, tests use the hash of the `HEAD`, where the repository is checked out locally. This means that when you want to run tests from a specific branch, you need to check out to that branch and then run the tests. Note that if the locally checked out commit is not pushed to the remote repository, then tests will fail.
 
@@ -392,11 +394,3 @@ a Kubernetes Job to run the tests. More specifically, the `driver` executes the 
 3. Wait for each Job to complete (regardless of the outcome), retrying failed notebooks when requested
 4. Collect each notebook's result and print a per-notebook summary
 5. Cleanup (remove created Jobs and Profile)
-
-##### Limitations
-
-With the current implementation each notebook's logs are fetched after its Job completes rather than
-streamed in real time, so the outcome of a given notebook is known only once it finishes. Running
-one Job per notebook does provide incremental, per-notebook results (and a summary at the end)
-instead of waiting for the whole suite, but real-time log streaming remains a known limitation that
-will be addressed in a future iteration.

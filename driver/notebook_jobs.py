@@ -191,6 +191,59 @@ def _delete_job(client: Client, job_name: str, namespace: str) -> None:
             raise
 
 
+def _wait_for_pod_start(
+    client: Client, job_name: str, namespace: str, timeout: int
+) -> Optional[str]:
+    """Return the Job pod's name once its container has started, or None on timeout."""
+
+    def _started(pod) -> bool:
+        statuses = pod.status.containerStatuses if pod.status else None
+        return any(
+            cs.name == job_name and (cs.state.running or cs.state.terminated)
+            for cs in statuses or []
+        )
+
+    def _check() -> Optional[str]:
+        for pod in client.list(Pod, namespace=namespace, labels={"job-name": job_name}):
+            if _started(pod):
+                return pod.metadata.name
+        return None
+
+    retryer = tenacity.Retrying(
+        wait=tenacity.wait_fixed(2),
+        retry=tenacity.retry_if_result(lambda result: result is None),
+        stop=tenacity.stop_after_delay(timeout + 300),
+    )
+    try:
+        return retryer(_check)
+    except tenacity.RetryError:
+        return None
+
+
+def _stream_pod_logs(
+    client: Client, job_name: str, namespace: str, notebook_name: str, timeout: int
+) -> str:
+    """Follow the Job pod's logs live, printing each line, and return the full text.
+
+    Best-effort: blocks until the pod terminates. Returns "" if the stream never started
+    or was interrupted, so the caller can fall back to a plain log fetch.
+    """
+    collected = []
+    try:
+        pod_name = _wait_for_pod_start(client, job_name, namespace, timeout)
+        if not pod_name:
+            return ""
+        log.info(f"Streaming logs for '{notebook_name}' (pod {pod_name})...")
+        for line in client.log(pod_name, namespace=namespace, container=job_name, follow=True):
+            collected.append(line)
+            # print (not log) keeps the notebook's raw output; pytest -s surfaces it live.
+            print(line, end="", flush=True)
+        return "".join(collected)
+    except Exception as error:  # never let live streaming fail the run
+        log.warning(f"Log stream for '{notebook_name}' interrupted: {error}")
+        return ""
+
+
 def run_notebook_job(
     client: Client,
     notebook_name: str,
@@ -200,22 +253,25 @@ def run_notebook_job(
     keep_artifacts: bool,
     artifacts_root: str,
 ) -> NotebookResult:
-    """Create the Job for one notebook, wait for it, and return its result.
+    """Create the Job for one notebook, stream its logs live, and return its result.
 
     The outcome is the Job's status: PASSED (exit 0), FAILED (non-zero exit), or TIMEOUT
-    (Job deadline). On failure the pod logs are saved to a file for debugging. The Job is
-    deleted unless ``keep_artifacts`` is set (kept in the cluster for inspection).
+    (Job deadline). The pod logs are streamed to stdout while it runs and, on failure,
+    saved to a file. The Job is deleted unless ``keep_artifacts`` is set (kept for
+    inspection).
     """
     job_name = manifest.metadata.name
     log.info(f"Running notebook '{notebook_name}' as Job {namespace}/{job_name}...")
     start = time.monotonic()
     client.create(manifest, namespace=namespace)
+    # Follow the pod logs live (shown by pytest -s); this blocks until the pod terminates.
+    logs = _stream_pod_logs(client, job_name, namespace, notebook_name, timeout)
     status = _wait_for_terminal_status(client, job_name, namespace, timeout)
     duration = time.monotonic() - start
 
     result = NotebookResult(name=notebook_name, status=status, duration=duration)
     if status != NotebookStatus.PASSED:
-        logs = _job_logs(client, job_name, namespace)
+        logs = logs or _job_logs(client, job_name, namespace)
         result.log_file = str(_save_logs(logs, notebook_name, artifacts_root))
         result.logs = logs
 
