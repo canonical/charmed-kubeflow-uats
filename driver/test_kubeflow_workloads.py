@@ -398,14 +398,6 @@ def _notebook_job_context(
     }
 
 
-def _failure_message(result: NotebookResult) -> str:
-    """Build a failure message with the full Job logs and the saved-log path."""
-    lines = [f"Notebook '{result.name}' {result.status}."]
-    if result.logs:
-        lines.append(f"Job logs:\n{result.logs}")
-    return "\n".join(lines)
-
-
 @pytest.mark.dependency(depends=["test_create_profile"])
 def test_notebook_workload(
     notebook,
