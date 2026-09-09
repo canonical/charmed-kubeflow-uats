@@ -172,9 +172,6 @@ def create_poddefault(
 
     yield
 
-    if keep_artifacts:
-        log.info(f"Keeping PodDefault {poddefault_name} (--keep-artifacts set)")
-        return
     assert_resource_deleted(lightkube_client, PODDEFAULT_RESOURCE, poddefault_name, namespace)
 
 
