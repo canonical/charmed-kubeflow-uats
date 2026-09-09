@@ -49,15 +49,15 @@ googleapis-common-protos==1.72.0
     # via google-api-core
 idna==3.11
     # via requests
-kfp[kubernetes]==2.15.2
+kfp[kubernetes]==2.16.1
     # via
     #   -r requirements.in
     #   kfp-kubernetes
-kfp-kubernetes==2.15.2
+kfp-kubernetes==2.16.1
     # via kfp
-kfp-pipeline-spec==2.15.2
+kfp-pipeline-spec==2.16.1
     # via kfp
-kfp-server-api==2.15.2
+kfp-server-api==2.16.1
     # via kfp
 kubernetes==30.1.0
     # via kfp

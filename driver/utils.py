@@ -9,7 +9,7 @@ import tenacity
 from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import create_global_resource, create_namespaced_resource
 from lightkube.resources.batch_v1 import Job
-from lightkube.resources.core_v1 import Namespace
+from lightkube.resources.core_v1 import Namespace, Pod, ServiceAccount
 
 PROFILE_RESOURCE = create_global_resource(
     group="kubeflow.org",
@@ -69,6 +69,28 @@ def assert_poddefault_created_in_namespace(
     except ApiError:
         log.info(f"Waiting for PodDefault {name} to be created in namespace {namespace}..")
     assert pod_default is not None, f"Waited too long for PodDefault {name} to be created."
+
+
+@tenacity.retry(
+    wait=tenacity.wait_exponential(multiplier=2, min=1, max=10),
+    stop=tenacity.stop_after_attempt(30),
+    reraise=True,
+)
+def assert_service_account_exists(
+    client: Client,
+    name: str,
+    namespace: str,
+):
+    """Test that the service account exists in the namespace.
+
+    Retries to allow for the service account to be created by the profile controller.
+    """
+    service_account = None
+    try:
+        service_account = client.get(ServiceAccount, name, namespace=namespace)
+    except ApiError:
+        log.info(f"Waiting for ServiceAccount {name} to be created in namespace {namespace}..")
+    assert service_account is not None, f"Waited too long for ServiceAccount {name} to be created."
 
 
 def _log_before_sleep(retry_state):
@@ -190,3 +212,63 @@ def create_poddefault(
     poddefault_name = poddefault_resource[0].metadata.name
     log.info(f"Deleting {poddefault_name} PodDefault...")
     lightkube_client.delete(PODDEFAULT_RESOURCE, name=poddefault_name, namespace=namespace)
+
+
+@tenacity.retry(
+    wait=tenacity.wait_exponential(multiplier=2, min=1, max=10),
+    stop=tenacity.stop_after_attempt(60),
+    reraise=True,
+)
+def assert_pod_running(
+    client: Client,
+    pod_name: str,
+    namespace: str,
+):
+    """Test that the Pod is running.
+
+    Retries multiple times to allow for the Pod to start running.
+    """
+    try:
+        pod = client.get(Pod, pod_name, namespace=namespace)
+        phase = pod.status.phase
+
+        if phase == "Running":
+            # Check if containers are ready
+            container_statuses = pod.status.containerStatuses or []
+            all_ready = all(cs.ready for cs in container_statuses)
+
+            if all_ready:
+                log.info(f"Pod {namespace}/{pod_name} is running and ready!")
+                return
+
+            log.info(f"Pod {namespace}/{pod_name} is running but containers are not ready yet...")
+        else:
+            log.info(
+                f"Waiting for Pod {namespace}/{pod_name} to be running (current phase: {phase})..."
+            )
+    except ApiError as e:
+        log.info(f"Waiting for Pod {namespace}/{pod_name} to be created: {e}")
+
+    raise AssertionError(f"Pod {namespace}/{pod_name} is not running yet")
+
+
+def exec_in_pod(pod_name: str, namespace: str, command: list) -> tuple[str, str, int]:
+    """Execute a command in a pod and return stdout, stderr, and return code."""
+    kubectl_cmd = [
+        "kubectl",
+        "exec",
+        "-n",
+        namespace,
+        pod_name,
+        "--",
+    ] + command
+
+    log.info(f"Executing command in pod {namespace}/{pod_name}: {' '.join(command)}")
+
+    result = subprocess.run(
+        kubectl_cmd,
+        capture_output=True,
+        text=True,
+    )
+
+    return result.stdout, result.stderr, result.returncode
