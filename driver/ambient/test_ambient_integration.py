@@ -14,7 +14,7 @@ from utils import (
     PROFILE_RESOURCE,
     assert_namespace_active,
     assert_pod_running,
-    assert_profile_deleted,
+    assert_resource_deleted,
     assert_service_account_exists,
     exec_in_pod,
 )
@@ -62,7 +62,7 @@ def _create_and_cleanup_profile(client: Client, namespace: str):
     log.info(f"Deleting Profile {namespace}...")
     try:
         client.delete(PROFILE_RESOURCE, name=namespace, cascade=CascadeType.FOREGROUND)
-        assert_profile_deleted(client, namespace, log)
+        assert_resource_deleted(client, PROFILE_RESOURCE, namespace)
     except ApiError as e:
         if e.status.code != 404:
             raise
@@ -113,13 +113,7 @@ def create_curl_pod(lightkube_client, create_profile_2):
     yield CURL_POD_NAME
 
     # Cleanup
-    log.info(f"Deleting pod {NAMESPACE_2}/{CURL_POD_NAME}...")
-    try:
-        lightkube_client.delete(Pod, name=CURL_POD_NAME, namespace=NAMESPACE_2)
-    except ApiError as e:
-        if e.status.code != 404:
-            raise
-        log.info(f"Pod {CURL_POD_NAME} already deleted")
+    assert_resource_deleted(Client, Pod, CURL_POD_NAME, NAMESPACE_2)
 
 
 @pytest.mark.dependency(

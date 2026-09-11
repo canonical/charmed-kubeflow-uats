@@ -1,45 +1,40 @@
 # Test Kubeflow Integrations
 
-Run Python notebooks with Pytest inside a Notebook Server to verify the integration of Kubeflow
-with different components. The notebook tests are stored in the `notebooks/` directory.
+Python notebooks that verify the integration of Kubeflow with different components. The notebooks
+are stored in the `notebooks/` directory.
 
 These are regular Python notebooks, which you can view and run manually without any modifications.
-They perform simple tasks using the respective APIs and programmatically verify the results.
+They perform simple tasks using the respective APIs and programmatically verify the results: when
+everything is as expected their execution is transparent, and in the event of an error they raise
+an exception for the execution engine to pick up and report.
 
-## Setup
+## How they are run
 
-Before running the tests, make sure that the [required Python dependencies](requirements.txt) are
-installed:
+The notebooks are executed by the **driver** (see the [top-level README](../README.md)), which runs
+each notebook as an isolated Kubernetes Job inside the cluster. Within each Job,
+[`run_notebook.py`](run_notebook.py) executes a single notebook, reports the result via its exit
+code and a result marker in the logs, and — when requested — collects the executed notebook as an
+artifact.
 
-```
-pip install -r requirements.txt
-```
-
-## Run
-
-You can execute the full Pytest suite by running:
-
-```
-pytest
-```
-
-The above inherits the configuration set in [pytest.ini](pytest.ini). Feel free to provide any
-required extra settings either using that file or directly through CLI arguments.
-For instance, in order to select a subset of tests to run, you can filter on the notebook names
-using the [-k](https://docs.pytest.org/en/7.3.x/how-to/usage.html#specifying-which-tests-to-run)
-Pytest command-line option, e.g.
+To run the notebooks (or a subset) against a deployed Kubeflow, use the driver via `tox`:
 
 ```bash
-# run all tests containing 'kfp' or 'katib' in their name
-pytest -k "kfp or katib"
+# run all notebooks
+tox -e uats-local
 
-# run any test that doesn't contain 'kserve' in its name
-pytest -k "not kserve"
+# select a subset by filtering on notebook names (pytest -k syntax)
+tox -e uats-local -- --filter "kfp or katib"
+tox -e uats-local -- --filter "not kserve"
+
+# include the GPU notebooks (require a GPU node)
+tox -e uats-local -- --include-gpu-tests
 ```
 
-### NVIDIA GPU tests
-By default, [GPU UATs](./notebooks/gpu/) are not included when running `pytest` since they require a cluster with a GPU. In order to include those, use the `--include-gpu-tests` flag, e.g.
+See the [top-level README](../README.md) for the full set of options (bundle selection, proxies,
+per-notebook timeout, keeping artifacts, etc.).
 
-```
-pytest --include-gpu-tests
-```
+## Contributing
+
+When adding new notebooks, see [CONTRIBUTING.md](CONTRIBUTING.md) for the conventions the execution
+engine relies on — notably the `raises-exception` tag for verification cells and the `pytest-skip`
+tag for cells that should only run outside the automated suite.
