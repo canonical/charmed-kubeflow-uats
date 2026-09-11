@@ -220,28 +220,54 @@ def _wait_for_pod_start(
         return None
 
 
+def _pod_finished(client: Client, pod_name: str, namespace: str) -> bool:
+    """Return whether the pod has reached a terminal phase (or no longer exists)."""
+    try:
+        pod = client.get(Pod, name=pod_name, namespace=namespace)
+    except ApiError:
+        return True
+    phase = pod.status.phase if pod.status else None
+    return phase in ("Succeeded", "Failed")
+
+
 def _stream_pod_logs(
     client: Client, job_name: str, namespace: str, notebook_name: str, timeout: int
 ) -> str:
     """Follow the Job pod's logs live, printing each line, and return the full text.
 
-    Best-effort: blocks until the pod terminates. Returns "" if the stream never started
-    or was interrupted, so the caller can fall back to a plain log fetch.
+    Best-effort: the follow connection can drop while the pod idles (read timeout), so it
+    reconnects and resumes, skipping already-shown lines, until the pod finishes. Returns
+    "" if the logs were not captured cleanly, so the caller can fall back to a plain fetch.
     """
-    collected = []
-    try:
-        pod_name = _wait_for_pod_start(client, job_name, namespace, timeout)
-        if not pod_name:
-            return ""
-        log.info(f"Streaming logs for '{notebook_name}' (pod {pod_name})...")
-        for line in client.log(pod_name, namespace=namespace, container=job_name, follow=True):
-            collected.append(line)
-            # print (not log) keeps the notebook's raw output; pytest -s surfaces it live.
-            print(line, end="", flush=True)
-        return "".join(collected)
-    except Exception as error:  # never let live streaming fail the run
-        log.warning(f"Log stream for '{notebook_name}' interrupted: {error}")
+    pod_name = _wait_for_pod_start(client, job_name, namespace, timeout)
+    if not pod_name:
         return ""
+    log.info(f"Streaming logs for '{notebook_name}' (pod {pod_name})...")
+    collected = []
+    shown = 0
+    deadline = time.monotonic() + timeout + 300
+    while time.monotonic() < deadline:
+        try:
+            for index, line in enumerate(
+                client.log(pod_name, namespace=namespace, container=job_name, follow=True)
+            ):
+                if index < shown:
+                    continue  # already printed before a reconnect (logs are append-only)
+                # print (not log) keeps the notebook's raw output; pytest -s surfaces it live.
+                print(line, end="", flush=True)
+                collected.append(line)
+                shown = index + 1
+        except ApiError:
+            return ""  # pod or its logs are gone -> caller fetches
+        except Exception as error:
+            if _pod_finished(client, pod_name, namespace):
+                return ""  # finished but the stream dropped -> caller fetches complete logs
+            log.debug(f"Reconnecting log stream for '{notebook_name}': {error}")
+            time.sleep(1)
+            continue  # transient drop (e.g. idle read timeout): reconnect and resume
+        else:
+            return "".join(collected)  # stream closed cleanly -> pod finished
+    return ""
 
 
 def run_notebook_job(
