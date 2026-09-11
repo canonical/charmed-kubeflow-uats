@@ -11,6 +11,7 @@ show_missing = true
 [tool.pytest.ini_options]
 log_cli = true
 log_cli_level = "INFO"
+addopts = "-rN"
 
 # Formatting tools configuration
 [tool.black]
