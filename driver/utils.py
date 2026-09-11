@@ -7,9 +7,14 @@ from typing import Dict
 
 import tenacity
 from lightkube import ApiError, Client, codecs
-from lightkube.generic_resource import create_global_resource, create_namespaced_resource
-from lightkube.resources.batch_v1 import Job
+from lightkube.generic_resource import (
+    GenericGlobalResource,
+    GenericNamespacedResource,
+    create_global_resource,
+    create_namespaced_resource,
+)
 from lightkube.resources.core_v1 import Namespace, Pod, ServiceAccount
+from lightkube.types import CascadeType
 
 PROFILE_RESOURCE = create_global_resource(
     group="kubeflow.org",
@@ -93,87 +98,46 @@ def assert_service_account_exists(
     assert service_account is not None, f"Waited too long for ServiceAccount {name} to be created."
 
 
-def _log_before_sleep(retry_state):
-    """Custom callback to log the number of seconds before the next attempt."""
-    next_attempt = retry_state.attempt_number
-    delay = retry_state.next_action.sleep
-    log.info(f"Retrying in {int(delay)} seconds (attempts: {next_attempt})")
-
-
-@tenacity.retry(
-    wait=tenacity.wait_exponential(multiplier=2, min=1, max=32),
-    retry=tenacity.retry_if_not_result(lambda result: result),
-    stop=tenacity.stop_after_delay(60 * 60),
-    before_sleep=_log_before_sleep,
-    reraise=True,
-)
-def wait_for_job(
-    client: Client,
-    job_name: str,
-    namespace: str,
-):
-    """Wait for a Kubernetes Job to complete.
-
-    Keep retrying (up to a maximum of 3600 seconds) while the Job is active or just not yet ready,
-    and stop once it becomes successful. This is implemented using the built-in
-    `retry_if_not_result` tenacity function, along with `wait_for_job` returning False or True,
-    respectively.
-
-    If the Job fails or lands in an unexpected state, this function will raise a ValueError and
-    fail immediately.
-    """
-    # raises a 404 ApiError if the Job doesn't exist
-    job = client.get(Job, name=job_name, namespace=namespace)
-    if job.status.succeeded:
-        # stop retrying, Job succeeded
-        log.info(f"Job {namespace}/{job_name} completed successfully!")
-        return True
-    elif job.status.failed:
-        raise ValueError(f"Job {namespace}/{job_name} failed!")
-    elif not job.status.ready or job.status.active:
-        # continue retrying
-        status = "active" if job.status.active else "not ready"
-        log.info(f"Waiting for Job {namespace}/{job_name} to complete (status == {status})")
-        return False
-    else:
-        raise ValueError(f"Unknown status {job.status} for Job {namespace}/{job_name}!")
-
-
-def fetch_job_logs(job_name, namespace, tests_local_run):
-    """Fetch the logs produced by a Kubernetes Job."""
-    if not tests_local_run:
-        print("##### git-sync initContainer logs #####")
-        command = ["kubectl", "logs", "-n", namespace, f"job/{job_name}", "-c", "git-sync"]
-        subprocess.check_call(command)
-
-    print("##### test-kubeflow container logs #####")
-    command = ["kubectl", "logs", "-n", namespace, f"job/{job_name}"]
-    subprocess.check_call(command)
-
-
 @tenacity.retry(
     wait=tenacity.wait_exponential(multiplier=2, min=1, max=10),
-    stop=tenacity.stop_after_attempt(10),
+    stop=tenacity.stop_after_attempt(30),
     reraise=True,
 )
-def assert_profile_deleted(client, profile_name, logger: logging.Logger):
-    """Assert that the Profile is deleted.
+def assert_resource_deleted(
+    client: Client,
+    resource_type: type[GenericGlobalResource | GenericNamespacedResource],
+    resource_name: str,
+    namespace: str | None = None,
+):
+    """Assert that the specified resource is deleted.
 
-    Retries multiple times to allow for the Profile to be deleted.
+    Retries multiple times to allow for the resource to be deleted.
     """
-    deleted = False
+    # class .kind is a property object; the real kind string is in the API metadata.
+    kind = resource_type._api_info.resource.kind
+    log.info(f"Deleting resource {resource_name} (kind: {kind})...")
     try:
-        client.get(PROFILE_RESOURCE, profile_name)
+        client.delete(
+            resource_type, name=resource_name, namespace=namespace, cascade=CascadeType.FOREGROUND
+        )
     except ApiError as error:
         if error.status.code != 404:
-            logger.info(f"Unable to get Profile {profile_name} (status: {error.status.code})")
+            raise
+    deleted = False
+    try:
+        client.get(resource_type, resource_name, namespace=namespace)
+    except ApiError as error:
+        if error.status.code != 404:
+            log.info(
+                f"Unable to get resource {resource_name} (kind: {kind}) (status: {error.status.code})"
+            )
             raise
         else:
             deleted = True
 
-    logger.info(f"Waiting for Profile {profile_name} to be deleted..")
+    log.info(f"Waiting for resource {resource_name} (kind: {kind}) to be deleted..")
 
-    assert deleted, f"Waited too long for Profile {profile_name} to be deleted!"
+    assert deleted, f"Waited too long for resource {resource_name} (kind: {kind}) to be deleted!"
 
 
 def context_from(argument: str, request) -> Dict[str, str]:
@@ -186,7 +150,11 @@ def context_from(argument: str, request) -> Dict[str, str]:
 
 
 def create_poddefault(
-    poddefault_path: str, poddefault_context: Dict[str, str], namespace: str, lightkube_client
+    poddefault_path: str,
+    poddefault_context: Dict[str, str],
+    namespace: str,
+    lightkube_client: Client,
+    keep_artifacts: bool,
 ):
     """Apply the PodDefault from the path after rendering it with the passed context.
 
@@ -204,14 +172,7 @@ def create_poddefault(
 
     yield
 
-    # delete the PodDefault at the end of the module tests
-    poddefault_resource = codecs.load_all_yaml(
-        poddefault_path.read_text(),
-        poddefault_context,
-    )
-    poddefault_name = poddefault_resource[0].metadata.name
-    log.info(f"Deleting {poddefault_name} PodDefault...")
-    lightkube_client.delete(PODDEFAULT_RESOURCE, name=poddefault_name, namespace=namespace)
+    assert_resource_deleted(lightkube_client, PODDEFAULT_RESOURCE, poddefault_name, namespace)
 
 
 @tenacity.retry(
