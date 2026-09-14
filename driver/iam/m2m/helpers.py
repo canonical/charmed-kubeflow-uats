@@ -137,7 +137,7 @@ def get_token(client_id: str, client_secret: str, issuer_url: str) -> str:
         scope=["openid"],
         verify=False,
     )
-    log.info(f"Obtained access token for client {client_id}")
+    log.info(f"Obtained access token for client {client_id} (token: {token})")
     return token["access_token"]
 
 

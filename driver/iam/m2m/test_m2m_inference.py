@@ -44,7 +44,7 @@ INFERENCE_SERVICE_TEMPLATE_FILE = ASSETS_DIR / "kserve-inference-service.yaml.j2
 
 IAM_MODEL = "iam"
 KUBEFLOW_MODEL = "kubeflow"
-NAMESPACE = "test-m2m"
+NAMESPACE = PROFILE_NAME = "test-m2m"
 ISVC_NAME = "sklearn-v2-iris"
 DOMAIN = "api.kubeflow.com"
 WILDCARD_HOSTNAME = f"*.{DOMAIN}"
@@ -54,11 +54,17 @@ PAYLOAD = '{"instances": [[6.8, 2.8, 4.8, 1.4], [6.0, 3.4, 4.5, 1.6]]}'
 
 
 @pytest.fixture(scope="module")
-def lightkube_client():
+def lightkube_client() -> Client:
     """Initialise a Lightkube Client."""
     client = Client(trust_env=False)
     load_in_cluster_generic_resources(client)
     return client
+
+
+@pytest.fixture(scope="module")
+def keep_artifacts(request: pytest.FixtureRequest) -> bool:
+    """Return whether to keep notebook artifacts on the host and Jobs in the cluster."""
+    return bool(request.config.getoption("--keep-artifacts"))
 
 
 @pytest.fixture(scope="module")
@@ -104,9 +110,9 @@ def patch_gateway(lightkube_client, m2m_gateway):
 
 
 @pytest.fixture(scope="module")
-def create_profile(lightkube_client):
+def create_profile(lightkube_client: Client, keep_artifacts: bool):
     """Create the test Profile and clean it up at the end of the module."""
-    log.info(f"Creating Profile {NAMESPACE}...")
+    log.info(f"Creating Profile {PROFILE_NAME}...")
     resources = list(
         codecs.load_all_yaml(
             PROFILE_TEMPLATE_FILE.read_text(),
@@ -120,14 +126,20 @@ def create_profile(lightkube_client):
 
     yield
 
-    log.info(f"Deleting Profile {NAMESPACE}...")
+    if keep_artifacts:
+        log.info(f"Keeping Profile {PROFILE_NAME} (--keep-artifacts set)")
+        return
+
+    log.info(f"Deleting Profile {PROFILE_NAME}...")
     try:
-        lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE, cascade=CascadeType.FOREGROUND)
-        assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, NAMESPACE, NAMESPACE)
+        lightkube_client.delete(
+            PROFILE_RESOURCE, name=PROFILE_NAME, cascade=CascadeType.FOREGROUND
+        )
+        assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, PROFILE_NAME, NAMESPACE)
     except ApiError as error:
         if error.status.code != 404:
             raise
-        log.info(f"Profile {NAMESPACE} already deleted")
+        log.info(f"Profile {PROFILE_NAME} already deleted")
 
 
 @pytest.fixture(scope="module")
