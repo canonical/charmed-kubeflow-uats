@@ -15,6 +15,7 @@ Hydra, and oauth2-proxy.
 """
 
 import logging
+from uuid import uuid4
 from pathlib import Path
 
 import pytest
@@ -32,7 +33,6 @@ from helpers import (
 from ingress import find_gateway_for_domain, gateway_service_name, get_service_lb_ip
 from lightkube import ApiError, Client, codecs
 from lightkube.generic_resource import load_in_cluster_generic_resources
-from lightkube.types import CascadeType
 from utils import PROFILE_RESOURCE, assert_namespace_active, assert_resource_deleted
 
 log = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ def keep_artifacts(request: pytest.FixtureRequest) -> bool:
 
 
 @pytest.fixture(scope="module")
-def m2m_gateway(lightkube_client):
+def m2m_gateway(lightkube_client: Client) -> str:
     """Name of the istio Gateway serving the KServe (M2M) domain.
 
     Discovered dynamically by matching the listener hostname, so the charm/app name
@@ -78,25 +78,25 @@ def m2m_gateway(lightkube_client):
 
 
 @pytest.fixture(scope="module")
-def gateway_principals(m2m_gateway):
+def gateway_principals(m2m_gateway: str) -> list[str]:
     """Istio principal of the M2M ingress gateway serving KServe."""
     return [f"cluster.local/ns/{KUBEFLOW_MODEL}/sa/{gateway_service_name(m2m_gateway)}"]
 
 
 @pytest.fixture(scope="module")
-def gateway_ip(lightkube_client, m2m_gateway):
+def gateway_ip(lightkube_client: Client, m2m_gateway) -> str:
     """LoadBalancer IP of the M2M ingress gateway."""
     return get_service_lb_ip(lightkube_client, KUBEFLOW_MODEL, gateway_service_name(m2m_gateway))
 
 
 @pytest.fixture(scope="module")
-def issuer_url():
+def issuer_url() -> str:
     """JWT issuer URL trusted by the gateway's RequestAuthentication."""
     return get_jwt_issuer_url(KUBEFLOW_MODEL)
 
 
 @pytest.fixture(scope="module")
-def patch_gateway(lightkube_client, m2m_gateway):
+def patch_gateway(lightkube_client: Client, m2m_gateway: str):
     """Patch the M2M Gateway listeners to a wildcard hostname.
 
     Workaround for https://github.com/canonical/service-mesh/issues/102 so KServe's
@@ -109,72 +109,75 @@ def patch_gateway(lightkube_client, m2m_gateway):
     yield
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture()
 def create_profile(lightkube_client: Client, keep_artifacts: bool):
     """Create the test Profile and clean it up at the end of the module."""
-    log.info(f"Creating Profile {PROFILE_NAME}...")
+    profile_uuid = str(uuid4()).split("-")[0]  # get only the first portion of uuid
+    profile_name = namespace_name = f"{PROFILE_NAME}-{profile_uuid}"
+    log.info(f"Creating Profile {profile_name}...")
     resources = list(
         codecs.load_all_yaml(
             PROFILE_TEMPLATE_FILE.read_text(),
-            context={"namespace": NAMESPACE},
+            context={"namespace": namespace_name},
         )
     )
     assert len(resources) == 1, f"Expected 1 Profile, got {len(resources)}!"
     lightkube_client.create(resources[0])
 
-    assert_namespace_active(lightkube_client, NAMESPACE)
+    assert_namespace_active(lightkube_client, namespace_name)
 
-    yield
+    yield profile_name, profile_uuid
 
     if keep_artifacts:
-        log.info(f"Keeping Profile {PROFILE_NAME} (--keep-artifacts set)")
+        log.info(f"Keeping Profile {profile_name} (--keep-artifacts set)")
         return
 
-    log.info(f"Deleting Profile {PROFILE_NAME}...")
-    try:
-        lightkube_client.delete(
-            PROFILE_RESOURCE, name=PROFILE_NAME, cascade=CascadeType.FOREGROUND
-        )
-        assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, PROFILE_NAME, NAMESPACE)
-    except ApiError as error:
-        if error.status.code != 404:
-            raise
-        log.info(f"Profile {PROFILE_NAME} already deleted")
+    log.info(f"Deleting Profile {profile_name}...")
+    assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, profile_name)
 
 
-@pytest.fixture(scope="module")
-def create_inference_service(lightkube_client, create_profile, patch_gateway):
+@pytest.fixture()
+def create_inference_service(
+    lightkube_client: Client, create_profile, patch_gateway, keep_artifacts: bool
+):
     """Create the KServe InferenceService and return its hostname."""
-    log.info(f"Creating InferenceService {NAMESPACE}/{ISVC_NAME}...")
+    profile_name, profile_uuid = create_profile
+    isvc_name = f"{ISVC_NAME}-{profile_uuid}"
+    log.info(f"Creating InferenceService {profile_name}/{isvc_name}...")
     resources = list(
         codecs.load_all_yaml(
             INFERENCE_SERVICE_TEMPLATE_FILE.read_text(),
-            context={"name": ISVC_NAME, "namespace": NAMESPACE},
+            context={"name": isvc_name, "namespace": profile_name},
         )
     )
     assert len(resources) == 1, f"Expected 1 InferenceService, got {len(resources)}!"
     lightkube_client.create(resources[0])
 
-    hostname = wait_for_inferenceservice_ready(lightkube_client, ISVC_NAME, NAMESPACE)
+    hostname = wait_for_inferenceservice_ready(lightkube_client, isvc_name, profile_name)
 
-    yield hostname
+    yield hostname, isvc_name
 
-    log.info(f"Deleting InferenceService {NAMESPACE}/{ISVC_NAME}...")
+    if keep_artifacts:
+        log.info(f"Keeping InferenceService {profile_name}/{isvc_name} (--keep-artifacts set)")
+        return
+
+    log.info(f"Deleting InferenceService {profile_name}/{isvc_name}...")
     try:
-        lightkube_client.delete(INFERENCE_SERVICE_RESOURCE, name=ISVC_NAME, namespace=NAMESPACE)
+        lightkube_client.delete(INFERENCE_SERVICE_RESOURCE, name=isvc_name, namespace=profile_name)
     except ApiError as error:
         if error.status.code != 404:
             raise
-        log.info(f"InferenceService {NAMESPACE}/{ISVC_NAME} already deleted")
+        log.info(f"InferenceService {profile_name}/{isvc_name} already deleted")
 
 
-@pytest.fixture(scope="module")
-def authorized_client(lightkube_client, create_profile, gateway_principals):
+@pytest.fixture()
+def authorized_client(lightkube_client: Client, create_profile, gateway_principals):
     """Create an OAuth client and authorize it as a contributor on the Profile."""
+    profile_name, _ = create_profile
     client_id, client_secret = create_oauth_client(IAM_MODEL, "uat-m2m-authorized")
     authorize_contributor(
         lightkube_client,
-        namespace=NAMESPACE,
+        namespace=profile_name,
         user=client_id,
         role="edit",
         principals=gateway_principals,
@@ -195,8 +198,8 @@ def unauthorized_client():
     delete_oauth_client(IAM_MODEL, client_id)
 
 
-@pytest.fixture(scope="module")
-def authorized_token(authorized_client, issuer_url):
+@pytest.fixture()
+def authorized_token(authorized_client, issuer_url) -> str:
     """A valid access token for the authorized OAuth client."""
     client_id, client_secret = authorized_client
     return get_token(client_id, client_secret, issuer_url)
@@ -210,7 +213,7 @@ def unauthorized_token(unauthorized_client, issuer_url):
 
 
 def test_authorized_token_reaches_inferenceservice(
-    create_inference_service, authorized_token, gateway_ip
+    create_inference_service, authorized_token: str, gateway_ip: str
 ):
     """A valid token from an authorized client reaches the InferenceService.
 
@@ -218,16 +221,16 @@ def test_authorized_token_reaches_inferenceservice(
     RequestAuthentication validates the issuer, the Profile's AuthorizationPolicy
     authorizes the client identity, and KServe serves the inference.
     """
-    hostname = create_inference_service
+    hostname, isvc_name = create_inference_service
 
-    http_code, body = request_inference(hostname, gateway_ip, authorized_token, PAYLOAD, ISVC_NAME)
+    http_code, body = request_inference(hostname, gateway_ip, authorized_token, PAYLOAD, isvc_name)
 
     assert http_code == 200, f"Expected HTTP 200, got {http_code}. Body: {body}"
     assert "predictions" in body, f"Expected a prediction in the response, got: {body}"
     log.info("✓ Authorized token successfully reached the InferenceService.")
 
 
-def test_missing_token_is_rejected(create_inference_service, gateway_ip):
+def test_missing_token_is_rejected(create_inference_service, gateway_ip: str):
     """A request without a token is denied by the AuthorizationPolicy (403).
 
     A token-less request carries no identity. RequestAuthentication does not reject
@@ -235,9 +238,9 @@ def test_missing_token_is_rejected(create_inference_service, gateway_ip):
     AuthorizationPolicy, where no rule matches and the request is denied with 403
     (RBAC: access denied).
     """
-    hostname = create_inference_service
+    hostname, isvc_name = create_inference_service
 
-    http_code, body = request_inference(hostname, gateway_ip, None, PAYLOAD, ISVC_NAME)
+    http_code, body = request_inference(hostname, gateway_ip, None, PAYLOAD, isvc_name)
 
     assert (
         http_code == 403
@@ -245,12 +248,12 @@ def test_missing_token_is_rejected(create_inference_service, gateway_ip):
     log.info("✓ Request without a token was correctly denied.")
 
 
-def test_invalid_token_is_rejected(create_inference_service, gateway_ip):
+def test_invalid_token_is_rejected(create_inference_service, gateway_ip: str):
     """A request with an invalid token is rejected by RequestAuthentication."""
-    hostname = create_inference_service
+    hostname, isvc_name = create_inference_service
 
     http_code, body = request_inference(
-        hostname, gateway_ip, "not-a-valid-jwt", PAYLOAD, ISVC_NAME
+        hostname, gateway_ip, "not-a-valid-jwt", PAYLOAD, isvc_name
     )
 
     assert (
@@ -259,16 +262,18 @@ def test_invalid_token_is_rejected(create_inference_service, gateway_ip):
     log.info("✓ Request with an invalid token was correctly rejected.")
 
 
-def test_unauthorized_token_is_forbidden(create_inference_service, unauthorized_token, gateway_ip):
+def test_unauthorized_token_is_forbidden(
+    create_inference_service, unauthorized_token: str, gateway_ip: str
+):
     """A valid token from an unauthorized client is forbidden by the AuthorizationPolicy.
 
     The token is authentic (issued by Hydra) but its client identity is not a
     contributor on the Profile, so the request is denied with RBAC access denied.
     """
-    hostname = create_inference_service
+    hostname, isvc_name = create_inference_service
 
     http_code, body = request_inference(
-        hostname, gateway_ip, unauthorized_token, PAYLOAD, ISVC_NAME
+        hostname, gateway_ip, unauthorized_token, PAYLOAD, isvc_name
     )
 
     assert http_code == 403, (
