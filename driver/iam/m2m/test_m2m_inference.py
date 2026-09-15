@@ -213,7 +213,7 @@ def unauthorized_token(unauthorized_client, issuer_url):
 
 
 def test_authorized_token_reaches_inferenceservice(
-    create_inference_service, authorized_token: str, gateway_ip: str
+    authorized_token: str, create_inference_service, gateway_ip: str
 ):
     """A valid token from an authorized client reaches the InferenceService.
 
@@ -263,7 +263,7 @@ def test_invalid_token_is_rejected(create_inference_service, gateway_ip: str):
 
 
 def test_unauthorized_token_is_forbidden(
-    create_inference_service, unauthorized_token: str, gateway_ip: str
+    unauthorized_token: str, create_inference_service, gateway_ip: str
 ):
     """A valid token from an unauthorized client is forbidden by the AuthorizationPolicy.
 
