@@ -15,8 +15,8 @@ Hydra, and oauth2-proxy.
 """
 
 import logging
-from uuid import uuid4
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 from helpers import (
