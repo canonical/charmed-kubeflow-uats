@@ -28,6 +28,7 @@ from helpers import (
     get_token,
     patch_gateway_wildcard_hostname,
     request_inference,
+    request_inference_with_jwt_warmup,
     wait_for_inferenceservice_ready,
 )
 from ingress import find_gateway_for_domain, gateway_service_name, get_service_lb_ip
@@ -162,16 +163,11 @@ def create_inference_service(
         return
 
     log.info(f"Deleting InferenceService {profile_name}/{isvc_name}...")
-    try:
-        lightkube_client.delete(INFERENCE_SERVICE_RESOURCE, name=isvc_name, namespace=profile_name)
-    except ApiError as error:
-        if error.status.code != 404:
-            raise
-        log.info(f"InferenceService {profile_name}/{isvc_name} already deleted")
+    assert_resource_deleted(lightkube_client, INFERENCE_SERVICE_RESOURCE, isvc_name, profile_name)
 
 
 @pytest.fixture()
-def authorized_client(lightkube_client: Client, create_profile, gateway_principals):
+def authorized_client(lightkube_client: Client, create_profile, gateway_principals, keep_artifacts: bool):
     """Create an OAuth client and authorize it as a contributor on the Profile."""
     profile_name, _ = create_profile
     client_id, client_secret = create_oauth_client(IAM_MODEL, "uat-m2m-authorized")
@@ -185,16 +181,21 @@ def authorized_client(lightkube_client: Client, create_profile, gateway_principa
 
     yield client_id, client_secret
 
+    if keep_artifacts:
+        log.info(f"Keeping OAuth client {client_id} (--keep-artifacts set)")
+        return
     delete_oauth_client(IAM_MODEL, client_id)
 
 
 @pytest.fixture(scope="module")
-def unauthorized_client():
+def unauthorized_client(keep_artifacts: bool):
     """Create an OAuth client that is NOT authorized on any Profile."""
     client_id, client_secret = create_oauth_client(IAM_MODEL, "uat-m2m-unauthorized")
 
     yield client_id, client_secret
 
+    if keep_artifacts:
+            return
     delete_oauth_client(IAM_MODEL, client_id)
 
 
@@ -223,7 +224,9 @@ def test_authorized_token_reaches_inferenceservice(
     """
     hostname, isvc_name = create_inference_service
 
-    http_code, body = request_inference(hostname, gateway_ip, authorized_token, PAYLOAD, isvc_name)
+    http_code, body = request_inference_with_jwt_warmup(
+        hostname, gateway_ip, authorized_token, PAYLOAD, isvc_name
+    )
 
     assert http_code == 200, f"Expected HTTP 200, got {http_code}. Body: {body}"
     assert "predictions" in body, f"Expected a prediction in the response, got: {body}"
@@ -272,7 +275,7 @@ def test_unauthorized_token_is_forbidden(
     """
     hostname, isvc_name = create_inference_service
 
-    http_code, body = request_inference(
+    http_code, body = request_inference_with_jwt_warmup(
         hostname, gateway_ip, unauthorized_token, PAYLOAD, isvc_name
     )
 
