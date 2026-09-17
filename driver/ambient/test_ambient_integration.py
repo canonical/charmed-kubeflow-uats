@@ -4,12 +4,11 @@ import logging
 from pathlib import Path
 
 import pytest
-from lightkube import ApiError, Client, codecs
+from lightkube import Client, codecs
 from lightkube.generic_resource import load_in_cluster_generic_resources
 from lightkube.models.core_v1 import Container, PodSpec
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import Pod
-from lightkube.types import CascadeType
 from utils import (
     PROFILE_RESOURCE,
     assert_namespace_active,
@@ -59,14 +58,7 @@ def _create_and_cleanup_profile(client: Client, namespace: str):
     yield
 
     # Delete the Profile at the end
-    log.info(f"Deleting Profile {namespace}...")
-    try:
-        client.delete(PROFILE_RESOURCE, name=namespace, cascade=CascadeType.FOREGROUND)
-        assert_resource_deleted(client, PROFILE_RESOURCE, namespace)
-    except ApiError as e:
-        if e.status.code != 404:
-            raise
-        log.info(f"Profile {namespace} already deleted")
+    assert_resource_deleted(client, PROFILE_RESOURCE, namespace)
 
 
 @pytest.fixture(scope="module")

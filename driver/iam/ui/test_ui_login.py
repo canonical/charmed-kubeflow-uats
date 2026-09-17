@@ -35,7 +35,6 @@ from iam.ui.helpers import (
     remove_kratos_user,
 )
 from lightkube import Client, codecs
-from lightkube.generic_resource import load_in_cluster_generic_resources
 from playwright.sync_api import sync_playwright
 from utils import PROFILE_RESOURCE, assert_namespace_active, assert_resource_deleted
 
@@ -50,20 +49,6 @@ PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 ARTIFACTS_DIR = Path(__file__).parent.parent.parent.parent / "playwright-artifacts"
 
 NAMESPACE = "test-ui-iam"
-
-
-@pytest.fixture(scope="module")
-def keep_artifacts(request: pytest.FixtureRequest):
-    """Return whether to keep notebook artifacts on the host and Jobs in the cluster."""
-    return bool(request.config.getoption("--keep-artifacts"))
-
-
-@pytest.fixture(scope="module")
-def lightkube_client():
-    """Initialise a Lightkube Client."""
-    client = Client(trust_env=False)
-    load_in_cluster_generic_resources(client)
-    return client
 
 
 @pytest.fixture(scope="module")
@@ -142,7 +127,7 @@ def iam_juju():
 
 
 @pytest.fixture(scope="module")
-def kratos_user(iam_juju):
+def kratos_user(iam_juju, keep_artifacts: bool):
     """Create a Kratos user + Juju secret; yield its credentials; clean up both.
 
     A unique username/email is generated per run.
@@ -155,6 +140,10 @@ def kratos_user(iam_juju):
     identity_id, secret_uri = create_kratos_user(iam_juju, username, email, password)
 
     yield username, email, password, identity_id, secret_uri
+
+    if keep_artifacts:
+        log.info(f"Keeping Kratos user {email} and secret {secret_uri} (--keep-artifacts set)")
+        return
 
     remove_kratos_user(iam_juju, identity_id, secret_uri)
 
@@ -187,7 +176,6 @@ def create_profile(lightkube_client: Client, kratos_user, keep_artifacts: bool):
         return
 
     # delete the Profile at the end of the module tests
-    log.info(f"Deleting Profile {NAMESPACE}...")
     assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, NAMESPACE)
 
 

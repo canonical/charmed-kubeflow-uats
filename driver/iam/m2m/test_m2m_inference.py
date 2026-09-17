@@ -32,8 +32,7 @@ from helpers import (
     wait_for_inferenceservice_ready,
 )
 from ingress import find_gateway_for_domain, gateway_service_name, get_service_lb_ip
-from lightkube import ApiError, Client, codecs
-from lightkube.generic_resource import load_in_cluster_generic_resources
+from lightkube import Client, codecs
 from utils import PROFILE_RESOURCE, assert_namespace_active, assert_resource_deleted
 
 log = logging.getLogger(__name__)
@@ -52,20 +51,6 @@ WILDCARD_HOSTNAME = f"*.{DOMAIN}"
 
 # The prediction request body sent to the sklearn v2 iris model.
 PAYLOAD = '{"instances": [[6.8, 2.8, 4.8, 1.4], [6.0, 3.4, 4.5, 1.6]]}'
-
-
-@pytest.fixture(scope="module")
-def lightkube_client() -> Client:
-    """Initialise a Lightkube Client."""
-    client = Client(trust_env=False)
-    load_in_cluster_generic_resources(client)
-    return client
-
-
-@pytest.fixture(scope="module")
-def keep_artifacts(request: pytest.FixtureRequest) -> bool:
-    """Return whether to keep notebook artifacts on the host and Jobs in the cluster."""
-    return bool(request.config.getoption("--keep-artifacts"))
 
 
 @pytest.fixture(scope="module")
@@ -133,7 +118,6 @@ def create_profile(lightkube_client: Client, keep_artifacts: bool):
         log.info(f"Keeping Profile {profile_name} (--keep-artifacts set)")
         return
 
-    log.info(f"Deleting Profile {profile_name}...")
     assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, profile_name)
 
 
@@ -162,12 +146,13 @@ def create_inference_service(
         log.info(f"Keeping InferenceService {profile_name}/{isvc_name} (--keep-artifacts set)")
         return
 
-    log.info(f"Deleting InferenceService {profile_name}/{isvc_name}...")
     assert_resource_deleted(lightkube_client, INFERENCE_SERVICE_RESOURCE, isvc_name, profile_name)
 
 
 @pytest.fixture()
-def authorized_client(lightkube_client: Client, create_profile, gateway_principals, keep_artifacts: bool):
+def authorized_client(
+    lightkube_client: Client, create_profile, gateway_principals, keep_artifacts: bool
+):
     """Create an OAuth client and authorize it as a contributor on the Profile."""
     profile_name, _ = create_profile
     client_id, client_secret = create_oauth_client(IAM_MODEL, "uat-m2m-authorized")
@@ -195,7 +180,7 @@ def unauthorized_client(keep_artifacts: bool):
     yield client_id, client_secret
 
     if keep_artifacts:
-            return
+        return
     delete_oauth_client(IAM_MODEL, client_id)
 
 
