@@ -31,8 +31,7 @@ from iam.ui.helpers import (
     goto_login_form,
     is_auth_url,
     is_ui_url,
-    login_with_password,
-    reach_dashboard,
+    login_and_reach_dashboard,
     remove_kratos_user,
 )
 from lightkube import Client, codecs
@@ -225,10 +224,7 @@ def test_login_reaches_dashboard(context, kratos_user, create_profile):
     _, email, password, _, _ = kratos_user
 
     page = context.pages[0]
-    goto_login_form(page)
-
-    login_with_password(page, email, password)
-    reach_dashboard(page, profile_namespace=NAMESPACE)
+    login_and_reach_dashboard(page, email, password, profile_namespace=NAMESPACE)
 
     assert is_ui_url(page.url), f"Expected dashboard on host {UI_DOMAIN}, got {page.url}"
     log.info("✓ Login reached the Kubeflow dashboard.")

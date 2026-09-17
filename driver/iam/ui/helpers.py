@@ -18,11 +18,14 @@ Ingress-gateway discovery (``find_gateway_for_domain``, ``get_service_lb_ip``,
 
 import logging
 import time
+from functools import partial
+from typing import Callable
 from urllib.parse import urlparse
 
 import jubilant
 from ingress import find_gateway_for_domain, gateway_service_name, get_service_lb_ip
 from lightkube import Client
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
 
@@ -42,6 +45,24 @@ UI_DOMAIN = "ui.kubeflow.com"
 # "auth.kubeflow.com/ui/login").
 AUTH_DOMAIN = "auth.kubeflow.com"
 KUBEFLOW_UI_URL = f"https://{UI_DOMAIN}"
+
+# Chromium network-error codes that are transient and safe to retry. ERR_NETWORK_CHANGED
+# is raised when Chromium's NetworkChangeNotifier detects the host's network config
+# changed while a request was in flight (common in CI/containers where netlink events or
+# /etc/hosts patching fire spurious change events); the rest are similar transient drops.
+TRANSIENT_NET_ERRORS = (
+    "ERR_NETWORK_CHANGED",
+    "ERR_NETWORK_IO_SUSPENDED",
+    "ERR_CONNECTION_RESET",
+    "ERR_CONNECTION_CLOSED",
+    "ERR_CONNECTION_ABORTED",
+)
+
+# Per-attempt budget for the post-login redirect to reach the UI host. A normal redirect
+# completes in seconds; a transient network change that aborts it leaves the page hung
+# (Chromium does not auto-resubmit), so cap the wait well under reach_dashboard's own
+# 120s budget to fail fast and re-drive the login rather than stall the whole test.
+REDIRECT_TIMEOUT_MS = 60_000
 
 
 def create_kratos_user(
@@ -156,6 +177,38 @@ def is_auth_url(url: str) -> bool:
     return urlparse(url).hostname == AUTH_DOMAIN
 
 
+def _is_transient_net_error(error: Exception) -> bool:
+    """Return True if ``error`` is a transient Chromium network error worth retrying."""
+    return any(code in str(error) for code in TRANSIENT_NET_ERRORS)
+
+
+def _run_with_net_retry(
+    action: Callable[[], object], description: str, max_attempts: int = 3
+) -> None:
+    """Run ``action`` (a navigation), retrying transient Chromium network errors.
+
+    Chromium aborts an in-flight request with ERR_NETWORK_CHANGED when the host's
+    network configuration changes underneath it — frequent in CI/containers where
+    netlink events or /etc/hosts churn trip its NetworkChangeNotifier. Navigations are
+    idempotent, so retry them a few times before giving up.
+    """
+    for attempt in range(1, max_attempts + 1):
+        try:
+            action()
+            return
+        except PlaywrightError as error:
+            if not _is_transient_net_error(error) or attempt >= max_attempts:
+                raise
+            log.warning(
+                "%s hit a transient network error (attempt %d/%d): %s — retrying",
+                description,
+                attempt,
+                max_attempts,
+                error,
+            )
+            time.sleep(2)
+
+
 def goto_login_form(page: Page, max_attempts: int = 3) -> None:
     """Navigate to the UI, follow the redirect to the IdP login form, and wait for it.
 
@@ -172,7 +225,7 @@ def goto_login_form(page: Page, max_attempts: int = 3) -> None:
         # auth.kubeflow.com/ui/login) and returns only once the final page's load
         # event fires, so the Email label search runs on the login page, not the
         # UI page — no risk of matching a label before the redirect completes.
-        page.goto(KUBEFLOW_UI_URL)
+        _run_with_net_retry(partial(page.goto, KUBEFLOW_UI_URL), "Navigation to the Kubeflow UI")
         try:
             page.get_by_label("Email").wait_for(state="visible", timeout=30_000)
             return
@@ -190,7 +243,7 @@ def goto_login_form(page: Page, max_attempts: int = 3) -> None:
             raise
 
 
-def reach_dashboard(page: Page, profile_namespace: str) -> None:
+def reach_dashboard(page: Page, profile_namespace: str, max_attempts: int = 2) -> None:
     """Wait for the post-login redirect back to the UI and the dashboard to render.
 
     Asserts the URL is served by ``ui.kubeflow.com``, the dashboard page has loaded
@@ -207,19 +260,35 @@ def reach_dashboard(page: Page, profile_namespace: str) -> None:
     # redirect parameter cannot satisfy the wait before the dashboard is reached.
     page.wait_for_url(is_ui_url, timeout=120_000)
 
-    # Wait for the dashboard SPA to settle (API calls complete, namespace selected).
-    page.wait_for_load_state("networkidle", timeout=60_000)
+    for attempt in range(1, max_attempts + 1):
+        try:
+            # Wait for the dashboard SPA to settle (API calls complete, namespace set).
+            page.wait_for_load_state("networkidle", timeout=60_000)
 
-    # Confirm the dashboard page loaded. The title is set in the static HTML so it's
-    # available before the SPA fully hydrates, but combined with the networkidle wait
-    # above it confirms the page actually rendered.
-    assert (
-        page.title() == "Kubeflow Central Dashboard"
-    ), f"Expected dashboard title, got {page.title()!r}"
+            # Confirm the dashboard page loaded. The title is set in the static HTML so
+            # it's available before the SPA fully hydrates, but combined with the
+            # networkidle wait above it confirms the page actually rendered.
+            assert (
+                page.title() == "Kubeflow Central Dashboard"
+            ), f"Expected dashboard title, got {page.title()!r}"
 
-    log.info(f"Dashboard loaded at {page.url}")
+            log.info(f"Dashboard loaded at {page.url}")
 
-    _assert_profile_visible(page, profile_namespace)
+            _assert_profile_visible(page, profile_namespace)
+            return
+        except (PlaywrightTimeoutError, AssertionError) as error:
+            # A transient ERR_NETWORK_CHANGED can abort one of the SPA's resource/API
+            # requests mid-hydration, leaving the dashboard half-rendered. Reloading
+            # (the session cookie is already set, so no re-login) usually recovers.
+            if attempt >= max_attempts or not is_ui_url(page.url):
+                raise
+            log.warning(
+                "Dashboard did not settle (attempt %d/%d): %s — reloading",
+                attempt,
+                max_attempts,
+                error,
+            )
+            _run_with_net_retry(page.reload, "Dashboard reload")
 
 
 def _assert_profile_visible(page: Page, profile_namespace: str) -> None:
@@ -242,3 +311,42 @@ def _assert_profile_visible(page: Page, profile_namespace: str) -> None:
         state="visible", timeout=30_000
     )
     log.info(f"Profile namespace '{profile_namespace}' is visible in the dashboard")
+
+
+def login_and_reach_dashboard(
+    page: Page,
+    email: str,
+    password: str,
+    profile_namespace: str,
+    max_attempts: int = 3,
+) -> None:
+    """Drive the full IdP login flow to the dashboard, retrying transient network aborts.
+
+    A transient ERR_NETWORK_CHANGED can abort the redirect chain kicked off by the login
+    submit, stranding the browser on the auth host so it never reaches ``ui.kubeflow.com``
+    and the dashboard wait times out. The flow is idempotent (the Kratos user and Profile
+    already exist), so on that timeout we clear cookies and drive it again from the login
+    form. A timeout once already on the UI host is a dashboard-render problem, not an
+    aborted redirect, so it is re-raised rather than retried.
+    """
+    for attempt in range(1, max_attempts + 1):
+        goto_login_form(page)
+        try:
+            login_with_password(page, email, password)
+            # Wait for the post-login redirect to land on the UI host; a network change
+            # that aborts it surfaces here as a timeout (the URL never changes).
+            page.wait_for_url(is_ui_url, timeout=REDIRECT_TIMEOUT_MS)
+            reach_dashboard(page, profile_namespace)
+            return
+        except PlaywrightTimeoutError as error:
+            if attempt >= max_attempts or is_ui_url(page.url):
+                raise
+            log.warning(
+                "Login did not reach the dashboard (attempt %d/%d): %s — likely a "
+                "transient network change aborted the redirect; "
+                "clearing cookies and retrying",
+                attempt,
+                max_attempts,
+                error,
+            )
+            page.context.clear_cookies()
