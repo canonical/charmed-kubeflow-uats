@@ -18,6 +18,7 @@ import logging
 from pathlib import Path
 from uuid import uuid4
 
+import jubilant
 import pytest
 from helpers import (
     INFERENCE_SERVICE_RESOURCE,
@@ -51,6 +52,36 @@ WILDCARD_HOSTNAME = f"*.{DOMAIN}"
 
 # The prediction request body sent to the sklearn v2 iris model.
 PAYLOAD = '{"instances": [[6.8, 2.8, 4.8, 1.4], [6.0, 3.4, 4.5, 1.6]]}'
+
+# Interval the kubeflow model's update-status hook is throttled to during the test run
+# to stop github-profiles-automator from reconciling mid-test (see
+# github-profiles-automator-bug.md).
+UPDATE_STATUS_HOOK_INTERVAL = "2h"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def slow_update_status_hook():
+    """Raise the ``kubeflow`` model's update-status interval for the test run.
+
+    ``github-profiles-automator`` runs a full reconcile on every ``update_status``
+    hook and revokes access to Profiles absent from its PMR, which deletes the
+    RoleBinding/AuthorizationPolicy these tests create and makes them flaky. Setting
+    the interval to 2h stops the hook from firing mid-test; the original value is
+    restored on teardown.
+    """
+    juju = jubilant.Juju(model=KUBEFLOW_MODEL)
+    original = juju.model_config().get("update-status-hook-interval")
+    log.info(
+        f"Setting '{KUBEFLOW_MODEL}' update-status-hook-interval to "
+        f"{UPDATE_STATUS_HOOK_INTERVAL} (was {original})"
+    )
+    juju.model_config({"update-status-hook-interval": UPDATE_STATUS_HOOK_INTERVAL})
+
+    yield
+
+    if original:
+        log.info(f"Restoring '{KUBEFLOW_MODEL}' update-status-hook-interval to {original}")
+        juju.model_config({"update-status-hook-interval": original})
 
 
 @pytest.fixture(scope="module")

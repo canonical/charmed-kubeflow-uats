@@ -22,6 +22,7 @@ import pytest
 from iam.ui.helpers import (
     AUTH_DOMAIN,
     IAM_MODEL,
+    KUBEFLOW_MODEL,
     UI_DOMAIN,
     build_host_resolver_rules,
     create_kratos_user,
@@ -49,6 +50,36 @@ PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 ARTIFACTS_DIR = Path(__file__).parent.parent.parent.parent / "playwright-artifacts"
 
 NAMESPACE = "test-ui-iam"
+
+# Interval the kubeflow model's update-status hook is throttled to during the test run
+# to stop github-profiles-automator from reconciling mid-test (see
+# github-profiles-automator-bug.md).
+UPDATE_STATUS_HOOK_INTERVAL = "2h"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def slow_update_status_hook():
+    """Raise the ``kubeflow`` model's update-status interval for the test run.
+
+    ``github-profiles-automator`` runs a full reconcile on every ``update_status``
+    hook and revokes access to Profiles absent from its PMR, which deletes the
+    RoleBinding/AuthorizationPolicy backing the test user's Profile and makes login
+    flaky. Setting the interval to 2h stops the hook from firing mid-test; the original
+    value is restored on teardown.
+    """
+    juju = jubilant.Juju(model=KUBEFLOW_MODEL)
+    original = juju.model_config().get("update-status-hook-interval")
+    log.info(
+        f"Setting '{KUBEFLOW_MODEL}' update-status-hook-interval to "
+        f"{UPDATE_STATUS_HOOK_INTERVAL} (was {original})"
+    )
+    juju.model_config({"update-status-hook-interval": UPDATE_STATUS_HOOK_INTERVAL})
+
+    yield
+
+    if original:
+        log.info(f"Restoring '{KUBEFLOW_MODEL}' update-status-hook-interval to {original}")
+        juju.model_config({"update-status-hook-interval": original})
 
 
 @pytest.fixture(scope="module")
