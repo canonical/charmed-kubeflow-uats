@@ -54,8 +54,7 @@ WILDCARD_HOSTNAME = f"*.{DOMAIN}"
 PAYLOAD = '{"instances": [[6.8, 2.8, 4.8, 1.4], [6.0, 3.4, 4.5, 1.6]]}'
 
 # Interval the kubeflow model's update-status hook is throttled to during the test run
-# to stop github-profiles-automator from reconciling mid-test (see
-# github-profiles-automator-bug.md).
+# to stop github-profiles-automator from reconciling mid-test.
 UPDATE_STATUS_HOOK_INTERVAL = "2h"
 
 

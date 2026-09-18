@@ -51,8 +51,7 @@ ARTIFACTS_DIR = Path(__file__).parent.parent.parent.parent / "playwright-artifac
 NAMESPACE = "test-ui-iam"
 
 # Interval the kubeflow model's update-status hook is throttled to during the test run
-# to stop github-profiles-automator from reconciling mid-test (see
-# github-profiles-automator-bug.md).
+# to stop github-profiles-automator from reconciling mid-test.
 UPDATE_STATUS_HOOK_INTERVAL = "2h"
 
 
