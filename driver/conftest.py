@@ -3,6 +3,8 @@
 
 import pytest
 from _pytest.config.argparsing import Parser
+from lightkube import Client
+from lightkube.generic_resource import load_in_cluster_generic_resources
 from notebook_jobs import discover_notebooks, notebook_matches_filter
 
 from driver.notebook_jobs import NotebookResult
@@ -16,6 +18,20 @@ NOTEBOOK_DIRS = {
     "gpu": "tests/notebooks/gpu",
     "kubeflow-trainer": "tests/notebooks/kubeflow-trainer",
 }
+
+
+@pytest.fixture(scope="module")
+def keep_artifacts(request: pytest.FixtureRequest) -> bool:
+    """Return whether resources created by tests should be kept."""
+    return bool(request.config.getoption("--keep-artifacts"))
+
+
+@pytest.fixture(scope="module")
+def lightkube_client() -> Client:
+    """Initialise a Lightkube client with in-cluster generic resources loaded."""
+    client = Client(trust_env=False)
+    load_in_cluster_generic_resources(client)
+    return client
 
 
 def pytest_addoption(parser: Parser):

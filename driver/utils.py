@@ -154,7 +154,6 @@ def create_poddefault(
     poddefault_context: Dict[str, str],
     namespace: str,
     lightkube_client: Client,
-    keep_artifacts: bool,
 ):
     """Apply the PodDefault from the path after rendering it with the passed context.
 

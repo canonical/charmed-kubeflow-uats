@@ -15,7 +15,6 @@ import pytest
 import requests
 import yaml
 from lightkube import ApiError, Client, codecs
-from lightkube.generic_resource import load_in_cluster_generic_resources
 from notebook_jobs import (
     RUNTIMECLASS_RESOURCE,
     job_name_for,
@@ -140,12 +139,6 @@ def notebook_timeout(request: pytest.FixtureRequest):
 
 
 @pytest.fixture(scope="module")
-def keep_artifacts(request: pytest.FixtureRequest):
-    """Return whether to keep notebook artifacts on the host and Jobs in the cluster."""
-    return bool(request.config.getoption("--keep-artifacts"))
-
-
-@pytest.fixture(scope="module")
 def rerun_failed(request: pytest.FixtureRequest):
     """Return how many times a failed notebook should be retried."""
     return int(request.config.getoption("--rerun-failed-notebooks"))
@@ -155,14 +148,6 @@ def rerun_failed(request: pytest.FixtureRequest):
 def retry_timeout(request: pytest.FixtureRequest):
     """Return the max retry timeout (seconds) exposed to notebooks as RETRY_TIMEOUT."""
     return int(request.config.getoption("--retry-timeout"))
-
-
-@pytest.fixture(scope="module")
-def lightkube_client():
-    """Initialise Lightkube Client."""
-    lightkube_client = Client(trust_env=False)
-    load_in_cluster_generic_resources(lightkube_client)
-    return lightkube_client
 
 
 @pytest.fixture(scope="module")
@@ -185,15 +170,12 @@ def create_profile(lightkube_client: Client, keep_artifacts: bool):
         return
 
     # delete the Profile at the end of the module tests
-    log.info(f"Deleting Profile {PROFILE_NAME}...")
     assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, PROFILE_NAME)
 
 
 @pytest.fixture(scope="function")
-def create_poddefault_on_proxy(
-    request: pytest.FixtureRequest, lightkube_client: Client, keep_artifacts: bool
-):
-    """Create PodDefault with proxy env variables for the Notebook inside the Job."""
+def create_poddefault_on_proxy(request: pytest.FixtureRequest, lightkube_client: Client):
+    """Create a transient PodDefault with proxy variables for the Notebook Job."""
     # Simply yield if the proxy flag is not set
     if not request.config.getoption("proxy"):
         yield
@@ -203,15 +185,12 @@ def create_poddefault_on_proxy(
             context_from("proxy", request),
             NAMESPACE,
             lightkube_client,
-            keep_artifacts,
         )
 
 
 @pytest.fixture(scope="function")
-def create_poddefault_on_toleration(
-    request: pytest.FixtureRequest, lightkube_client: Client, keep_artifacts: bool
-):
-    """Create PodDefault with toleration for workload pods created by GPU tests."""
+def create_poddefault_on_toleration(request: pytest.FixtureRequest, lightkube_client: Client):
+    """Create a transient PodDefault with toleration for GPU workload pods."""
     # Simply yield if the proxy flag is not set
     if not request.config.getoption("toleration"):
         yield
@@ -221,15 +200,12 @@ def create_poddefault_on_toleration(
             context_from("toleration", request),
             NAMESPACE,
             lightkube_client,
-            keep_artifacts,
         )
 
 
 @pytest.fixture(scope="function")
-def create_poddefault_on_security_policy(
-    request: pytest.FixtureRequest, lightkube_client: Client, keep_artifacts: bool
-):
-    """Create PodDefault with security policy env variables for the Notebook inside the Job."""
+def create_poddefault_on_security_policy(request: pytest.FixtureRequest, lightkube_client: Client):
+    """Create a transient PodDefault with security policy variables for the Notebook Job."""
     # Simply yield if the option is not set
     if not request.config.getoption("security_policy"):
         yield
@@ -240,7 +216,6 @@ def create_poddefault_on_security_policy(
             security_policy_context,
             NAMESPACE,
             lightkube_client,
-            keep_artifacts,
         )
 
 
