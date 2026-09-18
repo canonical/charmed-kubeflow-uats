@@ -23,6 +23,7 @@ from typing import Callable
 from urllib.parse import urlparse
 
 import jubilant
+import tenacity
 from ingress import find_gateway_for_domain, gateway_service_name, get_service_lb_ip
 from lightkube import Client
 from playwright.sync_api import Error as PlaywrightError
@@ -192,21 +193,29 @@ def _run_with_net_retry(
     netlink events or /etc/hosts churn trip its NetworkChangeNotifier. Navigations are
     idempotent, so retry them a few times before giving up.
     """
-    for attempt in range(1, max_attempts + 1):
-        try:
-            action()
-            return
-        except PlaywrightError as error:
-            if not _is_transient_net_error(error) or attempt >= max_attempts:
-                raise
-            log.warning(
-                "%s hit a transient network error (attempt %d/%d): %s — retrying",
-                description,
-                attempt,
-                max_attempts,
-                error,
-            )
-            time.sleep(2)
+
+    def _log_retry(retry_state: tenacity.RetryCallState) -> None:
+        log.warning(
+            "%s hit a transient network error (attempt %d/%d): %s — retrying",
+            description,
+            retry_state.attempt_number,
+            max_attempts,
+            retry_state.outcome.exception(),
+        )
+
+    retryer = tenacity.Retrying(
+        # Only Chromium's transient network drops are retryable; any other Playwright
+        # error (or a real timeout) is re-raised on the first occurrence.
+        retry=(
+            tenacity.retry_if_exception_type(PlaywrightError)
+            & tenacity.retry_if_exception(_is_transient_net_error)
+        ),
+        wait=tenacity.wait_fixed(2),
+        stop=tenacity.stop_after_attempt(max_attempts),
+        before_sleep=_log_retry,
+        reraise=True,
+    )
+    retryer(action)
 
 
 def goto_login_form(page: Page, max_attempts: int = 3) -> None:
@@ -260,35 +269,45 @@ def reach_dashboard(page: Page, profile_namespace: str, max_attempts: int = 2) -
     # redirect parameter cannot satisfy the wait before the dashboard is reached.
     page.wait_for_url(is_ui_url, timeout=120_000)
 
-    for attempt in range(1, max_attempts + 1):
-        try:
-            # Wait for the dashboard SPA to settle (API calls complete, namespace set).
-            page.wait_for_load_state("networkidle", timeout=60_000)
+    def _render_dashboard() -> None:
+        # Wait for the dashboard SPA to settle (API calls complete, namespace set).
+        page.wait_for_load_state("networkidle", timeout=60_000)
 
-            # Confirm the dashboard page loaded. The title is set in the static HTML so
-            # it's available before the SPA fully hydrates, but combined with the
-            # networkidle wait above it confirms the page actually rendered.
-            assert (
-                page.title() == "Kubeflow Central Dashboard"
-            ), f"Expected dashboard title, got {page.title()!r}"
+        # Confirm the dashboard page loaded. The title is set in the static HTML so
+        # it's available before the SPA fully hydrates, but combined with the
+        # networkidle wait above it confirms the page actually rendered.
+        assert (
+            page.title() == "Kubeflow Central Dashboard"
+        ), f"Expected dashboard title, got {page.title()!r}"
 
-            log.info(f"Dashboard loaded at {page.url}")
+        log.info(f"Dashboard loaded at {page.url}")
 
-            _assert_profile_visible(page, profile_namespace)
-            return
-        except (PlaywrightTimeoutError, AssertionError) as error:
-            # A transient ERR_NETWORK_CHANGED can abort one of the SPA's resource/API
-            # requests mid-hydration, leaving the dashboard half-rendered. Reloading
-            # (the session cookie is already set, so no re-login) usually recovers.
-            if attempt >= max_attempts or not is_ui_url(page.url):
-                raise
-            log.warning(
-                "Dashboard did not settle (attempt %d/%d): %s — reloading",
-                attempt,
-                max_attempts,
-                error,
-            )
-            _run_with_net_retry(page.reload, "Dashboard reload")
+        _assert_profile_visible(page, profile_namespace)
+
+    def _reload_before_retry(retry_state: tenacity.RetryCallState) -> None:
+        # A transient ERR_NETWORK_CHANGED can abort one of the SPA's resource/API
+        # requests mid-hydration, leaving the dashboard half-rendered. Reloading
+        # (the session cookie is already set, so no re-login) usually recovers.
+        log.warning(
+            "Dashboard did not settle (attempt %d/%d): %s — reloading",
+            retry_state.attempt_number,
+            max_attempts,
+            retry_state.outcome.exception(),
+        )
+        _run_with_net_retry(page.reload, "Dashboard reload")
+
+    retryer = tenacity.Retrying(
+        # Only retry while still on the UI host: a URL that fell back to the auth host
+        # is an aborted redirect, not a render glitch, and reloading will not fix it.
+        retry=(
+            tenacity.retry_if_exception_type((PlaywrightTimeoutError, AssertionError))
+            & tenacity.retry_if_exception(lambda _error: is_ui_url(page.url))
+        ),
+        stop=tenacity.stop_after_attempt(max_attempts),
+        before_sleep=_reload_before_retry,
+        reraise=True,
+    )
+    retryer(_render_dashboard)
 
 
 def _assert_profile_visible(page: Page, profile_namespace: str) -> None:
@@ -329,24 +348,37 @@ def login_and_reach_dashboard(
     form. A timeout once already on the UI host is a dashboard-render problem, not an
     aborted redirect, so it is re-raised rather than retried.
     """
-    for attempt in range(1, max_attempts + 1):
+
+    def _login_and_reach() -> None:
+        login_with_password(page, email, password)
+        # Wait for the post-login redirect to land on the UI host; a network change
+        # that aborts it surfaces here as a timeout (the URL never changes).
+        page.wait_for_url(is_ui_url, timeout=REDIRECT_TIMEOUT_MS)
+        reach_dashboard(page, profile_namespace)
+
+    def _redrive_login(retry_state: tenacity.RetryCallState) -> None:
+        log.warning(
+            "Login did not reach the dashboard (attempt %d/%d): %s — likely a "
+            "transient network change aborted the redirect; "
+            "clearing cookies and retrying",
+            retry_state.attempt_number,
+            max_attempts,
+            retry_state.outcome.exception(),
+        )
+        page.context.clear_cookies()
         goto_login_form(page)
-        try:
-            login_with_password(page, email, password)
-            # Wait for the post-login redirect to land on the UI host; a network change
-            # that aborts it surfaces here as a timeout (the URL never changes).
-            page.wait_for_url(is_ui_url, timeout=REDIRECT_TIMEOUT_MS)
-            reach_dashboard(page, profile_namespace)
-            return
-        except PlaywrightTimeoutError as error:
-            if attempt >= max_attempts or is_ui_url(page.url):
-                raise
-            log.warning(
-                "Login did not reach the dashboard (attempt %d/%d): %s — likely a "
-                "transient network change aborted the redirect; "
-                "clearing cookies and retrying",
-                attempt,
-                max_attempts,
-                error,
-            )
-            page.context.clear_cookies()
+
+    retryer = tenacity.Retrying(
+        # A timeout while still on the auth host is an aborted redirect, so re-drive the
+        # (idempotent) login; a timeout once on the UI host is a render problem — stop
+        # retrying and let reach_dashboard's failure propagate.
+        retry=(
+            tenacity.retry_if_exception_type(PlaywrightTimeoutError)
+            & tenacity.retry_if_exception(lambda _error: not is_ui_url(page.url))
+        ),
+        stop=tenacity.stop_after_attempt(max_attempts),
+        before_sleep=_redrive_login,
+        reraise=True,
+    )
+    goto_login_form(page)
+    retryer(_login_and_reach)
