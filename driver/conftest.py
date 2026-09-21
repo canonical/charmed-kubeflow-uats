@@ -34,6 +34,12 @@ def lightkube_client() -> Client:
     return client
 
 
+@pytest.fixture(scope="module")
+def kubeflow_model(request: pytest.FixtureRequest) -> str:
+    """Return the Juju model (and namespace) where Kubeflow is deployed."""
+    return request.config.getoption("--model")
+
+
 def pytest_addoption(parser: Parser):
     """Add pytest options.
 

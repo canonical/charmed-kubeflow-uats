@@ -51,9 +51,9 @@ NAMESPACE = "test-ui-iam"
 
 
 @pytest.fixture(scope="module")
-def ui_ip(lightkube_client):
+def ui_ip(lightkube_client, kubeflow_model):
     """LoadBalancer IP of the istio Gateway serving the Kubeflow UI."""
-    return get_ui_lb_ip(lightkube_client)
+    return get_ui_lb_ip(lightkube_client, kubeflow_model)
 
 
 @pytest.fixture(scope="module")

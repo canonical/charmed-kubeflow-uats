@@ -63,13 +63,12 @@ KFP_PODDEFAULT_NAME = "access-ml-pipeline"
 
 
 @pytest.fixture(scope="module")
-def juju(request: pytest.FixtureRequest):
+def juju(request: pytest.FixtureRequest, kubeflow_model: str):
     """Create a temporary or use an existing Juju model for running tests."""
     keep_models = bool(request.config.getoption("--keep-models"))
-    juju_model = request.config.getoption("--model")
 
-    if juju_model:
-        model_context = contextlib.nullcontext(jubilant.Juju(model=juju_model))
+    if kubeflow_model:
+        model_context = contextlib.nullcontext(jubilant.Juju(model=kubeflow_model))
     else:
         model_context = jubilant.temp_model(keep=keep_models)
 

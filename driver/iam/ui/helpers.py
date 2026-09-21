@@ -34,7 +34,6 @@ log = logging.getLogger(__name__)
 
 # Model / service constants.
 IAM_MODEL = "iam"
-KUBEFLOW_MODEL = "kubeflow"
 IAM_CORE_MODEL = "iam-core"
 AUTH_SERVICE = "traefik-lb"
 
@@ -115,10 +114,10 @@ def remove_kratos_user(iam_juju: jubilant.Juju, identity_id: str, secret_uri: st
         log.warning(f"Could not remove Juju secret {secret_uri}: {error}")
 
 
-def get_ui_lb_ip(client: Client) -> str:
+def get_ui_lb_ip(client: Client, kubeflow_model: str) -> str:
     """Return the LoadBalancer IP of the istio Gateway serving the Kubeflow UI."""
-    gateway = find_gateway_for_domain(client, KUBEFLOW_MODEL, UI_DOMAIN)
-    return get_service_lb_ip(client, KUBEFLOW_MODEL, gateway_service_name(gateway))
+    gateway = find_gateway_for_domain(client, kubeflow_model, UI_DOMAIN)
+    return get_service_lb_ip(client, kubeflow_model, gateway_service_name(gateway))
 
 
 def get_auth_lb_ip(client: Client) -> str:
