@@ -325,3 +325,59 @@ def request_inference(
 
     log.info(f"Inference request to {hostname} returned HTTP {response.status_code}")
     return response.status_code, response.text
+
+
+# Warm-up bounds for gateway JWT verification on a cold-started deployment.
+#
+# Hydra creates the ``hydra.jwt.access-token`` signing key lazily, the first time a
+# JWT access token is ever issued. If the M2M suite is that first consumer, the key is
+# minted *after* the ingress gateway's RequestAuthentication was configured, so the
+# gateway has no key matching the token's ``kid`` and rejects it with HTTP 401 ("Jwt
+# verification fails"). The gateway recovers once its JWKS is refreshed to include the
+# new key, so we retry the request until that convergence happens.
+JWT_WARMUP_TIMEOUT = 360  # seconds to keep retrying while a valid token fails to verify
+JWT_WARMUP_INTERVAL = 15  # seconds between attempts
+
+
+def _jwt_not_yet_verified(result: tuple[int, str]) -> bool:
+    """Retry predicate: a real token that the gateway has not (yet) verified.
+
+    Only the tests that send a genuine token use this, so an HTTP 401 always means the
+    gateway could not verify the signature -- expected transiently until its JWKS
+    catches up with Hydra's access-token key. Any other status means verification
+    completed (allowed, or authz-denied), so stop retrying.
+    """
+    code, _ = result
+    return code == 401
+
+
+def _log_jwt_warmup(retry_state: tenacity.RetryCallState) -> None:
+    """Log each warm-up retry so a gateway whose JWKS never converges is visible."""
+    code, body = retry_state.outcome.result()
+    log.warning(
+        f"Gateway returned HTTP {code} -- token not yet verified (gateway JWKS likely "
+        f"still missing Hydra's access-token key). Retrying (attempt "
+        f"{retry_state.attempt_number})... Body: {body!r}"
+    )
+
+
+def request_inference_with_jwt_warmup(
+    hostname: str, gateway_ip: str, token: str | None, payload: str, model_name: str
+) -> tuple[int, str]:
+    """Send an inference request, tolerating the gateway's JWT verification warm-up.
+
+    On a freshly deployed cluster, Hydra mints the ``hydra.jwt.access-token`` signing
+    key only when the first JWT access token is issued -- which can happen after the
+    gateway's RequestAuthentication was already configured. Until the gateway refreshes
+    its JWKS, a valid token transiently fails signature verification (HTTP 401). Retry
+    the request until the token verifies (any non-401 response) or the warm-up deadline
+    elapses, then return the final ``(status_code, body)`` for the caller to assert on.
+    """
+    retryer = tenacity.Retrying(
+        retry=tenacity.retry_if_result(_jwt_not_yet_verified),
+        wait=tenacity.wait_fixed(JWT_WARMUP_INTERVAL),
+        stop=tenacity.stop_after_delay(JWT_WARMUP_TIMEOUT),
+        before_sleep=_log_jwt_warmup,
+        retry_error_callback=lambda retry_state: retry_state.outcome.result(),
+    )
+    return retryer(request_inference, hostname, gateway_ip, token, payload, model_name)
