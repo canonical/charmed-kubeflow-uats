@@ -341,19 +341,33 @@ def login_and_reach_dashboard(
     """Drive the full IdP login flow to the dashboard, retrying transient network aborts.
 
     A transient ERR_NETWORK_CHANGED can abort the redirect chain kicked off by the login
-    submit, stranding the browser on the auth host so it never reaches ``ui.kubeflow.com``
-    and the dashboard wait times out. The flow is idempotent (the Kratos user and Profile
-    already exist), so on that timeout we clear cookies and drive it again from the login
-    form. A timeout once already on the UI host is a dashboard-render problem, not an
-    aborted redirect, so it is re-raised rather than retried.
+    submit, stranding the browser on the auth host so it never reaches ``ui.kubeflow.com``.
+    The abort surfaces either as a directly-raised ERR_NETWORK_CHANGED or as a timeout (the
+    URL never changes); the flow is idempotent (the Kratos user and Profile already exist),
+    so on either we clear cookies and drive it again from the login form. A failure once
+    already on the UI host is a dashboard-render problem, not an aborted redirect, so it is
+    re-raised rather than retried.
     """
 
     def _login_and_reach() -> None:
         login_with_password(page, email, password)
-        # Wait for the post-login redirect to land on the UI host; a network change
-        # that aborts it surfaces here as a timeout (the URL never changes).
+        # Wait for the post-login redirect to land on the UI host. A network change can
+        # abort it two ways: wait_for_url times out (the URL never changes) or Playwright
+        # surfaces the aborted navigation's ERR_NETWORK_CHANGED directly. Both are retried.
         page.wait_for_url(is_ui_url, timeout=REDIRECT_TIMEOUT_MS)
         reach_dashboard(page, profile_namespace)
+
+    def _redirect_failed_off_ui_host(error: Exception) -> bool:
+        """Return True if the redirect failed recoverably while still off the UI host.
+
+        A transient network change breaks the post-login redirect either as a wait_for_url
+        timeout (the URL never changed) or as a directly-raised ERR_NETWORK_CHANGED; both
+        are recoverable by re-driving the idempotent login. Once on the UI host, a failure
+        is a dashboard-render problem — don't retry.
+        """
+        if is_ui_url(page.url):
+            return False
+        return isinstance(error, PlaywrightTimeoutError) or _is_transient_net_error(error)
 
     def _redrive_login(retry_state: tenacity.RetryCallState) -> None:
         log.warning(
@@ -368,13 +382,10 @@ def login_and_reach_dashboard(
         goto_login_form(page)
 
     retryer = tenacity.Retrying(
-        # A timeout while still on the auth host is an aborted redirect, so re-drive the
-        # (idempotent) login; a timeout once on the UI host is a render problem — stop
-        # retrying and let reach_dashboard's failure propagate.
-        retry=(
-            tenacity.retry_if_exception_type(PlaywrightTimeoutError)
-            & tenacity.retry_if_exception(lambda _error: not is_ui_url(page.url))
-        ),
+        # A timeout or transient network error while still on the auth host is an aborted
+        # redirect, so re-drive the (idempotent) login; a failure once on the UI host is a
+        # render problem — stop retrying and let reach_dashboard's failure propagate.
+        retry=tenacity.retry_if_exception(_redirect_failed_off_ui_host),
         stop=tenacity.stop_after_attempt(max_attempts),
         before_sleep=_redrive_login,
         reraise=True,
