@@ -11,6 +11,7 @@ from driver.notebook_jobs import NotebookResult
 
 BUNDLE_URL_SIDECAR = "file:assets/versions-sidecar.yaml"
 BUNDLE_URL_AMBIENT = "file:assets/versions-ambient.yaml"
+BUNDLE_URL_AMBIENT_IAM = "file:assets/versions-ambient-iam.yaml"
 TESTS_IMAGE = "ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter-scipy:v1.10.0"
 
 NOTEBOOK_DIRS = {
@@ -223,11 +224,9 @@ def pytest_configure(config):
     if config.getoption("--bundle") is not None:
         return
 
-    if (
-        config.getoption("--include-ambient-tests")
-        or config.getoption("--include-iam-m2m-tests")
-        or config.getoption("--include-iam-ui-tests")
-    ):
+    if config.getoption("--include-iam-m2m-tests") or config.getoption("--include-iam-ui-tests"):
+        config.option.bundle = BUNDLE_URL_AMBIENT_IAM
+    elif config.getoption("--include-ambient-tests"):
         config.option.bundle = BUNDLE_URL_AMBIENT
     else:
         config.option.bundle = BUNDLE_URL_SIDECAR
