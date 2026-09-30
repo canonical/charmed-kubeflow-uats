@@ -138,6 +138,12 @@ def notebook_timeout(request: pytest.FixtureRequest):
 
 
 @pytest.fixture(scope="module")
+def mlflow_workspace(request: pytest.FixtureRequest):
+    """Return the MLflow workspace name to set for all MLflow tests."""
+    return request.config.getoption("--mlflow-workspace")
+
+
+@pytest.fixture(scope="module")
 def rerun_failed(request: pytest.FixtureRequest):
     """Return how many times a failed notebook should be retried."""
     return int(request.config.getoption("--rerun-failed-notebooks"))
@@ -350,6 +356,7 @@ def _notebook_job_context(
     security_policy,
     kubeflow_namespace,
     istio_mode,
+    mlflow_workspace,
 ):
     """Build the Jinja context for rendering a single-notebook Job."""
     return {
@@ -368,6 +375,7 @@ def _notebook_job_context(
         "kubeflow_namespace": kubeflow_namespace,
         "user_namespace": PROFILE_NAME,
         "istio_mode": istio_mode,
+        "mlflow_workspace": mlflow_workspace,
     }
 
 
@@ -387,6 +395,7 @@ def test_notebook_workload(
     create_poddefault_on_proxy,
     create_poddefault_on_toleration,
     create_poddefault_on_security_policy,
+    mlflow_workspace: str,
     request: pytest.FixtureRequest,
 ):
     """Run a single UAT notebook as an isolated Kubernetes Job.
@@ -416,6 +425,7 @@ def test_notebook_workload(
             security_policy=request.config.getoption("security_policy") != "privileged",
             kubeflow_namespace=juju.model,
             istio_mode=istio_mode,
+            mlflow_workspace=mlflow_workspace,
         )
         manifest = render_notebook_job(str(JOB_TEMPLATE_FILE), context)
         result = run_notebook_job(
