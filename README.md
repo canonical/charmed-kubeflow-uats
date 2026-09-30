@@ -226,6 +226,13 @@ tox -e mlflow-remote
 tox -e mlflow-local
 ```
 
+The MLflow notebooks target the `test-workspace` MLflow workspace by default. If your
+deployment uses a different workspace, specify it via the `--mlflow-workspace` option:
+
+```bash
+tox -e mlflow-remote -- --mlflow-workspace my-workspace
+```
+
 #### Run Kubeflow+MLFlow UATs
 
 In order to only run the Kubeflow+MLFlow-specific tests you can use the
