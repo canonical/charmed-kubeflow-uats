@@ -79,6 +79,7 @@ def pytest_addoption(parser: Parser):
       file, regardless of this flag.)
     * Add an `--include-multi-tenancy-tests` flag to include the multi-tenancy integration
       tests in the executed tests.
+    * Add a `--mlflow-workspace` option to specify the MLflow workspace all MLflow tests target.
     """
     parser.addoption(
         "--proxy",
@@ -216,6 +217,11 @@ def pytest_addoption(parser: Parser):
         action="store_true",
         help="Defines whether to include the multi-tenancy integration tests."
         "By default, it is set to False.",
+    )
+    parser.addoption(
+        "--mlflow-workspace",
+        default="test-workspace",
+        help="Name of the MLflow workspace all MLflow tests target.",
     )
 
 
