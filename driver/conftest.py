@@ -178,19 +178,19 @@ def pytest_addoption(parser: Parser):
         "--iam-domain-auth",
         default="",
         help="Domain for auth access in IAM tests. When empty, as be default, it means"
-        "`auth.kubeflow.com` with Kubeflow and `auth.mlflow.com` when MLflow standalone."
+        "`auth.kubeflow.com` with Kubeflow and `auth.mlflow.com` when MLflow standalone.",
     )
     parser.addoption(
         "--iam-domain-m2m",
         default="",
         help="Domain for M2M access in IAM tests. When empty, as be default, it means"
-        "`api.kubeflow.com` with Kubeflow and `api.mlflow.com` when MLflow standalone."
+        "`api.kubeflow.com` with Kubeflow and `api.mlflow.com` when MLflow standalone.",
     )
     parser.addoption(
         "--iam-domain-ui",
         default="",
         help="Domain for UI access in IAM tests. When empty, as be default, it means"
-        "`ui.kubeflow.com` with Kubeflow and `ui.mlflow.com` when MLflow standalone."
+        "`ui.kubeflow.com` with Kubeflow and `ui.mlflow.com` when MLflow standalone.",
     )
     parser.addoption(
         "--model",

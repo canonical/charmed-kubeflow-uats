@@ -69,7 +69,9 @@ def m2m_gateway(lightkube_client, application_model: str, m2m_domain: str) -> st
 @pytest.fixture(scope="module")
 def gateway_ip(lightkube_client, m2m_gateway: str, application_model: str) -> str:
     """LoadBalancer IP of the M2M ingress gateway."""
-    return get_service_lb_ip(lightkube_client, application_model, gateway_service_name(m2m_gateway))
+    return get_service_lb_ip(
+        lightkube_client, application_model, gateway_service_name(m2m_gateway)
+    )
 
 
 @pytest.fixture(scope="module")
@@ -190,9 +192,10 @@ def test_missing_token_is_rejected(m2m_domain: str, gateway_ip: str, mlflow_work
     """A request without a token carries no identity and is denied (401/403)."""
     http_code, body = mlflow_experiments_search(m2m_domain, gateway_ip, None, mlflow_workspace)
 
-    assert http_code in (401, 403), (
-        f"Expected HTTP 401/403 for a request without a token, got {http_code}. Body: {body}"
-    )
+    assert http_code in (
+        401,
+        403,
+    ), f"Expected HTTP 401/403 for a request without a token, got {http_code}. Body: {body}"
     log.info("✓ Request without a token was correctly denied.")
 
 
@@ -202,9 +205,9 @@ def test_invalid_token_is_rejected(m2m_domain: str, gateway_ip: str, mlflow_work
         m2m_domain, gateway_ip, "not-a-valid-jwt", mlflow_workspace
     )
 
-    assert http_code == 401, (
-        f"Expected HTTP 401 for an invalid token, got {http_code}. Body: {body}"
-    )
+    assert (
+        http_code == 401
+    ), f"Expected HTTP 401 for an invalid token, got {http_code}. Body: {body}"
     log.info("✓ Request with an invalid token was correctly rejected.")
 
 
@@ -216,7 +219,7 @@ def test_unauthorized_token_is_forbidden(
         m2m_domain, gateway_ip, unauthorized_token, mlflow_workspace
     )
 
-    assert http_code == 403, (
-        f"Expected HTTP 403 (RBAC denied) for an ungranted client, got {http_code}. Body: {body}"
-    )
+    assert (
+        http_code == 403
+    ), f"Expected HTTP 403 (RBAC denied) for an ungranted client, got {http_code}. Body: {body}"
     log.info("✓ Valid token from an ungranted client was correctly forbidden.")

@@ -106,9 +106,7 @@ def test_unauthenticated_request_is_redirected_to_login(context, ui_domain, auth
     goto_login_form(page, ui_url=f"https://{ui_domain}", auth_domain=auth_domain)
     page.get_by_role("heading", name="Sign in").wait_for(state="visible", timeout=60_000)
 
-    assert is_auth_url(page.url, auth_domain), (
-        f"Expected to land on {auth_domain}, got {page.url}"
-    )
+    assert is_auth_url(page.url, auth_domain), f"Expected to land on {auth_domain}, got {page.url}"
     log.info("✓ Unauthenticated request was redirected to the IdP login page.")
 
 
@@ -119,7 +117,7 @@ def test_login_reaches_dashboard(context, kratos_user, create_profile, ui_domain
     page = context.pages[0]
     login_and_reach_dashboard(page, email, password, profile_namespace=NAMESPACE)
 
-    assert is_ui_url(page.url, ui_domain), (
-        f"Expected dashboard on host {ui_domain}, got {page.url}"
-    )
+    assert is_ui_url(
+        page.url, ui_domain
+    ), f"Expected dashboard on host {ui_domain}, got {page.url}"
     log.info("✓ Login reached the Kubeflow dashboard.")
