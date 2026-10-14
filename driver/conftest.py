@@ -38,8 +38,8 @@ def lightkube_client() -> Client:
 
 
 @pytest.fixture(scope="module")
-def kubeflow_model(request: pytest.FixtureRequest) -> str:
-    """Return the Juju model (and namespace) where Kubeflow is deployed."""
+def application_model(request: pytest.FixtureRequest) -> str:
+    """Return the Juju model (and namespace) where Kubeflow/MLflow is deployed."""
     return request.config.getoption("--model")
 
 
@@ -67,6 +67,9 @@ def pytest_addoption(parser: Parser):
       executed tests.
     * Add an `--include-iam-m2m-tests` flag to include the IAM M2M identity integration tests.
     * Add an `--include-iam-ui-tests` flag to include the IAM UI (Identity login) tests.
+    * Add an `--iam-domain-auth` option to specify the domain for auth access in IAM tests.
+    * Add an `--iam-domain-m2m` option to specify the domain for M2M access in IAM tests.
+    * Add an `--iam-domain-ui` option to specify the domain for UI access in IAM tests.
     * Add a `--model` option to specify the Juju model (and Kubeflow control-plane namespace)
       where Kubeflow is deployed.
     * Add a `--notebook-timeout` option to set the per-notebook Job timeout in seconds
@@ -170,6 +173,24 @@ def pytest_addoption(parser: Parser):
         action="store_true",
         help="Defines whether to include the IAM UI (Identity login) integration tests."
         "By default, it is set to False.",
+    )
+    parser.addoption(
+        "--iam-domain-auth",
+        default="",
+        help="Domain for auth access in IAM tests. When empty, as be default, it means"
+        "`auth.kubeflow.com` with Kubeflow and `auth.mlflow.com` when MLflow standalone."
+    )
+    parser.addoption(
+        "--iam-domain-m2m",
+        default="",
+        help="Domain for M2M access in IAM tests. When empty, as be default, it means"
+        "`api.kubeflow.com` with Kubeflow and `api.mlflow.com` when MLflow standalone."
+    )
+    parser.addoption(
+        "--iam-domain-ui",
+        default="",
+        help="Domain for UI access in IAM tests. When empty, as be default, it means"
+        "`ui.kubeflow.com` with Kubeflow and `ui.mlflow.com` when MLflow standalone."
     )
     parser.addoption(
         "--model",
@@ -288,6 +309,22 @@ def pytest_collection_modifyitems(config, items):  # noqa C901
         for item in items:
             if "/iam/ui/" in item.nodeid:
                 item.add_marker(skip_ui)
+
+    # standalone MLflow and Kubeflow share the iam/ test directories but require different
+    # deployments, so only the IAM tests matching the deployment under test are run: the MLflow
+    # IAM tests, whose filename contains "mlflow", with --mlflow-standalone, and the Kubeflow ones
+    # otherwise:
+    is_mlflow_standalone = config.getoption("--mlflow-standalone", default=False)
+    for item in items:
+        if "/iam/" not in item.nodeid:
+            continue
+        is_mlflow_iam = "mlflow" in item.nodeid.split("::", 1)[0]
+        if is_mlflow_standalone and not is_mlflow_iam:
+            item.add_marker(
+                pytest.mark.skip(reason="Kubeflow IAM test skipped with --mlflow-standalone")
+            )
+        elif not is_mlflow_standalone and is_mlflow_iam:
+            item.add_marker(pytest.mark.skip(reason="MLflow IAM test needs --mlflow-standalone"))
 
     if not config.getoption("--include-multi-tenancy-tests", default=False):
         skip_multi_tenancy = pytest.mark.skip(

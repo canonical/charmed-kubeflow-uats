@@ -1,7 +1,7 @@
 # Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""M2M (machine-to-machine) identity integration tests.
+"""M2M (machine-to-machine) identity integration tests for KServe with Kubeflow.
 
 These tests validate that a token issued by the Identity Platform (Hydra) can be
 used to reach a KServe InferenceService through the Istio ingress gateway from
@@ -42,46 +42,64 @@ ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 INFERENCE_SERVICE_TEMPLATE_FILE = ASSETS_DIR / "kserve-inference-service.yaml.j2"
 
+DOMAIN_M2M = "api.kubeflow.com"
 IAM_MODEL = "iam"
 NAMESPACE = PROFILE_NAME = "test-m2m"
 ISVC_NAME = "sklearn-v2-iris"
-DOMAIN = "api.kubeflow.com"
-WILDCARD_HOSTNAME = f"*.{DOMAIN}"
 
 # The prediction request body sent to the sklearn v2 iris model.
 PAYLOAD = '{"instances": [[6.8, 2.8, 4.8, 1.4], [6.0, 3.4, 4.5, 1.6]]}'
 
 
 @pytest.fixture(scope="module")
-def m2m_gateway(lightkube_client: Client, kubeflow_model: str) -> str:
+def m2m_domain(request: pytest.FixtureRequest) -> str:
+    """Kubeflow M2M hostname."""
+    return domain if (domain := request.config.getoption("--iam-domain-m2m")) else DOMAIN_M2M
+
+
+@pytest.fixture(scope="module")
+def wildcard_hostname(m2m_domain: str) -> str:
+    """Wildcard hostname for KServe."""
+    return f"*.{m2m_domain}"
+
+
+@pytest.fixture(scope="module")
+def m2m_gateway(lightkube_client: Client, application_model: str, m2m_domain: str) -> str:
     """Name of the istio Gateway serving the KServe (M2M) domain.
 
     Discovered dynamically by matching the listener hostname, so the charm/app name
     does not need to be hardcoded.
     """
-    return find_gateway_for_domain(lightkube_client, kubeflow_model, DOMAIN)
+    return find_gateway_for_domain(lightkube_client, application_model, m2m_domain)
 
 
 @pytest.fixture(scope="module")
-def gateway_principals(m2m_gateway: str, kubeflow_model: str) -> list[str]:
+def gateway_principals(m2m_gateway: str, application_model: str) -> list[str]:
     """Istio principal of the M2M ingress gateway serving KServe."""
-    return [f"cluster.local/ns/{kubeflow_model}/sa/{gateway_service_name(m2m_gateway)}"]
+    return [f"cluster.local/ns/{application_model}/sa/{gateway_service_name(m2m_gateway)}"]
 
 
 @pytest.fixture(scope="module")
-def gateway_ip(lightkube_client: Client, m2m_gateway, kubeflow_model: str) -> str:
+def gateway_ip(lightkube_client: Client, m2m_gateway, application_model: str) -> str:
     """LoadBalancer IP of the M2M ingress gateway."""
-    return get_service_lb_ip(lightkube_client, kubeflow_model, gateway_service_name(m2m_gateway))
+    return get_service_lb_ip(
+        lightkube_client, application_model, gateway_service_name(m2m_gateway)
+    )
 
 
 @pytest.fixture(scope="module")
-def issuer_url(kubeflow_model: str) -> str:
+def issuer_url(application_model: str) -> str:
     """JWT issuer URL trusted by the gateway's RequestAuthentication."""
-    return get_jwt_issuer_url(kubeflow_model)
+    return get_jwt_issuer_url(application_model)
 
 
 @pytest.fixture(scope="module")
-def patch_gateway(lightkube_client: Client, m2m_gateway: str, kubeflow_model: str):
+def patch_gateway(
+    lightkube_client: Client,
+    m2m_gateway: str,
+    application_model: str,
+    wildcard_hostname: str,
+):
     """Patch the M2M Gateway listeners to a wildcard hostname.
 
     Workaround for https://github.com/canonical/service-mesh/issues/102 so KServe's
@@ -89,7 +107,7 @@ def patch_gateway(lightkube_client: Client, m2m_gateway: str, kubeflow_model: st
     issue is fixed and the charm supports wildcard listeners natively.
     """
     patch_gateway_wildcard_hostname(
-        lightkube_client, kubeflow_model, m2m_gateway, WILDCARD_HOSTNAME
+        lightkube_client, application_model, m2m_gateway, wildcard_hostname
     )
     yield
 
