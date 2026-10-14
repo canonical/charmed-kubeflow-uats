@@ -193,6 +193,8 @@ def s3_override_config() -> dict[str, str]:
         values[key] = value
     if missing:
         pytest.fail(f"Missing required environment variables: {', '.join(missing)}")
+    if region := os.environ.get("S3_REGION_OVERRIDE"):
+        values["region"] = region
     return values
 
 
@@ -215,15 +217,17 @@ def deploy_override_s3(
     )
     juju.grant_secret(S3_SECRET_NAME, S3_OVERRIDE_APP)
 
-    # Configure endpoint, bucket, and credentials secret.
-    juju.config(
-        S3_OVERRIDE_APP,
-        {
-            "endpoint": s3_override_config["endpoint"],
-            "bucket": s3_override_config["bucket"],
-            "credentials": secret_uri,
-        },
-    )
+    # Configure endpoint, bucket, region and credentials secret.
+    config = {
+        "endpoint": s3_override_config["endpoint"],
+        "bucket": s3_override_config["bucket"],
+        "credentials": secret_uri,
+    }
+    if region := s3_override_config.get("region"):
+        log.info(f"Adding region {region} to config for {S3_OVERRIDE_APP}")
+        config["region"] = region
+    juju.config(S3_OVERRIDE_APP, config)
+
     juju.wait(jubilant.all_active, delay=10)
     yield S3_OVERRIDE_APP
 
