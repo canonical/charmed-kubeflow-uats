@@ -72,9 +72,7 @@ def test_unauthenticated_request_is_redirected_to_login(context, ui_domain, auth
     goto_login_form(page, ui_url=f"https://{ui_domain}", auth_domain=auth_domain)
     page.get_by_role("heading", name="Sign in").wait_for(state="visible", timeout=60_000)
 
-    assert is_auth_url(page.url, auth_domain), (
-        f"Expected to land on {auth_domain}, got {page.url}"
-    )
+    assert is_auth_url(page.url, auth_domain), f"Expected to land on {auth_domain}, got {page.url}"
     log.info("✓ Unauthenticated request was redirected to the IdP login page.")
 
 
@@ -89,7 +87,7 @@ def test_login_reaches_mlflow_ui(context, kratos_user, ui_domain, auth_domain):
     page = context.pages[0]
     login_and_reach_mlflow_ui(page, email, password, ui_domain, auth_domain)
 
-    assert is_ui_url(page.url, ui_domain), (
-        f"Expected the MLflow UI on host {ui_domain}, got {page.url}"
-    )
+    assert is_ui_url(
+        page.url, ui_domain
+    ), f"Expected the MLflow UI on host {ui_domain}, got {page.url}"
     log.info("✓ Login reached the MLflow UI.")
