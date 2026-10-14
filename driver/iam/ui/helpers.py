@@ -37,15 +37,6 @@ IAM_MODEL = "iam"
 IAM_CORE_MODEL = "iam-core"
 AUTH_SERVICE = "traefik-lb"
 
-# DNS / URL constants.
-UI_DOMAIN = "ui.kubeflow.com"
-# The IdP (traefik ingress in iam-core) serves the auth + login UI on this hostname
-# (set via the external_auth_hostname Terraform var in the solutions repo). Both the
-# oauth2-proxy auth endpoint and the identity-platform-login-ui live under it (e.g.
-# "auth.kubeflow.com/ui/login").
-AUTH_DOMAIN = "auth.kubeflow.com"
-KUBEFLOW_UI_URL = f"https://{UI_DOMAIN}"
-
 # Chromium network-error codes that are transient and safe to retry. ERR_NETWORK_CHANGED
 # is raised when Chromium's NetworkChangeNotifier detects the host's network config
 # changed while a request was in flight (common in CI/containers where netlink events or
@@ -114,10 +105,10 @@ def remove_kratos_user(iam_juju: jubilant.Juju, identity_id: str, secret_uri: st
         log.warning(f"Could not remove Juju secret {secret_uri}: {error}")
 
 
-def get_ui_lb_ip(client: Client, kubeflow_model: str) -> str:
-    """Return the LoadBalancer IP of the istio Gateway serving the Kubeflow UI."""
-    gateway = find_gateway_for_domain(client, kubeflow_model, UI_DOMAIN)
-    return get_service_lb_ip(client, kubeflow_model, gateway_service_name(gateway))
+def get_ui_lb_ip(client: Client, application_model: str, ui_domain) -> str:
+    """Return the LoadBalancer IP of the istio Gateway serving the UI."""
+    gateway = find_gateway_for_domain(client, application_model, ui_domain)
+    return get_service_lb_ip(client, application_model, gateway_service_name(gateway))
 
 
 def get_auth_lb_ip(client: Client) -> str:
@@ -125,7 +116,7 @@ def get_auth_lb_ip(client: Client) -> str:
     return get_service_lb_ip(client, IAM_CORE_MODEL, AUTH_SERVICE)
 
 
-def build_host_resolver_rules(ui_ip: str, auth_ip: str) -> str:
+def build_host_resolver_rules(ui_ip: str, auth_ip: str, ui_domain: str, auth_domain: str) -> str:
     """Build Chromium ``--host-resolver-rules`` mapping the UI and auth domains to IPs.
 
     Mirrors tenant-service's ``--host-resolver-rules=MAP dex 127.0.0.1``. This avoids
@@ -136,7 +127,7 @@ def build_host_resolver_rules(ui_ip: str, auth_ip: str) -> str:
     and ``/etc/hosts`` so these domains resolve on the runner, but ``--host-resolver-rules``
     makes the tests self-sufficient and not dependent on that step.
     """
-    return f"MAP {UI_DOMAIN} {ui_ip}, MAP {AUTH_DOMAIN} {auth_ip}"
+    return f"MAP {ui_domain} {ui_ip}, MAP {auth_domain} {auth_ip}"
 
 
 def login_with_password(page: Page, email: str, password: str) -> None:
@@ -155,7 +146,7 @@ def login_with_password(page: Page, email: str, password: str) -> None:
     page.get_by_role("button", name="Sign in", exact=True).click()
 
 
-def is_ui_url(url: str) -> bool:
+def is_ui_url(url: str, ui_domain) -> bool:
     """Return True iff ``url`` is actually served by the UI host.
 
     Matching on the parsed hostname (not a substring) is important: the oauth2-proxy
@@ -164,17 +155,17 @@ def is_ui_url(url: str) -> bool:
     naive ``"ui.kubeflow.com" in url`` check would be satisfied *while still on the
     auth page* and could let the test pass even when login never completed.
     """
-    return urlparse(url).hostname == UI_DOMAIN
+    return urlparse(url).hostname == ui_domain
 
 
-def is_auth_url(url: str) -> bool:
+def is_auth_url(url: str, auth_domain: str) -> bool:
     """Return True iff ``url`` is served by the IdP (auth) host.
 
-    Hostname equality (not a substring) is essential: ``AUTH_DOMAIN`` (``auth.kubeflow.com``)
-    shares the parent domain ``kubeflow.com`` with ``UI_DOMAIN`` (``ui.kubeflow.com``), so a
-    substring check would be satisfied while still on the UI page.
+    Hostname equality (not a substring) is essential: ``auth.kubeflow.com`` shares the parent
+    domain ``kubeflow.com`` with ``ui.kubeflow.com``, so a substring check would be satisfied
+    while still on the UI page.
     """
-    return urlparse(url).hostname == AUTH_DOMAIN
+    return urlparse(url).hostname == auth_domain
 
 
 def _is_transient_net_error(error: Exception) -> bool:
@@ -217,7 +208,7 @@ def _run_with_net_retry(
     retryer(action)
 
 
-def goto_login_form(page: Page, max_attempts: int = 3) -> None:
+def goto_login_form(page: Page, ui_url: str, auth_domain: str, max_attempts: int = 3) -> None:
     """Navigate to the UI, follow the redirect to the IdP login form, and wait for it.
 
     Retries when the login-ui lands on its /ui/error page (e.g. Kratos briefly
@@ -227,18 +218,24 @@ def goto_login_form(page: Page, max_attempts: int = 3) -> None:
     Waits for the ``Email`` input directly rather than the "Sign in" heading: the
     heading is server-rendered in the initial HTML and is present even on the error
     page, so it is not a reliable readiness signal.
+
+    NOTE: The IdP (traefik ingress in iam-core) serves the auth + login UI on the same ui_url
+    hostname (set via the external_auth_hostname Terraform var in the solutions repo). Both the
+    oauth2-proxy auth endpoint and the identity-platform-login-ui live under it (e.g.,
+    "auth.kubeflow.com/ui/login").
     """
     for attempt in range(1, max_attempts + 1):
-        # goto follows the full redirect chain (ui.kubeflow.com → oauth2-proxy →
-        # auth.kubeflow.com/ui/login) and returns only once the final page's load
+        # goto follows the full redirect chain (ui.<domain> → oauth2-proxy →
+        # auth.<domain>/ui/login) and returns only once the final page's load
         # event fires, so the Email label search runs on the login page, not the
         # UI page — no risk of matching a label before the redirect completes.
-        _run_with_net_retry(partial(page.goto, KUBEFLOW_UI_URL), "Navigation to the Kubeflow UI")
+        _run_with_net_retry(partial(page.goto, ui_url), "Navigation to the UI")
         try:
             page.get_by_label("Email").wait_for(state="visible", timeout=30_000)
             return
         except PlaywrightTimeoutError:
-            if is_auth_url(page.url) and "/ui/error" in page.url and attempt < max_attempts:
+            on_error_page = is_auth_url(page.url, auth_domain) and "/ui/error" in page.url
+            if on_error_page and attempt < max_attempts:
                 log.warning(
                     "Login-ui landed on /ui/error (attempt %d/%d); "
                     "likely a transient Kratos restart — retrying",
@@ -391,4 +388,74 @@ def login_and_reach_dashboard(
         reraise=True,
     )
     goto_login_form(page)
+    retryer(_login_and_reach)
+
+
+def reach_mlflow_ui(page: Page, ui_domain: str) -> None:
+    """Wait for the post-login redirect back to the UI host and the MLflow app to load.
+
+    Unlike the Kubeflow dashboard, the MLflow UI needs no Profile/namespace: reaching the
+    UI host proves the oauth2-proxy session was established (authentication succeeded), and
+    the tracking server serves the MLflow SPA to any authenticated user — a workspace grant
+    only gates the API calls the SPA makes for content, which this login-flow check does
+    not exercise.
+    """
+    # Hostname match (not substring) so the auth page's redirect parameter cannot satisfy
+    # the wait before the MLflow UI is actually reached.
+    page.wait_for_url(lambda url: is_ui_url(url, ui_domain), timeout=120_000)
+    page.wait_for_load_state("networkidle", timeout=60_000)
+
+    # The MLflow SPA sets "<title>MLflow</title>" in its static HTML; combined with the
+    # networkidle wait this confirms the MLflow app rendered rather than the auth page.
+    title = page.title()
+    assert "mlflow" in title.lower(), f"Expected the MLflow UI, got page title {title!r}"
+    log.info(f"MLflow UI loaded at {page.url}")
+
+
+def login_and_reach_mlflow_ui(
+    page: Page,
+    email: str,
+    password: str,
+    ui_domain: str,
+    auth_domain: str,
+    max_attempts: int = 3,
+) -> None:
+    """Drive the IdP login flow until the MLflow UI loads, retrying transient network aborts.
+
+    Mirrors ``login_and_reach_dashboard`` but lands on the MLflow UI (no Profile/dashboard):
+    a transient ERR_NETWORK_CHANGED can abort the post-login redirect and strand the browser
+    on the auth host, so on a timeout or transient network error while still off the UI host
+    the (idempotent) login is re-driven. A failure once already on the UI host is a render
+    problem, not an aborted redirect, so it is re-raised.
+    """
+    ui_url = f"https://{ui_domain}"
+
+    def _login_and_reach() -> None:
+        login_with_password(page, email, password)
+        page.wait_for_url(lambda url: is_ui_url(url, ui_domain), timeout=REDIRECT_TIMEOUT_MS)
+        reach_mlflow_ui(page, ui_domain)
+
+    def _redirect_failed_off_ui_host(error: Exception) -> bool:
+        if is_ui_url(page.url, ui_domain):
+            return False
+        return isinstance(error, PlaywrightTimeoutError) or _is_transient_net_error(error)
+
+    def _redrive_login(retry_state: tenacity.RetryCallState) -> None:
+        log.warning(
+            "Login did not reach the MLflow UI (attempt %d/%d): %s — likely a transient "
+            "network change aborted the redirect; clearing cookies and retrying",
+            retry_state.attempt_number,
+            max_attempts,
+            retry_state.outcome.exception(),
+        )
+        page.context.clear_cookies()
+        goto_login_form(page, ui_url=ui_url, auth_domain=auth_domain)
+
+    retryer = tenacity.Retrying(
+        retry=tenacity.retry_if_exception(_redirect_failed_off_ui_host),
+        stop=tenacity.stop_after_attempt(max_attempts),
+        before_sleep=_redrive_login,
+        reraise=True,
+    )
+    goto_login_form(page, ui_url=ui_url, auth_domain=auth_domain)
     retryer(_login_and_reach)

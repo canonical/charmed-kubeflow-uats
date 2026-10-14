@@ -160,9 +160,9 @@ def wait_for_resource(client: Client, resource, name: str, namespace: str):
 
 
 @pytest.fixture(scope="module")
-def juju(kubeflow_model: str) -> jubilant.Juju:
+def juju(application_model: str) -> jubilant.Juju:
     """Return a jubilant.Juju bound to the already-deployed Kubeflow model."""
-    instance = jubilant.Juju(model=kubeflow_model)
+    instance = jubilant.Juju(model=application_model)
     instance.wait_timeout = 20 * 60
     return instance
 
