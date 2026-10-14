@@ -15,6 +15,8 @@ import pytest
 import requests
 import yaml
 from lightkube import ApiError, Client, codecs
+from lightkube.models.meta_v1 import ObjectMeta
+from lightkube.resources.core_v1 import Namespace, ServiceAccount
 from notebook_jobs import (
     RUNTIMECLASS_RESOURCE,
     job_name_for,
@@ -28,6 +30,7 @@ from utils import (
     assert_namespace_active,
     assert_poddefault_created_in_namespace,
     assert_resource_deleted,
+    assert_service_account_exists,
     context_from,
     create_poddefault,
 )
@@ -144,6 +147,12 @@ def mlflow_workspace(request: pytest.FixtureRequest):
 
 
 @pytest.fixture(scope="module")
+def mlflow_tracking_uri(request: pytest.FixtureRequest):
+    """Return the MLflow tracking URI to inject into the Job (set for standalone MLflow)."""
+    return request.config.getoption("--mlflow-tracking-uri")
+
+
+@pytest.fixture(scope="module")
 def rerun_failed(request: pytest.FixtureRequest):
     """Return how many times a failed notebook should be retried."""
     return int(request.config.getoption("--rerun-failed-notebooks"))
@@ -156,8 +165,44 @@ def retry_timeout(request: pytest.FixtureRequest):
 
 
 @pytest.fixture(scope="module")
-def create_profile(lightkube_client: Client, keep_artifacts: bool):
-    """Create Profile and handle cleanup at the end of the module tests."""
+def create_profile_or_namespace(
+    request: pytest.FixtureRequest, lightkube_client: Client, keep_artifacts: bool
+):
+    """Create the test Profile or namespace and handle cleanup at the end of the module tests.
+
+    When a plain namespace is created instead of a Kubeflow Profile (for MLflow standalone), it is
+    enrolled in the ambient-mode service mesh (so the pod carries the test-kubeflow identity the
+    deployment grants), labelled with the required Pod Security Standards level, and given a
+    default-editor ServiceAccount (the one the Job pod runs as), to be coherent with what Kubeflow
+    does via Profiles and PodDefaults.
+    """
+    if request.config.getoption("--mlflow-standalone"):
+        security_policy = request.config.getoption("security_policy")
+        log.info(f"Creating namespace {NAMESPACE} for standalone MLflow...")
+        lightkube_client.create(
+            Namespace(
+                metadata=ObjectMeta(
+                    name=NAMESPACE,
+                    labels={
+                        "istio.io/dataplane-mode": "ambient",
+                        "pod-security.kubernetes.io/enforce": security_policy,
+                    },
+                )
+            )
+        )
+        lightkube_client.create(
+            ServiceAccount(metadata=ObjectMeta(name="default-editor", namespace=NAMESPACE))
+        )
+
+        yield PROFILE_NAME
+
+        if keep_artifacts:
+            log.info(f"Keeping namespace {NAMESPACE} (--keep-artifacts set)")
+            return
+        # deleting the namespace cascades to the ServiceAccount:
+        assert_resource_deleted(lightkube_client, Namespace, NAMESPACE)
+        return
+
     log.info(f"Creating Profile {PROFILE_NAME}...")
     resources = list(
         codecs.load_all_yaml(
@@ -211,8 +256,10 @@ def create_poddefault_on_toleration(request: pytest.FixtureRequest, lightkube_cl
 @pytest.fixture(scope="function")
 def create_poddefault_on_security_policy(request: pytest.FixtureRequest, lightkube_client: Client):
     """Create a transient PodDefault with security policy variables for the Notebook Job."""
-    # Simply yield if the option is not set
-    if not request.config.getoption("security_policy"):
+    # Standalone MLflow has no PodDefault CRD/admission webhook, so skip it there.
+    if request.config.getoption("--mlflow-standalone") or not request.config.getoption(
+        "security_policy"
+    ):
         yield
     else:
         security_policy_context = {"security_policy": request.config.getoption("security_policy")}
@@ -265,12 +312,22 @@ def test_bundle_correctness(juju: pytest.FixtureRequest, charm_list: pytest.Fixt
 
 
 @pytest.mark.dependency()
-def test_create_profile(lightkube_client: Client, create_profile: pytest.FixtureRequest):
-    """Test Profile creation.
+def test_create_profile_or_namespace(
+    request: pytest.FixtureRequest,
+    lightkube_client: Client,
+    create_profile_or_namespace: pytest.FixtureRequest,
+):
+    """Create the test Profile (for Kubeflow) or the test namespace (for MLflow standalone).
 
-    This test relies on the create_profile fixture, which handles the Profile creation and
-    is responsible for cleaning up at the end.
+    This test relies on the create_profile_or_namespace fixture, which handles the creation and is
+    responsible for cleaning up at the end. For standalone MLflow a plain namespace with a
+    default-editor ServiceAccount is created instead of a Kubeflow Profile.
     """
+    if request.config.getoption("--mlflow-standalone"):
+        assert_namespace_active(lightkube_client, NAMESPACE)
+        assert_service_account_exists(lightkube_client, "default-editor", NAMESPACE)
+        return
+
     try:
         profile_created = lightkube_client.get(
             PROFILE_RESOURCE,
@@ -357,6 +414,7 @@ def _notebook_job_context(
     kubeflow_namespace,
     istio_mode,
     mlflow_workspace,
+    mlflow_tracking_uri,
 ):
     """Build the Jinja context for rendering a single-notebook Job."""
     return {
@@ -376,10 +434,11 @@ def _notebook_job_context(
         "user_namespace": PROFILE_NAME,
         "istio_mode": istio_mode,
         "mlflow_workspace": mlflow_workspace,
+        "mlflow_tracking_uri": mlflow_tracking_uri,
     }
 
 
-@pytest.mark.dependency(depends=["test_create_profile"])
+@pytest.mark.dependency(depends=["test_create_profile_or_namespace"])
 def test_notebook_workload(
     notebook,
     juju,
@@ -396,6 +455,7 @@ def test_notebook_workload(
     create_poddefault_on_toleration,
     create_poddefault_on_security_policy,
     mlflow_workspace: str,
+    mlflow_tracking_uri: str,
     request: pytest.FixtureRequest,
 ):
     """Run a single UAT notebook as an isolated Kubernetes Job.
@@ -426,6 +486,7 @@ def test_notebook_workload(
             kubeflow_namespace=juju.model,
             istio_mode=istio_mode,
             mlflow_workspace=mlflow_workspace,
+            mlflow_tracking_uri=mlflow_tracking_uri,
         )
         manifest = render_notebook_job(str(JOB_TEMPLATE_FILE), context)
         result = run_notebook_job(

@@ -20,6 +20,8 @@ NOTEBOOK_DIRS = {
     "kubeflow-trainer": "tests/notebooks/kubeflow-trainer",
 }
 
+MLFLOW_STANDALONE_NOTEBOOK_DIR = f"{NOTEBOOK_DIRS['cpu']}/mlflow"
+
 
 @pytest.fixture(scope="module")
 def keep_artifacts(request: pytest.FixtureRequest) -> bool:
@@ -223,10 +225,34 @@ def pytest_addoption(parser: Parser):
         default="test-workspace",
         help="Name of the MLflow workspace all MLflow tests target.",
     )
+    parser.addoption(
+        "--mlflow-standalone",
+        action="store_true",
+        default=False,
+        help="Run the UATs against a standalone MLflow deployment (no Kubeflow, Profile, or"
+        " resource-dispatcher). A plain namespace is created instead of a Kubeflow Profile"
+        " and only the isolated MLflow notebook is run. Requires --mlflow-tracking-uri."
+        " By default, it is set to False.",
+    )
+    parser.addoption(
+        "--mlflow-tracking-uri",
+        default=None,
+        help="MLflow tracking server URI, injected into the notebook Job as the"
+        " MLFLOW_TRACKING_URI environment variable. Required with --mlflow-standalone, where"
+        " no PodDefault is available to inject it.",
+    )
 
 
 def pytest_configure(config):
     """Set the default bundle based on whether ambient tests are enabled."""
+    if config.getoption("--mlflow-standalone"):
+        if not config.getoption("--mlflow-tracking-uri"):
+            raise pytest.UsageError(
+                "--mlflow-tracking-uri is required when --mlflow-standalone is set."
+            )
+        # Standalone MLflow is not the Kubeflow bundle; skip the bundle-correctness check.
+        return
+
     if config.getoption("--bundle") is not None:
         return
 
@@ -281,11 +307,15 @@ def _select_notebooks(config):
     Honours the ``--include-gpu-tests`` / ``--include-kubeflow-trainer-tests`` flags and
     the ``--filter`` (pytest ``-k`` style) expression.
     """
-    notebooks = discover_notebooks(NOTEBOOK_DIRS["cpu"])
-    if config.getoption("--include-gpu-tests"):
-        notebooks.update(discover_notebooks(NOTEBOOK_DIRS["gpu"]))
-    if config.getoption("--include-kubeflow-trainer-tests"):
-        notebooks.update(discover_notebooks(NOTEBOOK_DIRS["kubeflow-trainer"]))
+    if config.getoption("--mlflow-standalone"):
+        # Standalone MLflow: only the isolated MLflow notebook (no Kubeflow/KServe).
+        notebooks = discover_notebooks(MLFLOW_STANDALONE_NOTEBOOK_DIR)
+    else:
+        notebooks = discover_notebooks(NOTEBOOK_DIRS["cpu"])
+        if config.getoption("--include-gpu-tests"):
+            notebooks.update(discover_notebooks(NOTEBOOK_DIRS["gpu"]))
+        if config.getoption("--include-kubeflow-trainer-tests"):
+            notebooks.update(discover_notebooks(NOTEBOOK_DIRS["kubeflow-trainer"]))
 
     filter_expr = config.getoption("--filter")
     if filter_expr:
