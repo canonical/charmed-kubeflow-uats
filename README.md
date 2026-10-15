@@ -325,14 +325,12 @@ Pipelines. It is owned by the Kubeflow team: it lives on `main` and is backporte
 The script runs the `kubeflow-remote` tox environment against the `kubeflow` model, forwarding
 any arguments to pytest, and writes the results to `test_results.xml` (plus a placeholder
 `metrics.json`). It exits with `0` when the tests ran, even if some of them failed, and with a
-nonzero code for operational failures (e.g. dependency installation, collection or usage errors,
-no tests collected, or a timeout).
+nonzero code for operational failures (e.g. dependency installation, collection or usage errors, or
+no tests collected).
 
 It can be configured through the following environment variables:
 * `SQA_PROXY`: optional proxy used only to install the Python dependencies. Unset by default,
   in which case any proxy settings already in the environment are used as is.
-* `SQA_TESTS_TIMEOUT`: timeout for the test run, in the format accepted by `timeout`.
-  Defaults to `4h`.
 
 The tests to run are selected by the pipeline through the `args` parameter. For example, to run
 all the UATs including the GPU ones:

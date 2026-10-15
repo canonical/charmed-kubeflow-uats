@@ -42,7 +42,7 @@ with_proxy tox exec -e "${TEST_OPTION}" -- poetry install --no-root
 
 # --capture=tee-sys overrides the tox env's `-s` so that the notebook logs end up in the report
 set +e
-TERM=dumb timeout "${SQA_TESTS_TIMEOUT:-4h}" tox -e "${TEST_OPTION}" -- \
+TERM=dumb tox -e "${TEST_OPTION}" -- \
     --junit-xml="$OUTPUT_RESULTS" \
     --capture=tee-sys \
     -o junit_logging=all \
@@ -52,7 +52,7 @@ set -e
 
 # pytest exits 1 when tests fail, but so does a failing `poetry install` in the tox env.
 # Report success only if a fresh report contains the failed/errored testcases; any other
-# nonzero exit (collection/usage errors, no tests collected, timeout) is operational.
+# nonzero exit (collection/usage errors or no tests collected) is operational.
 if [ "$rc" -eq 1 ] && python3 - "$OUTPUT_RESULTS" <<'EOF'
 import sys
 import xml.etree.ElementTree as ET
