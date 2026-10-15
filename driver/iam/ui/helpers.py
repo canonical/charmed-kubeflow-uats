@@ -415,9 +415,7 @@ def reach_mlflow_ui(page: Page, ui_domain: str) -> None:
     # The MLflow SPA sets its document title to "MLflow"; poll for it (rather than reading it
     # once) so a title set slightly after the initial render still confirms the MLflow app
     # loaded rather than the auth page.
-    page.wait_for_function(
-        "() => document.title.toLowerCase().includes('mlflow')", timeout=60_000
-    )
+    page.wait_for_function("() => document.title.toLowerCase().includes('mlflow')", timeout=60_000)
     log.info(f"MLflow UI loaded at {page.url}")
 
 
