@@ -92,7 +92,9 @@ def test_unauthenticated_request_is_redirected_to_login(context, ui_domain, auth
     assert_unauthenticated_request_is_redirected_to_login(context, ui_domain, auth_domain)
 
 
-def test_login_reaches_application_ui(context, kratos_user, create_profile, auth_domain, ui_domain):
+def test_login_reaches_application_ui(
+    context, kratos_user, create_profile, auth_domain, ui_domain
+):
     """A valid IdP login reaches the application UI.
 
     For Kubeflow, a Profile owned by the testing Kratos user is precreated.
