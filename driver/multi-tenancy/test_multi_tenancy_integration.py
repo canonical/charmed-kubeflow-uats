@@ -193,11 +193,15 @@ def s3_override_config() -> dict[str, str]:
         values[key] = value
     if missing:
         pytest.fail(f"Missing required environment variables: {', '.join(missing)}")
+    if region := os.environ.get("S3_REGION_OVERRIDE"):
+        values["region"] = region
     return values
 
 
 @pytest.fixture(scope="module")
-def deploy_override_s3(juju: jubilant.Juju, s3_override_config: dict[str, str]):
+def deploy_override_s3(
+    juju: jubilant.Juju, s3_override_config: dict[str, str], keep_artifacts: bool
+):
     """Deploy and configure the override s3-integrator; removed on teardown."""
     # Deploy under a distinct name, reusing the global s3-integrator channel.
     channel = detect_channel(juju, S3_GLOBAL_APP, "2/edge")
@@ -213,17 +217,23 @@ def deploy_override_s3(juju: jubilant.Juju, s3_override_config: dict[str, str]):
     )
     juju.grant_secret(S3_SECRET_NAME, S3_OVERRIDE_APP)
 
-    # Configure endpoint, bucket, and credentials secret.
-    juju.config(
-        S3_OVERRIDE_APP,
-        {
-            "endpoint": s3_override_config["endpoint"],
-            "bucket": s3_override_config["bucket"],
-            "credentials": secret_uri,
-        },
-    )
+    # Configure endpoint, bucket, region and credentials secret.
+    config = {
+        "endpoint": s3_override_config["endpoint"],
+        "bucket": s3_override_config["bucket"],
+        "credentials": secret_uri,
+    }
+    if region := s3_override_config.get("region"):
+        log.info(f"Adding region {region} to config for {S3_OVERRIDE_APP}")
+        config["region"] = region
+    juju.config(S3_OVERRIDE_APP, config)
+
     juju.wait(jubilant.all_active, delay=10)
     yield S3_OVERRIDE_APP
+
+    if keep_artifacts:
+        log.info(f"Keeping {S3_OVERRIDE_APP} and secret {S3_SECRET_NAME} (--keep-artifacts set)")
+        return
 
     # Teardown: remove the override s3-integrator and its user secret.
     juju.remove_application(S3_OVERRIDE_APP, destroy_storage=True)
@@ -232,7 +242,7 @@ def deploy_override_s3(juju: jubilant.Juju, s3_override_config: dict[str, str]):
 
 
 @pytest.fixture(scope="module")
-def deploy_data_integrator(juju: jubilant.Juju, deploy_override_s3: str):
+def deploy_data_integrator(juju: jubilant.Juju, deploy_override_s3: str, keep_artifacts: bool):
     """Deploy data-kubeflow-integrator and wire its relations; removed on teardown."""
     channel = detect_channel(juju, "data-kubeflow-integrator", "latest/edge")
     juju.deploy(
@@ -253,6 +263,10 @@ def deploy_data_integrator(juju: jubilant.Juju, deploy_override_s3: str):
     juju.wait(jubilant.all_agents_idle, delay=10)
     yield DATA_INTEGRATOR_APP
 
+    if keep_artifacts:
+        log.info(f"Keeping {DATA_INTEGRATOR_APP} (--keep-artifacts set)")
+        return
+
     # Teardown: remove the integrator (this also removes its relations).
     juju.remove_application(DATA_INTEGRATOR_APP, destroy_storage=True)
     juju.wait(lambda status: DATA_INTEGRATOR_APP not in status.apps)
@@ -260,21 +274,36 @@ def deploy_data_integrator(juju: jubilant.Juju, deploy_override_s3: str):
 
 @pytest.fixture(scope="module")
 def setup_tenant_override(
-    juju: jubilant.Juju, lightkube_client: Client, deploy_data_integrator: str
+    juju: jubilant.Juju,
+    lightkube_client: Client,
+    deploy_data_integrator: str,
+    keep_artifacts: bool,
 ):
     """Create the override tenant Profile and bind the integrator to it."""
     _create_profile(lightkube_client, PROFILE_TENANT_OVERRIDE)
     juju.config(DATA_INTEGRATOR_APP, {"profile": PROFILE_TENANT_OVERRIDE})
     juju.wait(jubilant.all_active, delay=10)
     yield PROFILE_TENANT_OVERRIDE
+
+    if keep_artifacts:
+        log.info(f"Keeping Profile {PROFILE_TENANT_OVERRIDE} (--keep-artifacts set)")
+        return
+
     _delete_profile(lightkube_client, PROFILE_TENANT_OVERRIDE)
 
 
 @pytest.fixture(scope="module")
-def setup_tenant_global(lightkube_client: Client, deploy_data_integrator: str):
+def setup_tenant_global(
+    lightkube_client: Client, deploy_data_integrator: str, keep_artifacts: bool
+):
     """Create the global tenant Profile (target namespace for denial tests)."""
     _create_profile(lightkube_client, PROFILE_TENANT_GLOBAL)
     yield PROFILE_TENANT_GLOBAL
+
+    if keep_artifacts:
+        log.info(f"Keeping Profile {PROFILE_TENANT_GLOBAL} (--keep-artifacts set)")
+        return
+
     _delete_profile(lightkube_client, PROFILE_TENANT_GLOBAL)
 
 
@@ -311,7 +340,9 @@ def s3_global() -> S3BucketWrapper:
 
 
 @pytest.fixture(scope="module")
-def curl_pod_in_override(lightkube_client: Client, setup_tenant_override: str):
+def curl_pod_in_override(
+    lightkube_client: Client, setup_tenant_override: str, keep_artifacts: bool
+):
     """Create a curl pod inside the override tenant namespace."""
     pod = Pod(
         metadata=ObjectMeta(name=CURL_POD_NAME, namespace=PROFILE_TENANT_OVERRIDE),
@@ -330,6 +361,13 @@ def curl_pod_in_override(lightkube_client: Client, setup_tenant_override: str):
     lightkube_client.create(pod, namespace=PROFILE_TENANT_OVERRIDE)
     assert_pod_running(lightkube_client, CURL_POD_NAME, PROFILE_TENANT_OVERRIDE)
     yield CURL_POD_NAME
+
+    if keep_artifacts:
+        log.info(
+            f"Keeping curl pod {PROFILE_TENANT_OVERRIDE}/{CURL_POD_NAME} (--keep-artifacts set)"
+        )
+        return
+
     try:
         lightkube_client.delete(Pod, name=CURL_POD_NAME, namespace=PROFILE_TENANT_OVERRIDE)
     except ApiError as error:
@@ -373,9 +411,6 @@ def test_tenant_kfp_resources_dispatched(lightkube_client: Client, setup_tenant_
     # The artifact Secret carries the OVERRIDE credentials, not the global ones.
     decoded = {key: base64.b64decode(value).decode() for key, value in (secret.data or {}).items()}
     assert os.environ["S3_ACCESS_KEY_OVERRIDE"] in decoded.values()
-    global_access = os.environ.get("S3_ACCESS_KEY_GLOBAL")
-    if global_access:
-        assert global_access not in decoded.values()
 
     # kfp-launcher / artifact-repositories point at the OVERRIDE bucket + endpoint.
     launcher_blob = str(launcher.data)

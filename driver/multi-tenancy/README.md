@@ -96,12 +96,17 @@ tox -e uats-remote -- --include-multi-tenancy-tests -k multi_tenancy
 
 By default these tests are skipped unless `--include-multi-tenancy-tests` is passed.
 
+Add `--keep-artifacts` to keep the resources the suite creates (the override applications
+and their user secret, and any tenant Profiles/Pods) in the model/cluster for inspection
+instead of tearing them down at the end of the run.
+
 ## Notes
 
 - Teardown removes everything the suite created: the `data-kubeflow-integrator-override`
   and `s3-integrator-override` applications (and their relations), the
   `s3_secret_kfp_override` user secret, and any tenant Profiles/Pods created during the
-  run.
+  run. Pass `--keep-artifacts` to skip this teardown and keep these resources in the
+  model/cluster for inspection.
 - The suite assumes a clean model (these override applications and the secret do not
   already exist) and never removes/reconfigures the pre-existing global `s3-integrator`,
   `resource-dispatcher`, or any pre-existing `data-kubeflow-integrator`.
