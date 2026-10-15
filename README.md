@@ -27,6 +27,7 @@ in the [Run the tests](#run-the-tests) section.
       * [Feast UATs](#run-feast-uats)
    * [NVIDIA GPU UAT](#nvidia-gpu-uat)
    * [Ambient Integration Test](#ambient-integration-test)
+   * [From SQA pipelines](#run-from-sqa-pipelines)
    * [Behind proxy](#run-behind-proxy)
       * [Prerequisites](#prerequisites-2)
         * [Running the KServe UATs](#running-the-kserve-uats)
@@ -314,6 +315,31 @@ Currently, `kubeflow-profiles` supports only the values `privileged` and `baseli
 tox -e uats-local -- --security-policy "baseline"
 ```
 
+
+### Run from SQA pipelines
+
+The [`sqa_tests`](sqa_tests) script is the entrypoint used by SQA's Terragrunt Deployment
+Pipelines. It is owned by the Kubeflow team: it lives on `main` and is backported to the
+`track/*` branches, so that SQA can select the `ref` matching the deployed Kubeflow version.
+
+The script runs the `kubeflow-remote` tox environment against the `kubeflow` model, forwarding
+any arguments to pytest, and writes the results to `test_results.xml` (plus a placeholder
+`metrics.json`). It exits with `0` when the tests ran, even if some of them failed, and with a
+nonzero code for operational failures (e.g. dependency installation, collection or usage errors,
+no tests collected, or a timeout).
+
+It can be configured through the following environment variables:
+* `SQA_PROXY`: proxy used to install the Python dependencies. Defaults to `HTTPS_PROXY`, then
+  `https_proxy`, then `http://squid.internal:3128`.
+* `SQA_TESTS_TIMEOUT`: timeout for the test run, in the format accepted by `timeout`.
+  Defaults to `4h`.
+
+The tests to run are selected by the pipeline through the `args` parameter. When the cluster
+has no direct internet access, the pipeline also needs to pass the [`--proxy`](#running-using-driver)
+option so that the notebook Jobs run behind the proxy, for example:
+```json
+{"repo":"canonical/charmed-kubeflow-uats","ref":"main","subdir":".","args":["--include-gpu-tests","--proxy","http_proxy=<proxy>","https_proxy=<proxy>","no_proxy=<no-proxy>"]}
+```
 
 ### Run behind proxy
 

@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
-set -xou pipefail
+# Entrypoint for SQA's Terragrunt Deployment Pipelines (SQ088).
+# Any arguments are forwarded to pytest; see the "Run from SQA pipelines" README section.
+set -euxo pipefail
 
 MODEL=kubeflow
 TEST_OPTION=kubeflow-remote
+PROXY="${SQA_PROXY:-${HTTPS_PROXY:-${https_proxy:-http://squid.internal:3128}}}"
 
 OUTPUT_RESULTS=$PWD/test_results.xml
-OUTPUT_METRICS=metrics.json
+OUTPUT_METRICS=$PWD/metrics.json
+
+# Never reuse results or notebook logs from a previous run
+rm -rf "$OUTPUT_RESULTS" "$OUTPUT_METRICS" artifacts
+# (placeholder) A file containing metrics from the test run.
+#   Currently only expected, but not used.  Empty is okay.
+trap 'touch "$OUTPUT_METRICS"' EXIT
 
 sudo add-apt-repository ppa:deadsnakes/ppa -y
 sudo apt update -y
@@ -14,18 +23,37 @@ sudo apt install python3.12 python3.12-venv -y
 python3.12 -m venv venv
 source venv/bin/activate
 
-HTTPS_PROXY=http://squid.internal:3128 pip install --upgrade tox
+HTTPS_PROXY="$PROXY" pip install 'tox>=4,<5'
 
 juju status --model "${MODEL}" --utc
 
-# poetry does not respect /etc/pip.conf to use proxy for contacting PyPI
-HTTPS_PROXY=http://squid.internal:3128 tox -e "${TEST_OPTION}" -- --no-test ||
-    echo "Ignore the Error, only downloaded packages"
+# poetry does not respect /etc/pip.conf to use proxy for contacting PyPI, so install the
+# dependencies through the proxy first and then run the tests without it
+HTTPS_PROXY="$PROXY" tox exec -e "${TEST_OPTION}" -- poetry install --no-root
 
-TERM=dumb timeout 4h tox -e ${TEST_OPTION} -- \
+# --capture=tee-sys overrides the tox env's `-s` so that the notebook logs end up in the report
+set +e
+TERM=dumb timeout "${SQA_TESTS_TIMEOUT:-4h}" tox -e "${TEST_OPTION}" -- \
     --junit-xml="$OUTPUT_RESULTS" \
+    --capture=tee-sys \
+    -o junit_logging=all \
     "$@"  # passed 'args'
+rc=$?
+set -e
 
-# (placeholder) A file containing metrics from the test run.
-#   Currently only expected, but not used.  Empty is okay.
-touch $OUTPUT_METRICS
+# pytest exits 1 when tests fail, but so does a failing `poetry install` in the tox env.
+# Report success only if a fresh report contains the failed/errored testcases; any other
+# nonzero exit (collection/usage errors, no tests collected, timeout) is operational.
+if [ "$rc" -eq 1 ] && python3 - "$OUTPUT_RESULTS" <<'EOF'
+import sys
+import xml.etree.ElementTree as ET
+
+cases = list(ET.parse(sys.argv[1]).getroot().iter("testcase"))
+failed = any(c.find("failure") is not None or c.find("error") is not None for c in cases)
+sys.exit(0 if cases and failed else 1)
+EOF
+then
+    echo "Test failures are reported in $OUTPUT_RESULTS"
+    exit 0
+fi
+exit "$rc"

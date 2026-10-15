@@ -446,4 +446,7 @@ def test_notebook_workload(
     if not result.succeeded:
         # pytrace=False keeps the output to our concise message, dropping pytest's
         # assert introspection (the noisy "where False = NotebookResult(...)" dump).
-        pytest.fail(pytrace=False)
+        pytest.fail(
+            f"Notebook '{notebook_name}' {result.status} after {result.duration:.0f}s",
+            pytrace=False,
+        )
