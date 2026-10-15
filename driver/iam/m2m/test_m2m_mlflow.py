@@ -34,7 +34,7 @@ from ingress import find_gateway_for_domain, gateway_service_name, get_service_l
 
 log = logging.getLogger(__name__)
 
-DOMAIN_M2M = "api.mlflow.com"
+MLFLOW_DEFAULT_DOMAIN_M2M = "api.mlflow.com"
 IAM_MODEL = "iam"
 # The mlflow-server application and the throwaway data-integrator used to grant the test
 # client; the grant app name is distinct so it never clashes with a deployment's own grants.
@@ -45,7 +45,11 @@ GRANT_APP = "uat-m2m-grant"
 @pytest.fixture(scope="module")
 def m2m_domain(request: pytest.FixtureRequest) -> str:
     """MLflow M2M hostname."""
-    return domain if (domain := request.config.getoption("--iam-domain-m2m")) else DOMAIN_M2M
+    return (
+        domain
+        if (domain := request.config.getoption("--iam-domain-m2m"))
+        else MLFLOW_DEFAULT_DOMAIN_M2M
+    )
 
 
 @pytest.fixture(scope="module")
