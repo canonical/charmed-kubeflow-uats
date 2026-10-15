@@ -424,6 +424,15 @@ def mlflow_experiments_search(
     return response.status_code, response.text
 
 
+# Standalone MLflow is the first JWT consumer on a fresh deployment, so Hydra mints its
+# access-token signing key only at test time and the gateway (via istiod) picks it up only on
+# its periodic JWKS refresh (up to ~20 min by default). Kubeflow warms the key during its longer
+# deploy, so its 360s ceiling suffices there; give the standalone cold-start a wider ceiling.
+# The warm-up returns as soon as the token verifies, so this only costs time on a genuinely cold
+# gateway.
+MLFLOW_JWT_WARMUP_TIMEOUT = 1200  # seconds
+
+
 def mlflow_experiments_search_with_jwt_warmup(
     mlflow_host: str, gateway_ip: str, token: str | None, workspace: str
 ) -> tuple[int, str]:
@@ -437,7 +446,7 @@ def mlflow_experiments_search_with_jwt_warmup(
     retryer = tenacity.Retrying(
         retry=tenacity.retry_if_result(_jwt_not_yet_verified),
         wait=tenacity.wait_fixed(JWT_WARMUP_INTERVAL),
-        stop=tenacity.stop_after_delay(JWT_WARMUP_TIMEOUT),
+        stop=tenacity.stop_after_delay(MLFLOW_JWT_WARMUP_TIMEOUT),
         before_sleep=_log_jwt_warmup,
         retry_error_callback=lambda retry_state: retry_state.outcome.result(),
     )
