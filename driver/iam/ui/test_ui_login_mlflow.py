@@ -16,7 +16,6 @@ user can do — workspace RBAC only gates the content APIs the SPA calls, not th
 """
 
 import logging
-from pathlib import Path
 
 import pytest
 from iam.ui.helpers import (
