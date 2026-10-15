@@ -424,6 +424,65 @@ def mlflow_experiments_search(
     return response.status_code, response.text
 
 
+def mlflow_create_experiment(
+    mlflow_host: str, gateway_ip: str, token: str | None, workspace: str, name: str
+) -> tuple[int, str]:
+    """Create an MLflow experiment through the M2M ingress gateway from outside the cluster.
+
+    Unlike ``experiments/search`` — which returns an empty list to any authenticated user and so
+    cannot tell a granted client from an ungranted one — creating an experiment is a
+    workspace-scoped write and is therefore RBAC-gated: a granted client gets HTTP 200, an
+    ungranted one HTTP 403. Same connection handling as ``mlflow_experiments_search``.
+
+    Args:
+        mlflow_host: The M2M ingress hostname (e.g. ``api.mlflow.com``).
+        gateway_ip: The ingress gateway LoadBalancer IP to connect to.
+        token: The bearer token to send, or ``None`` to omit the Authorization header.
+        workspace: The MLflow workspace to scope the call to.
+        name: The name of the experiment to create.
+
+    Returns:
+        A ``(status_code, body)`` tuple; ``body`` carries ``experiment_id`` on HTTP 200.
+    """
+    url = f"https://{mlflow_host}{MLFLOW_INGRESS_PREFIX}/api/2.0/mlflow/experiments/create"
+    headers = {"Content-Type": "application/json", WORKSPACE_HEADER_NAME: workspace}
+    if token is not None:
+        headers["Authorization"] = f"Bearer {token}"
+
+    with _pin_dns(mlflow_host, gateway_ip):
+        response = requests.post(
+            url, json={"name": name}, headers=headers, verify=False, timeout=60
+        )
+
+    log.info(f"MLflow experiments/create to {mlflow_host} returned HTTP {response.status_code}")
+    return response.status_code, response.text
+
+
+def mlflow_delete_experiment(
+    mlflow_host: str, gateway_ip: str, token: str | None, workspace: str, experiment_id: str
+) -> tuple[int, str]:
+    """Delete an MLflow experiment through the M2M ingress gateway (best-effort test cleanup).
+
+    Removes the experiment created by the authorized-token test; mirrors the connection handling
+    of ``mlflow_create_experiment``.
+
+    Returns:
+        A ``(status_code, body)`` tuple.
+    """
+    url = f"https://{mlflow_host}{MLFLOW_INGRESS_PREFIX}/api/2.0/mlflow/experiments/delete"
+    headers = {"Content-Type": "application/json", WORKSPACE_HEADER_NAME: workspace}
+    if token is not None:
+        headers["Authorization"] = f"Bearer {token}"
+
+    with _pin_dns(mlflow_host, gateway_ip):
+        response = requests.post(
+            url, json={"experiment_id": experiment_id}, headers=headers, verify=False, timeout=60
+        )
+
+    log.info(f"MLflow experiments/delete to {mlflow_host} returned HTTP {response.status_code}")
+    return response.status_code, response.text
+
+
 # Standalone MLflow is the first JWT consumer on a fresh deployment, so Hydra mints its
 # access-token signing key only at test time and the gateway (via istiod) picks it up only on
 # its periodic JWKS refresh (up to ~20 min by default). Kubeflow warms the key during its longer
@@ -433,21 +492,44 @@ def mlflow_experiments_search(
 MLFLOW_JWT_WARMUP_TIMEOUT = 1200  # seconds
 
 
-def mlflow_experiments_search_with_jwt_warmup(
-    mlflow_host: str, gateway_ip: str, token: str | None, workspace: str
-) -> tuple[int, str]:
-    """Search experiments, tolerating the gateway's JWT verification warm-up.
+def _jwt_warmup_retryer() -> tenacity.Retrying:
+    """Build a tenacity retryer that tolerates the gateway's JWT verification warm-up.
 
-    Mirrors ``request_inference_with_jwt_warmup``: a freshly minted token can transiently
-    fail signature verification (HTTP 401) until the gateway's JWKS catches up with Hydra's
-    lazily-created access-token signing key. Retry until the token verifies (any non-401
-    response) or the warm-up deadline elapses, then return the final ``(status_code, body)``.
+    A freshly minted token can transiently fail signature verification (HTTP 401) until the
+    gateway's JWKS catches up with Hydra's lazily-created access-token signing key. The retryer
+    reissues the wrapped request while it keeps returning 401 and gives up at the warm-up
+    deadline, in which case it returns that last ``(status_code, body)`` rather than raising.
     """
-    retryer = tenacity.Retrying(
+    return tenacity.Retrying(
         retry=tenacity.retry_if_result(_jwt_not_yet_verified),
         wait=tenacity.wait_fixed(JWT_WARMUP_INTERVAL),
         stop=tenacity.stop_after_delay(MLFLOW_JWT_WARMUP_TIMEOUT),
         before_sleep=_log_jwt_warmup,
         retry_error_callback=lambda retry_state: retry_state.outcome.result(),
     )
-    return retryer(mlflow_experiments_search, mlflow_host, gateway_ip, token, workspace)
+
+
+def mlflow_experiments_search_with_jwt_warmup(
+    mlflow_host: str, gateway_ip: str, token: str | None, workspace: str
+) -> tuple[int, str]:
+    """Search experiments, tolerating the gateway's JWT verification warm-up.
+
+    See ``_jwt_warmup_retryer``. Returns the final ``(status_code, body)`` once the token
+    verifies (any non-401 response) or the warm-up deadline elapses.
+    """
+    return _jwt_warmup_retryer()(
+        mlflow_experiments_search, mlflow_host, gateway_ip, token, workspace
+    )
+
+
+def mlflow_create_experiment_with_jwt_warmup(
+    mlflow_host: str, gateway_ip: str, token: str | None, workspace: str, name: str
+) -> tuple[int, str]:
+    """Create an experiment, tolerating the gateway's JWT verification warm-up.
+
+    See ``_jwt_warmup_retryer``. Returns the final ``(status_code, body)`` once the token
+    verifies (any non-401 response) or the warm-up deadline elapses.
+    """
+    return _jwt_warmup_retryer()(
+        mlflow_create_experiment, mlflow_host, gateway_ip, token, workspace, name
+    )
