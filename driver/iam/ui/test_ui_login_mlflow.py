@@ -19,6 +19,7 @@ import logging
 
 import pytest
 from iam.ui.helpers import (
+    MLFLOW_UI_PATH,
     assert_login_reaches_application_ui,
     assert_unauthenticated_request_is_redirected_to_login,
 )
@@ -52,7 +53,9 @@ def ui_domain(request: pytest.FixtureRequest) -> str:
 
 def test_unauthenticated_request_is_redirected_to_login(context, ui_domain, auth_domain):
     """An unauthenticated request to the application UI is redirected to the IdP login page."""
-    assert_unauthenticated_request_is_redirected_to_login(context, ui_domain, auth_domain)
+    assert_unauthenticated_request_is_redirected_to_login(
+        context, ui_domain, auth_domain, ui_path=MLFLOW_UI_PATH
+    )
 
 
 def test_login_reaches_application_ui(context, kratos_user, auth_domain, ui_domain):
