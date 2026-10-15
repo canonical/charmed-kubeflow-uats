@@ -37,6 +37,11 @@ IAM_MODEL = "iam"
 IAM_CORE_MODEL = "iam-core"
 AUTH_SERVICE = "traefik-lb"
 
+# The mlflow-server charm serves the MLflow UI behind the "/mlflow/" ingress prefix (rewritten
+# to "/"), so external navigation must target "<ui-host>/mlflow/" — the gateway has no route at
+# the bare host and returns 404 there.
+MLFLOW_UI_PATH = "/mlflow/"
+
 # Chromium network-error codes that are transient and safe to retry. ERR_NETWORK_CHANGED
 # is raised when Chromium's NetworkChangeNotifier detects the host's network config
 # changed while a request was in flight (common in CI/containers where netlink events or
@@ -428,7 +433,7 @@ def login_and_reach_mlflow_ui(
     the (idempotent) login is re-driven. A failure once already on the UI host is a render
     problem, not an aborted redirect, so it is re-raised.
     """
-    ui_url = f"https://{ui_domain}"
+    ui_url = f"https://{ui_domain}{MLFLOW_UI_PATH}"
 
     def _login_and_reach() -> None:
         login_with_password(page, email, password)
@@ -461,10 +466,12 @@ def login_and_reach_mlflow_ui(
     retryer(_login_and_reach)
 
 
-def assert_unauthenticated_request_is_redirected_to_login(context, ui_domain, auth_domain):
+def assert_unauthenticated_request_is_redirected_to_login(
+    context, ui_domain, auth_domain, ui_path: str = "/"
+):
     """Assert an unauthenticated request to the application UI is redirected to the IdP login."""
     page = context.pages[0]
-    goto_login_form(page, ui_url=f"https://{ui_domain}", auth_domain=auth_domain)
+    goto_login_form(page, ui_url=f"https://{ui_domain}{ui_path}", auth_domain=auth_domain)
     page.get_by_role("heading", name="Sign in").wait_for(state="visible", timeout=60_000)
 
     assert is_auth_url(page.url, auth_domain), f"Expected to land on {auth_domain}, got {page.url}"
