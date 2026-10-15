@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Entrypoint for SQA's Terragrunt Deployment Pipelines (SQ088).
+# Any arguments are forwarded to pytest; see the "Run from SQA pipelines" README section.
+set -euxo pipefail
+
+MODEL=kubeflow
+TEST_OPTION=kubeflow-remote
+PROXY="${SQA_PROXY:-}"
+
+OUTPUT_RESULTS=$PWD/test_results.xml
+OUTPUT_METRICS=$PWD/metrics.json
+
+# Never reuse results or notebook logs from a previous run
+rm -rf "$OUTPUT_RESULTS" "$OUTPUT_METRICS" artifacts
+# (placeholder) A file containing metrics from the test run.
+#   Currently only expected, but not used.  Empty is okay.
+trap 'touch "$OUTPUT_METRICS"' EXIT
+
+# Run a command with HTTPS_PROXY set to SQA_PROXY, if provided; otherwise leave the env as is
+with_proxy() {
+    if [ -n "$PROXY" ]; then
+        HTTPS_PROXY="$PROXY" "$@"
+    else
+        "$@"
+    fi
+}
+
+sudo add-apt-repository ppa:deadsnakes/ppa -y
+sudo apt update -y
+sudo apt install python3.12 python3.12-venv -y
+
+python3.12 -m venv venv
+source venv/bin/activate
+
+with_proxy pip install 'tox>=4,<5'
+
+juju status --model "${MODEL}" --utc
+
+# poetry does not respect /etc/pip.conf to use proxy for contacting PyPI, so when SQA_PROXY
+# is provided install the dependencies through it first and then run the tests without it
+with_proxy tox exec -e "${TEST_OPTION}" -- poetry install --no-root
+
+# --capture=tee-sys overrides the tox env's `-s` so that the notebook logs end up in the report
+set +e
+TERM=dumb tox -e "${TEST_OPTION}" -- \
+    --junit-xml="$OUTPUT_RESULTS" \
+    --capture=tee-sys \
+    -o junit_logging=all \
+    "$@"  # passed 'args'
+rc=$?
+set -e
+
+# pytest exits 1 when tests fail, but so does a failing `poetry install` in the tox env.
+# Report success only if a fresh report contains the failed/errored testcases; any other
+# nonzero exit (collection/usage errors or no tests collected) is operational.
+if [ "$rc" -eq 1 ] && python3 - "$OUTPUT_RESULTS" <<'EOF'
+import sys
+import xml.etree.ElementTree as ET
+
+cases = list(ET.parse(sys.argv[1]).getroot().iter("testcase"))
+failed = any(c.find("failure") is not None or c.find("error") is not None for c in cases)
+sys.exit(0 if cases and failed else 1)
+EOF
+then
+    echo "Test failures are reported in $OUTPUT_RESULTS"
+    exit 0
+fi
+exit "$rc"
