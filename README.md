@@ -329,16 +329,21 @@ nonzero code for operational failures (e.g. dependency installation, collection 
 no tests collected, or a timeout).
 
 It can be configured through the following environment variables:
-* `SQA_PROXY`: proxy used to install the Python dependencies. Defaults to `HTTPS_PROXY`, then
-  `https_proxy`, then `http://squid.internal:3128`.
+* `SQA_PROXY`: optional proxy used only to install the Python dependencies. Unset by default,
+  in which case any proxy settings already in the environment are used as is.
 * `SQA_TESTS_TIMEOUT`: timeout for the test run, in the format accepted by `timeout`.
   Defaults to `4h`.
 
-The tests to run are selected by the pipeline through the `args` parameter. When the cluster
-has no direct internet access, the pipeline also needs to pass the [`--proxy`](#running-using-driver)
-option so that the notebook Jobs run behind the proxy, for example:
+The tests to run are selected by the pipeline through the `args` parameter. For example, to run
+all the UATs including the GPU ones:
 ```json
-{"repo":"canonical/charmed-kubeflow-uats","ref":"main","subdir":".","args":["--include-gpu-tests","--proxy","http_proxy=<proxy>","https_proxy=<proxy>","no_proxy=<no-proxy>"]}
+{"repo":"canonical/charmed-kubeflow-uats","ref":"main","args":["--include-gpu-tests"]}
+```
+
+When the cluster has no direct internet access, the pipeline also needs to pass the
+[`--proxy`](#running-using-driver) option so that the notebook Jobs run behind the proxy, for example:
+```json
+{"repo":"canonical/charmed-kubeflow-uats","ref":"main","args":["--include-gpu-tests","--proxy","http_proxy=<proxy>","https_proxy=<proxy>","no_proxy=<no-proxy>"]}
 ```
 
 ### Run behind proxy
