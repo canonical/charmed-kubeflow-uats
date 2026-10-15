@@ -328,7 +328,7 @@ def _assert_profile_visible(page: Page, profile_namespace: str) -> None:
     log.info(f"Profile namespace '{profile_namespace}' is visible in the dashboard")
 
 
-def login_and_reach_dashboard(
+def login_and_reach_kubeflow_dashboard(
     page: Page,
     email: str,
     password: str,
@@ -422,7 +422,7 @@ def login_and_reach_mlflow_ui(
 ) -> None:
     """Drive the IdP login flow until the MLflow UI loads, retrying transient network aborts.
 
-    Mirrors ``login_and_reach_dashboard`` but lands on the MLflow UI (no Profile/dashboard):
+    Mirrors ``login_and_reach_kubeflow_dashboard`` but lands on the MLflow UI instead:
     a transient ERR_NETWORK_CHANGED can abort the post-login redirect and strand the browser
     on the auth host, so on a timeout or transient network error while still off the UI host
     the (idempotent) login is re-driven. A failure once already on the UI host is a render
@@ -459,3 +459,46 @@ def login_and_reach_mlflow_ui(
     )
     goto_login_form(page, ui_url=ui_url, auth_domain=auth_domain)
     retryer(_login_and_reach)
+
+
+def assert_unauthenticated_request_is_redirected_to_login(context, ui_domain, auth_domain):
+    """Assert an unauthenticated request to the application UI is redirected to the IdP login."""
+    page = context.pages[0]
+    goto_login_form(page, ui_url=f"https://{ui_domain}", auth_domain=auth_domain)
+    page.get_by_role("heading", name="Sign in").wait_for(state="visible", timeout=60_000)
+
+    assert is_auth_url(page.url, auth_domain), f"Expected to land on {auth_domain}, got {page.url}"
+    log.info("✓ Unauthenticated request was redirected to the IdP login page.")
+
+
+def assert_login_reaches_application_ui(
+    context,
+    kratos_user,
+    ui_domain: str,
+    auth_domain: str,
+    is_mlflow_standalone: bool,
+    kubeflow_profile_name: str | None,
+) -> None:
+    """Assert that a valid IdP login reaches the application UI.
+
+    For Kubeflow, a Profile owned by the testing Kratos user is precreated.
+
+    For MLflow standalone, no MLflow workspace grant is needed: landing back on the UI host proves
+    authentication succeeded, and the tracking server serves the MLflow app to any authenticated
+    user.
+    """
+    _, email, password, _, _ = kratos_user
+
+    page = context.pages[0]
+
+    if is_mlflow_standalone:
+        login_and_reach_mlflow_ui(page, email, password, ui_domain, auth_domain)
+    else:  # i.e, for Kubeflow:
+        login_and_reach_kubeflow_dashboard(
+            page, email, password, profile_namespace=kubeflow_profile_name
+        )
+
+    assert is_ui_url(
+        page.url, ui_domain
+    ), f"Expected application UI on host {ui_domain}, got {page.url}"
+    log.info("✓ Login reached the application UI.")

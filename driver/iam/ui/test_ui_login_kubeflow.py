@@ -1,7 +1,7 @@
 # Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""UI (Identity login) integration tests.
+"""UI (Identity login) integration tests for Kubeflow.
 
 These tests log in to the Kubeflow dashboard through the Canonical Identity
 Platform (IdP) using a headless Chromium browser, and assert the dashboard loads.
@@ -18,55 +18,42 @@ from pathlib import Path
 
 import pytest
 from iam.ui.helpers import (
-    build_host_resolver_rules,
-    get_ui_lb_ip,
-    goto_login_form,
-    is_auth_url,
-    is_ui_url,
-    login_and_reach_dashboard,
+    assert_login_reaches_application_ui,
+    assert_unauthenticated_request_is_redirected_to_login,
 )
 from lightkube import Client, codecs
 from utils import PROFILE_RESOURCE, assert_namespace_active, assert_resource_deleted
 
 log = logging.getLogger(__name__)
 
-# Assets directory is relative to the repository root.
-ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
+# for creating the testing Kubeflow Profile:
+ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"  # relative to the repo root
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
-
-DOMAIN_AUTH = "auth.kubeflow.com"
-DOMAIN_UI = "ui.kubeflow.com"
-
 NAMESPACE = "test-ui-iam"
+
+# default domains for external access:
+KUBEFLOW_DEFAULT_DOMAIN_AUTH = "auth.kubeflow.com"
+KUBEFLOW_DEFAULT_DOMAIN_UI = "ui.kubeflow.com"
 
 
 @pytest.fixture(scope="module")
 def auth_domain(request: pytest.FixtureRequest) -> str:
     """IdP (auth) hostname."""
-    return domain if (domain := request.config.getoption("--iam-domain-auth")) else DOMAIN_AUTH
+    return (
+        domain
+        if (domain := request.config.getoption("--iam-domain-auth"))
+        else KUBEFLOW_DEFAULT_DOMAIN_AUTH
+    )
 
 
 @pytest.fixture(scope="module")
 def ui_domain(request: pytest.FixtureRequest) -> str:
-    """Kubeflow UI hostname."""
-    return domain if (domain := request.config.getoption("--iam-domain-ui")) else DOMAIN_UI
-
-
-@pytest.fixture(scope="module")
-def ui_ip(lightkube_client, application_model, ui_domain):
-    """LoadBalancer IP of the istio Gateway serving the Kubeflow UI."""
-    return get_ui_lb_ip(lightkube_client, application_model, ui_domain)
-
-
-@pytest.fixture(scope="module")
-def browser(playwright, ui_ip, auth_ip, ui_domain, auth_domain):
-    """Launch headless Chromium with host-resolver-rules pointing the in-cluster
-    domains at their discovered LoadBalancer IPs (no ``/etc/hosts`` / root needed)."""
-    rules = build_host_resolver_rules(ui_ip, auth_ip, ui_domain, auth_domain)
-    args = ["--no-sandbox", "--host-resolver-rules=" + rules]
-    browser = playwright.chromium.launch(headless=True, args=args)
-    yield browser
-    browser.close()
+    """Application UI hostname."""
+    return (
+        domain
+        if (domain := request.config.getoption("--iam-domain-ui"))
+        else KUBEFLOW_DEFAULT_DOMAIN_UI
+    )
 
 
 @pytest.fixture(scope="module")
@@ -101,23 +88,24 @@ def create_profile(lightkube_client: Client, kratos_user, keep_artifacts: bool):
 
 
 def test_unauthenticated_request_is_redirected_to_login(context, ui_domain, auth_domain):
-    """An unauthenticated request to the UI is redirected to the IdP login page."""
-    page = context.pages[0]
-    goto_login_form(page, ui_url=f"https://{ui_domain}", auth_domain=auth_domain)
-    page.get_by_role("heading", name="Sign in").wait_for(state="visible", timeout=60_000)
-
-    assert is_auth_url(page.url, auth_domain), f"Expected to land on {auth_domain}, got {page.url}"
-    log.info("✓ Unauthenticated request was redirected to the IdP login page.")
+    """An unauthenticated request to the application UI is redirected to the IdP login page."""
+    assert_unauthenticated_request_is_redirected_to_login(context, ui_domain, auth_domain)
 
 
-def test_login_reaches_dashboard(context, kratos_user, create_profile, ui_domain):
-    """A valid IdP login reaches the Kubeflow central dashboard."""
-    _, email, password, _, _ = kratos_user
+def test_login_reaches_application_ui(context, kratos_user, create_profile, auth_domain, ui_domain):
+    """A valid IdP login reaches the application UI.
 
-    page = context.pages[0]
-    login_and_reach_dashboard(page, email, password, profile_namespace=NAMESPACE)
+    For Kubeflow, a Profile owned by the testing Kratos user is precreated.
 
-    assert is_ui_url(
-        page.url, ui_domain
-    ), f"Expected dashboard on host {ui_domain}, got {page.url}"
-    log.info("✓ Login reached the Kubeflow dashboard.")
+    For MLflow standalone, no MLflow workspace grant is needed: landing back on the UI host proves
+    authentication succeeded, and the tracking server serves the MLflow app to any authenticated
+    user.
+    """
+    assert_login_reaches_application_ui(
+        context,
+        kratos_user,
+        ui_domain,
+        auth_domain,
+        is_mlflow_standalone=False,
+        kubeflow_profile_name=NAMESPACE,
+    )
