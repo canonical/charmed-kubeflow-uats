@@ -27,8 +27,10 @@ sys.path.insert(1, str(Path(__file__).parent.parent.parent))
 
 from iam.ui.helpers import (  # noqa: E402  (import must follow the sys.path setup above)
     IAM_MODEL,
+    build_host_resolver_rules,
     create_kratos_user,
     get_auth_lb_ip,
+    get_ui_lb_ip,
     remove_kratos_user,
 )
 
@@ -37,6 +39,23 @@ log = logging.getLogger(__name__)
 # Directory for failure artifacts (Playwright trace + screenshot). Uses a fixed path
 # relative to the repo root so CI can reliably upload them.
 ARTIFACTS_DIR = Path(__file__).parent.parent.parent.parent / "playwright-artifacts"
+
+
+@pytest.fixture(scope="module")
+def browser(playwright, ui_ip, auth_ip, ui_domain, auth_domain):
+    """Launch headless Chromium with host-resolver-rules pointing the in-cluster UI and auth
+    domains at their discovered LoadBalancer IPs (no ``/etc/hosts`` / root needed)."""
+    rules = build_host_resolver_rules(ui_ip, auth_ip, ui_domain, auth_domain)
+    args = ["--no-sandbox", "--host-resolver-rules=" + rules]
+    browser = playwright.chromium.launch(headless=True, args=args)
+    yield browser
+    browser.close()
+
+
+@pytest.fixture(scope="module")
+def ui_ip(lightkube_client, application_model, ui_domain):
+    """LoadBalancer IP of the istio Gateway serving the application UI."""
+    return get_ui_lb_ip(lightkube_client, application_model, ui_domain)
 
 
 @pytest.fixture(scope="module")
