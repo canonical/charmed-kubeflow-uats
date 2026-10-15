@@ -19,6 +19,7 @@ programmatic consumer uses — created and removed by this suite, mutating no ex
 
 import json
 import logging
+from uuid import uuid4
 
 import jubilant
 import pytest
@@ -27,8 +28,9 @@ from helpers import (
     delete_oauth_client,
     get_jwt_issuer_url,
     get_token,
+    mlflow_create_experiment_with_jwt_warmup,
+    mlflow_delete_experiment,
     mlflow_experiments_search,
-    mlflow_experiments_search_with_jwt_warmup,
 )
 from ingress import find_gateway_for_domain, gateway_service_name, get_service_lb_ip
 
@@ -178,18 +180,32 @@ def test_authorized_token_reaches_mlflow(
     gateway_ip: str,
     mlflow_workspace: str,
 ):
-    """A valid token from a granted client reaches the MLflow API.
+    """A valid token from a granted client can create an experiment in the workspace.
 
     Confirms the full path: Hydra issues the token, the gateway's RequestAuthentication
     validates the issuer, the request-authentication-configurator maps the identity to the
-    ``mlflow-userid`` header, and MLflow authorizes the workspace-scoped call.
+    ``mlflow-userid`` header, and MLflow authorizes the workspace-scoped write. A write
+    (``experiments/create``) is used rather than ``experiments/search`` because search returns
+    HTTP 200 to any authenticated user and so cannot distinguish a granted client from an
+    ungranted one (see ``test_unauthorized_token_is_forbidden``).
     """
-    http_code, body = mlflow_experiments_search_with_jwt_warmup(
-        m2m_domain, gateway_ip, authorized_token, mlflow_workspace
+    name = f"uat-m2m-{uuid4().hex[:8]}"
+    http_code, body = mlflow_create_experiment_with_jwt_warmup(
+        m2m_domain, gateway_ip, authorized_token, mlflow_workspace, name
     )
 
     assert http_code == 200, f"Expected HTTP 200, got {http_code}. Body: {body}"
-    log.info("✓ Authorized token successfully reached the MLflow API.")
+    log.info("✓ Authorized token successfully created an MLflow experiment.")
+
+    # Best-effort cleanup of the throwaway experiment; never fail the test on a cleanup error.
+    try:
+        experiment_id = json.loads(body).get("experiment_id")
+        if experiment_id:
+            mlflow_delete_experiment(
+                m2m_domain, gateway_ip, authorized_token, mlflow_workspace, experiment_id
+            )
+    except Exception as exc:
+        log.warning(f"Failed to clean up test experiment: {exc}")
 
 
 def test_missing_token_is_rejected(m2m_domain: str, gateway_ip: str, mlflow_workspace: str):
@@ -218,9 +234,16 @@ def test_invalid_token_is_rejected(m2m_domain: str, gateway_ip: str, mlflow_work
 def test_unauthorized_token_is_forbidden(
     unauthorized_token: str, m2m_domain: str, gateway_ip: str, mlflow_workspace: str
 ):
-    """A valid token from a client with no workspace grant is forbidden by MLflow RBAC."""
-    http_code, body = mlflow_experiments_search_with_jwt_warmup(
-        m2m_domain, gateway_ip, unauthorized_token, mlflow_workspace
+    """A valid token from a client with no workspace grant is forbidden by MLflow RBAC.
+
+    ``experiments/search`` returns HTTP 200 (an empty list) to any authenticated user, so it
+    cannot show that the ungranted client is denied. An RBAC-gated write (``experiments/create``)
+    is used instead: the grant is what the create needs, so without it MLflow returns HTTP 403
+    (and, being denied, the create leaves no experiment to clean up).
+    """
+    name = f"uat-m2m-{uuid4().hex[:8]}"
+    http_code, body = mlflow_create_experiment_with_jwt_warmup(
+        m2m_domain, gateway_ip, unauthorized_token, mlflow_workspace, name
     )
 
     assert (
