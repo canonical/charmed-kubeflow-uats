@@ -406,14 +406,18 @@ def reach_mlflow_ui(page: Page, ui_domain: str) -> None:
     not exercise.
     """
     # Hostname match (not substring) so the auth page's redirect parameter cannot satisfy
-    # the wait before the MLflow UI is actually reached.
+    # the wait before the MLflow UI is actually reached. wait_for_url already waits for the
+    # "load" state, so the page has loaded here. Do NOT also wait for "networkidle": the MLflow
+    # SPA keeps polling, so the network never goes idle and the wait would time out even though
+    # the app has rendered.
     page.wait_for_url(lambda url: is_ui_url(url, ui_domain), timeout=120_000)
-    page.wait_for_load_state("networkidle", timeout=60_000)
 
-    # The MLflow SPA sets "<title>MLflow</title>" in its static HTML; combined with the
-    # networkidle wait this confirms the MLflow app rendered rather than the auth page.
-    title = page.title()
-    assert "mlflow" in title.lower(), f"Expected the MLflow UI, got page title {title!r}"
+    # The MLflow SPA sets its document title to "MLflow"; poll for it (rather than reading it
+    # once) so a title set slightly after the initial render still confirms the MLflow app
+    # loaded rather than the auth page.
+    page.wait_for_function(
+        "() => document.title.toLowerCase().includes('mlflow')", timeout=60_000
+    )
     log.info(f"MLflow UI loaded at {page.url}")
 
 
