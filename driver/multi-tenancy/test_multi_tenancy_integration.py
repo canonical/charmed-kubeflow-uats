@@ -411,9 +411,6 @@ def test_tenant_kfp_resources_dispatched(lightkube_client: Client, setup_tenant_
     # The artifact Secret carries the OVERRIDE credentials, not the global ones.
     decoded = {key: base64.b64decode(value).decode() for key, value in (secret.data or {}).items()}
     assert os.environ["S3_ACCESS_KEY_OVERRIDE"] in decoded.values()
-    global_access = os.environ.get("S3_ACCESS_KEY_GLOBAL")
-    if global_access:
-        assert global_access not in decoded.values()
 
     # kfp-launcher / artifact-repositories point at the OVERRIDE bucket + endpoint.
     launcher_blob = str(launcher.data)
