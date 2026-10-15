@@ -42,7 +42,7 @@ ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 INFERENCE_SERVICE_TEMPLATE_FILE = ASSETS_DIR / "kserve-inference-service.yaml.j2"
 
-DOMAIN_M2M = "api.kubeflow.com"
+KUBEFLOW_DEFAULT_DOMAIN_M2M = "api.kubeflow.com"
 IAM_MODEL = "iam"
 NAMESPACE = PROFILE_NAME = "test-m2m"
 ISVC_NAME = "sklearn-v2-iris"
@@ -54,7 +54,11 @@ PAYLOAD = '{"instances": [[6.8, 2.8, 4.8, 1.4], [6.0, 3.4, 4.5, 1.6]]}'
 @pytest.fixture(scope="module")
 def m2m_domain(request: pytest.FixtureRequest) -> str:
     """Kubeflow M2M hostname."""
-    return domain if (domain := request.config.getoption("--iam-domain-m2m")) else DOMAIN_M2M
+    return (
+        domain
+        if (domain := request.config.getoption("--iam-domain-m2m"))
+        else KUBEFLOW_DEFAULT_DOMAIN_M2M
+    )
 
 
 @pytest.fixture(scope="module")
