@@ -13,7 +13,7 @@ from lightkube import Client
 # Add the driver directory to path so shared modules (utils, ingress) are importable.
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from iam.ui.helpers import (  # noqa: E402  (import must follow the sys.path setup above)
+from iam.m2m.helpers import (  # noqa: E402  (import must follow the sys.path setup above)
     authorize_contributor,
     create_oauth_client,
     delete_oauth_client,
