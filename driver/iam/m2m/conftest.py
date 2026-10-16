@@ -48,9 +48,10 @@ def gateway_ip(lightkube_client: Client, m2m_gateway: str, application_model: st
 @pytest.fixture(scope="module")
 def issuer_url(application_model: str) -> str:
     """JWT issuer URL trusted by the gateway's RequestAuthentication."""
-    return get_jwt_issuer_url(application_model)@pytest.fixture()
+    return get_jwt_issuer_url(application_model)
 
 
+@pytest.fixture()
 def authorized_client(
     lightkube_client: Client,
     create_profile,
@@ -59,9 +60,9 @@ def authorized_client(
     is_mlflow_standalone: bool,
 ):
     """Create an OAuth client and authorize it to access the application.
-    
+
     For Kubeflow, the client is added as a contributor to the test Profile.
-    
+
     For MLflow standalone, the client is granted access to the test workspace.
     """
     client_name = (
@@ -90,9 +91,9 @@ def authorized_client(
 @pytest.fixture(scope="module")
 def unauthorized_client(keep_artifacts: bool, is_mlflow_standalone: bool):
     """Create an OAuth client that is not authorized to access the application.
-    
+
     For Kubeflow, the client is not added as a contributor to any Profile.
-    
+
     For MLflow standalone, the client is not granted access to any workspace.
     """
     client_name = (
