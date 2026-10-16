@@ -32,7 +32,7 @@ from requests_oauthlib import OAuth2Session
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from ingress import GATEWAY_RESOURCE  # noqa: E402
-from utils import (
+from utils import (  # noqa: E402
     PROFILE_RESOURCE,
     assert_namespace_active,
     assert_resource_deleted,
