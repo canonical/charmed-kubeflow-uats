@@ -15,30 +15,26 @@ Hydra, and oauth2-proxy.
 """
 
 import logging
-from pathlib import Path
-from uuid import uuid4
 
 import pytest
-from helpers import (
+from lightkube import Client, codecs
+
+from helpers import (  # noqa: E402
+    ASSETS_DIR,
     INFERENCE_SERVICE_RESOURCE,
     patch_gateway_wildcard_hostname,
     request_inference,
     request_inference_with_jwt_warmup,
     wait_for_inferenceservice_ready,
 )
-from ingress import gateway_service_name
-from lightkube import Client, codecs
-from utils import PROFILE_RESOURCE, assert_namespace_active, assert_resource_deleted
+from ingress import gateway_service_name  # noqa: E402
+from utils import assert_resource_deleted  # noqa: E402
 
 log = logging.getLogger(__name__)
 
-# Assets directory is relative to the repository root.
-ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
-PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 INFERENCE_SERVICE_TEMPLATE_FILE = ASSETS_DIR / "kserve-inference-service.yaml.j2"
 
 KUBEFLOW_DEFAULT_DOMAIN_M2M = "api.kubeflow.com"
-NAMESPACE = PROFILE_NAME = "test-m2m"
 ISVC_NAME = "sklearn-v2-iris"
 
 # The prediction request body sent to the sklearn v2 iris model.
@@ -84,32 +80,6 @@ def patch_gateway(
         lightkube_client, application_model, m2m_gateway, wildcard_hostname
     )
     yield
-
-
-@pytest.fixture()
-def create_profile(lightkube_client: Client, keep_artifacts: bool):
-    """Create the test Profile and clean it up at the end of the module."""
-    profile_uuid = str(uuid4()).split("-")[0]  # get only the first portion of uuid
-    profile_name = namespace_name = f"{PROFILE_NAME}-{profile_uuid}"
-    log.info(f"Creating Profile {profile_name}...")
-    resources = list(
-        codecs.load_all_yaml(
-            PROFILE_TEMPLATE_FILE.read_text(),
-            context={"namespace": namespace_name},
-        )
-    )
-    assert len(resources) == 1, f"Expected 1 Profile, got {len(resources)}!"
-    lightkube_client.create(resources[0])
-
-    assert_namespace_active(lightkube_client, namespace_name)
-
-    yield profile_name, profile_uuid
-
-    if keep_artifacts:
-        log.info(f"Keeping Profile {profile_name} (--keep-artifacts set)")
-        return
-
-    assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, profile_name)
 
 
 @pytest.fixture()
