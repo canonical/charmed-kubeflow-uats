@@ -12,21 +12,27 @@ import json
 import logging
 import re
 import socket
+import sys
 from contextlib import contextmanager
 from pathlib import Path
+from uuid import uuid4
 
 import jubilant
 import requests
 import tenacity
 import urllib3
-from lightkube import Client
+from lightkube import Client, codecs
 from lightkube.generic_resource import create_namespaced_resource
 from lightkube.resources.rbac_authorization_v1 import RoleBinding
 from lightkube.types import PatchType
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
 
-from ingress import GATEWAY_RESOURCE  # isort:skip
+# Add the driver directory to path so shared modules (utils, ingress) are importable.
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+from ingress import GATEWAY_RESOURCE  # noqa: E402
+from utils import PROFILE_RESOURCE, assert_namespace_active, assert_resource_deleted  # noqa: E402,E501
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +41,9 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Assets directory is relative to the repository root.
 ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
+
+PROFILE_NAME = "test-m2m"
+PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 
 # Generic KServe InferenceService resource.
 INFERENCE_SERVICE_RESOURCE = create_namespaced_resource(
@@ -87,6 +96,31 @@ def create_oauth_client(iam_model: str, name: str) -> tuple[str, str]:
     client_secret = task.results["client-secret"]
     log.info(f"Created OAuth client '{name}' with client-id {client_id}")
     return client_id, client_secret
+
+
+def create_profile(lightkube_client: Client, keep_artifacts: bool):
+    """Create the test Profile and clean it up at the end of the module."""
+    profile_uuid = str(uuid4()).split("-")[0]  # get only the first portion of uuid
+    profile_name = namespace_name = f"{PROFILE_NAME}-{profile_uuid}"
+    log.info(f"Creating Profile {profile_name}...")
+    resources = list(
+        codecs.load_all_yaml(
+            PROFILE_TEMPLATE_FILE.read_text(),
+            context={"namespace": namespace_name},
+        )
+    )
+    assert len(resources) == 1, f"Expected 1 Profile, got {len(resources)}!"
+    lightkube_client.create(resources[0])
+
+    assert_namespace_active(lightkube_client, namespace_name)
+
+    yield profile_name, profile_uuid
+
+    if keep_artifacts:
+        log.info(f"Keeping Profile {profile_name} (--keep-artifacts set)")
+        return
+
+    assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, profile_name)
 
 
 def delete_oauth_client(iam_model: str, client_id: str) -> None:
