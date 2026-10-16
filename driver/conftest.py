@@ -30,6 +30,12 @@ def keep_artifacts(request: pytest.FixtureRequest) -> bool:
 
 
 @pytest.fixture(scope="module")
+def is_mlflow_standalone(request: pytest.FixtureRequest) -> bool:
+    """Return whether MLflow is deployed standalone, that is without Kubeflow."""
+    return bool(request.config.getoption("--mlflow-standalone"))
+
+
+@pytest.fixture(scope="module")
 def lightkube_client() -> Client:
     """Initialise a Lightkube client with in-cluster generic resources loaded."""
     client = Client(trust_env=False)

@@ -24,20 +24,14 @@ from uuid import uuid4
 import jubilant
 import pytest
 from helpers import (
-    create_oauth_client,
-    delete_oauth_client,
-    get_jwt_issuer_url,
-    get_token,
     mlflow_create_experiment_with_jwt_warmup,
     mlflow_delete_experiment,
     mlflow_experiments_search,
 )
-from ingress import find_gateway_for_domain, gateway_service_name, get_service_lb_ip
 
 log = logging.getLogger(__name__)
 
 MLFLOW_DEFAULT_DOMAIN_M2M = "api.mlflow.com"
-IAM_MODEL = "iam"
 # The mlflow-server application and the throwaway data-integrator used to grant the test
 # client; the grant app name is distinct so it never clashes with a deployment's own grants.
 MLFLOW_SERVER_APP = "mlflow-server"
@@ -46,7 +40,7 @@ GRANT_APP = "uat-m2m-grant"
 
 @pytest.fixture(scope="module")
 def m2m_domain(request: pytest.FixtureRequest) -> str:
-    """MLflow M2M hostname."""
+    """Application M2M hostname."""
     return (
         domain
         if (domain := request.config.getoption("--iam-domain-m2m"))
@@ -66,50 +60,7 @@ def mlflow_juju(application_model: str) -> jubilant.Juju:
     return jubilant.Juju(model=application_model)
 
 
-@pytest.fixture(scope="module")
-def m2m_gateway(lightkube_client, application_model: str, m2m_domain: str) -> str:
-    """Name of the istio Gateway serving the MLflow M2M domain."""
-    return find_gateway_for_domain(lightkube_client, application_model, m2m_domain)
-
-
-@pytest.fixture(scope="module")
-def gateway_ip(lightkube_client, m2m_gateway: str, application_model: str) -> str:
-    """LoadBalancer IP of the M2M ingress gateway."""
-    return get_service_lb_ip(
-        lightkube_client, application_model, gateway_service_name(m2m_gateway)
-    )
-
-
-@pytest.fixture(scope="module")
-def issuer_url(application_model: str) -> str:
-    """JWT issuer URL trusted by the gateway's RequestAuthentication."""
-    return get_jwt_issuer_url(application_model)
-
-
 @pytest.fixture()
-def authorized_client(keep_artifacts: bool):
-    """Create an OAuth client to be granted access to the test workspace."""
-    client_id, client_secret = create_oauth_client(IAM_MODEL, "uat-m2m-mlflow-authorized")
-
-    yield client_id, client_secret
-
-    if keep_artifacts:
-        log.info(f"Keeping OAuth client {client_id} (--keep-artifacts set)")
-        return
-    delete_oauth_client(IAM_MODEL, client_id)
-
-
-@pytest.fixture(scope="module")
-def unauthorized_client(keep_artifacts: bool):
-    """Create an OAuth client that is NOT granted any workspace access."""
-    client_id, client_secret = create_oauth_client(IAM_MODEL, "uat-m2m-mlflow-unauthorized")
-
-    yield client_id, client_secret
-
-    if keep_artifacts:
-        return
-    delete_oauth_client(IAM_MODEL, client_id)
-
 
 @pytest.fixture()
 def mlflow_client_grant(
@@ -157,20 +108,6 @@ def mlflow_client_grant(
         return
     mlflow_juju.remove_application(GRANT_APP, destroy_storage=True)
     mlflow_juju.wait(lambda status: GRANT_APP not in status.apps)
-
-
-@pytest.fixture()
-def authorized_token(authorized_client, issuer_url: str) -> str:
-    """A valid access token for the authorized OAuth client."""
-    client_id, client_secret = authorized_client
-    return get_token(client_id, client_secret, issuer_url)
-
-
-@pytest.fixture(scope="module")
-def unauthorized_token(unauthorized_client, issuer_url: str) -> str:
-    """A valid access token for the unauthorized OAuth client."""
-    client_id, client_secret = unauthorized_client
-    return get_token(client_id, client_secret, issuer_url)
 
 
 def test_authorized_token_reaches_mlflow(

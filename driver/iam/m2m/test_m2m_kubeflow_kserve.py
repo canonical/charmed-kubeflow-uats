@@ -21,17 +21,12 @@ from uuid import uuid4
 import pytest
 from helpers import (
     INFERENCE_SERVICE_RESOURCE,
-    authorize_contributor,
-    create_oauth_client,
-    delete_oauth_client,
-    get_jwt_issuer_url,
-    get_token,
     patch_gateway_wildcard_hostname,
     request_inference,
     request_inference_with_jwt_warmup,
     wait_for_inferenceservice_ready,
 )
-from ingress import find_gateway_for_domain, gateway_service_name, get_service_lb_ip
+from ingress import gateway_service_name
 from lightkube import Client, codecs
 from utils import PROFILE_RESOURCE, assert_namespace_active, assert_resource_deleted
 
@@ -43,7 +38,6 @@ PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 INFERENCE_SERVICE_TEMPLATE_FILE = ASSETS_DIR / "kserve-inference-service.yaml.j2"
 
 KUBEFLOW_DEFAULT_DOMAIN_M2M = "api.kubeflow.com"
-IAM_MODEL = "iam"
 NAMESPACE = PROFILE_NAME = "test-m2m"
 ISVC_NAME = "sklearn-v2-iris"
 
@@ -53,7 +47,7 @@ PAYLOAD = '{"instances": [[6.8, 2.8, 4.8, 1.4], [6.0, 3.4, 4.5, 1.6]]}'
 
 @pytest.fixture(scope="module")
 def m2m_domain(request: pytest.FixtureRequest) -> str:
-    """Kubeflow M2M hostname."""
+    """Application M2M hostname."""
     return (
         domain
         if (domain := request.config.getoption("--iam-domain-m2m"))
@@ -68,33 +62,9 @@ def wildcard_hostname(m2m_domain: str) -> str:
 
 
 @pytest.fixture(scope="module")
-def m2m_gateway(lightkube_client: Client, application_model: str, m2m_domain: str) -> str:
-    """Name of the istio Gateway serving the KServe (M2M) domain.
-
-    Discovered dynamically by matching the listener hostname, so the charm/app name
-    does not need to be hardcoded.
-    """
-    return find_gateway_for_domain(lightkube_client, application_model, m2m_domain)
-
-
-@pytest.fixture(scope="module")
 def gateway_principals(m2m_gateway: str, application_model: str) -> list[str]:
     """Istio principal of the M2M ingress gateway serving KServe."""
     return [f"cluster.local/ns/{application_model}/sa/{gateway_service_name(m2m_gateway)}"]
-
-
-@pytest.fixture(scope="module")
-def gateway_ip(lightkube_client: Client, m2m_gateway, application_model: str) -> str:
-    """LoadBalancer IP of the M2M ingress gateway."""
-    return get_service_lb_ip(
-        lightkube_client, application_model, gateway_service_name(m2m_gateway)
-    )
-
-
-@pytest.fixture(scope="module")
-def issuer_url(application_model: str) -> str:
-    """JWT issuer URL trusted by the gateway's RequestAuthentication."""
-    return get_jwt_issuer_url(application_model)
 
 
 @pytest.fixture(scope="module")
@@ -168,55 +138,6 @@ def create_inference_service(
         return
 
     assert_resource_deleted(lightkube_client, INFERENCE_SERVICE_RESOURCE, isvc_name, profile_name)
-
-
-@pytest.fixture()
-def authorized_client(
-    lightkube_client: Client, create_profile, gateway_principals, keep_artifacts: bool
-):
-    """Create an OAuth client and authorize it as a contributor on the Profile."""
-    profile_name, _ = create_profile
-    client_id, client_secret = create_oauth_client(IAM_MODEL, "uat-m2m-authorized")
-    authorize_contributor(
-        lightkube_client,
-        namespace=profile_name,
-        user=client_id,
-        role="edit",
-        principals=gateway_principals,
-    )
-
-    yield client_id, client_secret
-
-    if keep_artifacts:
-        log.info(f"Keeping OAuth client {client_id} (--keep-artifacts set)")
-        return
-    delete_oauth_client(IAM_MODEL, client_id)
-
-
-@pytest.fixture(scope="module")
-def unauthorized_client(keep_artifacts: bool):
-    """Create an OAuth client that is NOT authorized on any Profile."""
-    client_id, client_secret = create_oauth_client(IAM_MODEL, "uat-m2m-unauthorized")
-
-    yield client_id, client_secret
-
-    if keep_artifacts:
-        return
-    delete_oauth_client(IAM_MODEL, client_id)
-
-
-@pytest.fixture()
-def authorized_token(authorized_client, issuer_url) -> str:
-    """A valid access token for the authorized OAuth client."""
-    client_id, client_secret = authorized_client
-    return get_token(client_id, client_secret, issuer_url)
-
-
-@pytest.fixture(scope="module")
-def unauthorized_token(unauthorized_client, issuer_url):
-    """A valid access token for the unauthorized OAuth client."""
-    client_id, client_secret = unauthorized_client
-    return get_token(client_id, client_secret, issuer_url)
 
 
 def test_authorized_token_reaches_inferenceservice(

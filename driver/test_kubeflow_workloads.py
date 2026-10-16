@@ -166,7 +166,10 @@ def retry_timeout(request: pytest.FixtureRequest):
 
 @pytest.fixture(scope="module")
 def create_profile_or_namespace(
-    request: pytest.FixtureRequest, lightkube_client: Client, keep_artifacts: bool
+    request: pytest.FixtureRequest,
+    lightkube_client: Client,
+    keep_artifacts: bool,
+    is_mlflow_standalone: bool,
 ):
     """Create the test Profile or namespace and handle cleanup at the end of the module tests.
 
@@ -176,7 +179,7 @@ def create_profile_or_namespace(
     default-editor ServiceAccount (the one the Job pod runs as), to be coherent with what Kubeflow
     does via Profiles and PodDefaults.
     """
-    if request.config.getoption("--mlflow-standalone"):
+    if is_mlflow_standalone:
         security_policy = request.config.getoption("security_policy")
         log.info(f"Creating namespace {NAMESPACE} for standalone MLflow...")
         lightkube_client.create(
@@ -254,12 +257,14 @@ def create_poddefault_on_toleration(request: pytest.FixtureRequest, lightkube_cl
 
 
 @pytest.fixture(scope="function")
-def create_poddefault_on_security_policy(request: pytest.FixtureRequest, lightkube_client: Client):
+def create_poddefault_on_security_policy(
+    request: pytest.FixtureRequest,
+    lightkube_client: Client,
+    is_mlflow_standalone: bool,
+):
     """Create a transient PodDefault with security policy variables for the Notebook Job."""
     # Standalone MLflow has no PodDefault CRD/admission webhook, so skip it there.
-    if request.config.getoption("--mlflow-standalone") or not request.config.getoption(
-        "security_policy"
-    ):
+    if is_mlflow_standalone or not request.config.getoption("security_policy"):
         yield
     else:
         security_policy_context = {"security_policy": request.config.getoption("security_policy")}
@@ -313,9 +318,9 @@ def test_bundle_correctness(juju: pytest.FixtureRequest, charm_list: pytest.Fixt
 
 @pytest.mark.dependency()
 def test_create_profile_or_namespace(
-    request: pytest.FixtureRequest,
     lightkube_client: Client,
     create_profile_or_namespace: pytest.FixtureRequest,
+    is_mlflow_standalone: bool,
 ):
     """Create the test Profile (for Kubeflow) or the test namespace (for MLflow standalone).
 
@@ -323,7 +328,7 @@ def test_create_profile_or_namespace(
     responsible for cleaning up at the end. For standalone MLflow a plain namespace with a
     default-editor ServiceAccount is created instead of a Kubeflow Profile.
     """
-    if request.config.getoption("--mlflow-standalone"):
+    if is_mlflow_standalone:
         assert_namespace_active(lightkube_client, NAMESPACE)
         assert_service_account_exists(lightkube_client, "default-editor", NAMESPACE)
         return
