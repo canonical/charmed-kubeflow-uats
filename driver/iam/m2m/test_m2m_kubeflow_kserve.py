@@ -17,7 +17,7 @@ Hydra, and oauth2-proxy.
 import logging
 
 import pytest
-from lightkube import Client, codecs
+from lightkube import Client, codecs  # noqa: E402
 
 from helpers import (  # noqa: E402
     ASSETS_DIR,
