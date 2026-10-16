@@ -27,7 +27,6 @@ from helpers import (  # isort:skip
     request_inference_with_jwt_warmup,
     wait_for_inferenceservice_ready,
 )
-from ingress import gateway_service_name  # isort:skip
 from utils import assert_resource_deleted  # isort:skip
 
 log = logging.getLogger(__name__)
@@ -55,12 +54,6 @@ def m2m_domain(request: pytest.FixtureRequest) -> str:
 def wildcard_hostname(m2m_domain: str) -> str:
     """Wildcard hostname for KServe."""
     return f"*.{m2m_domain}"
-
-
-@pytest.fixture(scope="module")
-def gateway_principals(m2m_gateway: str, application_model: str) -> list[str]:
-    """Istio principal of the M2M ingress gateway serving KServe."""
-    return [f"cluster.local/ns/{application_model}/sa/{gateway_service_name(m2m_gateway)}"]
 
 
 @pytest.fixture(scope="module")

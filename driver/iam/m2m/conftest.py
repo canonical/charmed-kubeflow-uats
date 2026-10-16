@@ -47,6 +47,12 @@ def gateway_ip(lightkube_client: Client, m2m_gateway: str, application_model: st
 
 
 @pytest.fixture(scope="module")
+def gateway_principals(m2m_gateway: str, application_model: str) -> list[str]:
+    """Istio principal of the M2M ingress gateway serving KServe."""
+    return [f"cluster.local/ns/{application_model}/sa/{gateway_service_name(m2m_gateway)}"]
+
+
+@pytest.fixture(scope="module")
 def issuer_url(application_model: str) -> str:
     """JWT issuer URL trusted by the gateway's RequestAuthentication."""
     return get_jwt_issuer_url(application_model)
