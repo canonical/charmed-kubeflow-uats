@@ -212,10 +212,9 @@ def test_missing_token_is_rejected(m2m_domain: str, gateway_ip: str, mlflow_work
     """A request without a token carries no identity and is denied (401/403)."""
     http_code, body = mlflow_experiments_search(m2m_domain, gateway_ip, None, mlflow_workspace)
 
-    assert http_code in (
-        401,
-        403,
-    ), f"Expected HTTP 401/403 for a request without a token, got {http_code}. Body: {body}"
+    assert (
+        http_code == 403
+    ), f"Expected HTTP 403 for a request without a token, got {http_code}. Body: {body}"
     log.info("✓ Request without a token was correctly denied.")
 
 
