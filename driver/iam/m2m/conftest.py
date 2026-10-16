@@ -65,9 +65,7 @@ def authorized_client(
 
     For MLflow standalone, the client is granted access to the test workspace.
     """
-    client_name = (
-        f"uat-m2m-authorized-{'mlflow' if is_mlflow_standalone else 'kubeflow'}"
-    )
+    client_name = f"uat-m2m-authorized-{'mlflow' if is_mlflow_standalone else 'kubeflow'}"
     client_id, client_secret = create_oauth_client(IAM_MODEL, client_name)
 
     if not is_mlflow_standalone:
@@ -96,9 +94,7 @@ def unauthorized_client(keep_artifacts: bool, is_mlflow_standalone: bool):
 
     For MLflow standalone, the client is not granted access to any workspace.
     """
-    client_name = (
-        f"uat-m2m-unauthorized-{'mlflow' if is_mlflow_standalone else 'kubeflow'}"
-    )
+    client_name = f"uat-m2m-unauthorized-{'mlflow' if is_mlflow_standalone else 'kubeflow'}"
     client_id, client_secret = create_oauth_client(IAM_MODEL, client_name)
 
     yield client_id, client_secret
