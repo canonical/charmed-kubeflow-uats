@@ -18,7 +18,8 @@ user can do — workspace RBAC only gates the content APIs the SPA calls, not th
 import logging
 
 import pytest
-from iam.ui.helpers import (
+
+from iam.ui.helpers import (  # isort:skip
     MLFLOW_UI_PATH,
     assert_login_reaches_application_ui,
     assert_unauthenticated_request_is_redirected_to_login,

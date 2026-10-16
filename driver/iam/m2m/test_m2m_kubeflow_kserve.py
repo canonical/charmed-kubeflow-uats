@@ -17,9 +17,9 @@ Hydra, and oauth2-proxy.
 import logging
 
 import pytest
-from lightkube import Client, codecs  # noqa: E402
+from lightkube import Client, codecs
 
-from helpers import (  # noqa: E402
+from helpers import (  # isort:skip
     ASSETS_DIR,
     INFERENCE_SERVICE_RESOURCE,
     patch_gateway_wildcard_hostname,
@@ -27,8 +27,8 @@ from helpers import (  # noqa: E402
     request_inference_with_jwt_warmup,
     wait_for_inferenceservice_ready,
 )
-from ingress import gateway_service_name  # noqa: E402
-from utils import assert_resource_deleted  # noqa: E402
+from ingress import gateway_service_name  # isort:skip
+from utils import assert_resource_deleted  # isort:skip
 
 log = logging.getLogger(__name__)
 

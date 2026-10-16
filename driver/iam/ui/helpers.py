@@ -24,11 +24,12 @@ from urllib.parse import urlparse
 
 import jubilant
 import tenacity
-from ingress import find_gateway_for_domain, gateway_service_name, get_service_lb_ip
 from lightkube import Client
 from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import Page
 from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+
+from ingress import find_gateway_for_domain, gateway_service_name, get_service_lb_ip  # isort:skip
 
 log = logging.getLogger(__name__)
 
