@@ -32,7 +32,11 @@ from requests_oauthlib import OAuth2Session
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from ingress import GATEWAY_RESOURCE  # noqa: E402
-from utils import PROFILE_RESOURCE, assert_namespace_active, assert_resource_deleted  # noqa: E402,E501
+from utils import (
+    PROFILE_RESOURCE,
+    assert_namespace_active,
+    assert_resource_deleted,
+)
 
 log = logging.getLogger(__name__)
 
