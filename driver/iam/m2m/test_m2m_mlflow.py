@@ -61,8 +61,6 @@ def mlflow_juju(application_model: str) -> jubilant.Juju:
 
 
 @pytest.fixture()
-
-@pytest.fixture()
 def mlflow_client_grant(
     authorized_client, mlflow_workspace: str, mlflow_juju, keep_artifacts: bool
 ):
