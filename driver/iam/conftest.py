@@ -16,7 +16,7 @@ UPDATE_STATUS_HOOK_INTERVAL = "2h"
 
 
 @pytest.fixture(scope="module", autouse=True)
-def slow_update_status_hook(request: pytest.FixtureRequest, application_model: str):
+def slow_update_status_hook(application_model: str, is_mlflow_standalone: bool):
     """Raise the ``kubeflow`` model's update-status interval for the test run.
 
     ``github-profiles-automator`` runs a full reconcile on every ``update_status``
@@ -26,7 +26,7 @@ def slow_update_status_hook(request: pytest.FixtureRequest, application_model: s
     value is restored on teardown.
     """
     # skipping as standalone MLflow has no github-profiles-automator reconciling Profiles:
-    if request.config.getoption("--mlflow-standalone", default=False):
+    if is_mlflow_standalone:
         yield
         return
 
