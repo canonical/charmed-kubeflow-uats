@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 import pytest
-from lightkube import Client, codecs
+from lightkube import Client
 
 # Add the driver directory to path so shared modules (utils, ingress) are importable.
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
