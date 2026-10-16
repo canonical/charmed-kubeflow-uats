@@ -19,13 +19,14 @@ import jubilant
 import requests
 import tenacity
 import urllib3
-from ingress import GATEWAY_RESOURCE
 from lightkube import Client
 from lightkube.generic_resource import create_namespaced_resource
 from lightkube.resources.rbac_authorization_v1 import RoleBinding
 from lightkube.types import PatchType
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
+
+from ingress import GATEWAY_RESOURCE  # isort:skip
 
 log = logging.getLogger(__name__)
 

@@ -17,12 +17,13 @@ import logging
 from pathlib import Path
 
 import pytest
-from iam.ui.helpers import (
+from lightkube import Client, codecs
+from utils import PROFILE_RESOURCE, assert_namespace_active, assert_resource_deleted
+
+from iam.ui.helpers import (  # isort:skip
     assert_login_reaches_application_ui,
     assert_unauthenticated_request_is_redirected_to_login,
 )
-from lightkube import Client, codecs
-from utils import PROFILE_RESOURCE, assert_namespace_active, assert_resource_deleted
 
 log = logging.getLogger(__name__)
 
