@@ -6,14 +6,16 @@
 import logging
 import sys
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
-from lightkube import Client
+from lightkube import Client, codecs
 
 # Add the driver directory to path so shared modules (utils, ingress) are importable.
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from iam.m2m.helpers import (  # noqa: E402  (import must follow the sys.path setup above)
+    ASSETS_DIR,
     authorize_contributor,
     create_oauth_client,
     delete_oauth_client,
@@ -21,10 +23,13 @@ from iam.m2m.helpers import (  # noqa: E402  (import must follow the sys.path se
     get_token,
 )
 from ingress import find_gateway_for_domain, gateway_service_name, get_service_lb_ip  # noqa: E402
+from utils import PROFILE_RESOURCE, assert_namespace_active, assert_resource_deleted  # noqa: E402
 
 log = logging.getLogger(__name__)
 
 IAM_MODEL = "iam"
+PROFILE_NAME = "test-m2m"
+PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 
 
 @pytest.fixture(scope="module")
@@ -49,6 +54,32 @@ def gateway_ip(lightkube_client: Client, m2m_gateway: str, application_model: st
 def issuer_url(application_model: str) -> str:
     """JWT issuer URL trusted by the gateway's RequestAuthentication."""
     return get_jwt_issuer_url(application_model)
+
+
+@pytest.fixture()
+def create_profile(lightkube_client: Client, keep_artifacts: bool):
+    """Create the test Profile and clean it up at the end of the module."""
+    profile_uuid = str(uuid4()).split("-")[0]  # get only the first portion of uuid
+    profile_name = namespace_name = f"{PROFILE_NAME}-{profile_uuid}"
+    log.info(f"Creating Profile {profile_name}...")
+    resources = list(
+        codecs.load_all_yaml(
+            PROFILE_TEMPLATE_FILE.read_text(),
+            context={"namespace": namespace_name},
+        )
+    )
+    assert len(resources) == 1, f"Expected 1 Profile, got {len(resources)}!"
+    lightkube_client.create(resources[0])
+
+    assert_namespace_active(lightkube_client, namespace_name)
+
+    yield profile_name, profile_uuid
+
+    if keep_artifacts:
+        log.info(f"Keeping Profile {profile_name} (--keep-artifacts set)")
+        return
+
+    assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, profile_name)
 
 
 @pytest.fixture()
