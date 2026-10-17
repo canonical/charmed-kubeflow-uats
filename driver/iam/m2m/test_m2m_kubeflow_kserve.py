@@ -22,6 +22,7 @@ from lightkube import Client, codecs
 from helpers import (  # isort:skip
     ASSETS_DIR,
     INFERENCE_SERVICE_RESOURCE,
+    create_profile,
     patch_gateway_wildcard_hostname,
     request_inference,
     request_inference_with_jwt_warmup,
@@ -76,11 +77,9 @@ def patch_gateway(
 
 
 @pytest.fixture()
-def create_inference_service(
-    lightkube_client: Client, create_profile, patch_gateway, keep_artifacts: bool
-):
+def create_inference_service(lightkube_client: Client, patch_gateway, keep_artifacts: bool):
     """Create the KServe InferenceService and return its hostname."""
-    profile_name, profile_uuid = create_profile
+    profile_name, profile_uuid = create_profile(lightkube_client, keep_artifacts)
     isvc_name = f"{ISVC_NAME}-{profile_uuid}"
     log.info(f"Creating InferenceService {profile_name}/{isvc_name}...")
     resources = list(
