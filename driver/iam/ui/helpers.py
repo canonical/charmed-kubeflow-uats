@@ -152,7 +152,7 @@ def login_with_password(page: Page, email: str, password: str) -> None:
     page.get_by_role("button", name="Sign in", exact=True).click()
 
 
-def is_ui_url(url: str, ui_domain) -> bool:
+def is_ui_url(url: str, ui_domain: str) -> bool:
     """Return True iff ``url`` is actually served by the UI host.
 
     Matching on the parsed hostname (not a substring) is important: the oauth2-proxy
@@ -254,7 +254,12 @@ def goto_login_form(page: Page, ui_url: str, auth_domain: str, max_attempts: int
             raise
 
 
-def reach_dashboard(page: Page, profile_namespace: str, max_attempts: int = 2) -> None:
+def reach_dashboard(
+    page: Page,
+    profile_namespace: str,
+    ui_domain: str,
+    max_attempts: int = 2,
+) -> None:
     """Wait for the post-login redirect back to the UI and the dashboard to render.
 
     Asserts the URL is served by ``ui.kubeflow.com``, the dashboard page has loaded
@@ -303,7 +308,7 @@ def reach_dashboard(page: Page, profile_namespace: str, max_attempts: int = 2) -
         # is an aborted redirect, not a render glitch, and reloading will not fix it.
         retry=(
             tenacity.retry_if_exception_type((PlaywrightTimeoutError, AssertionError))
-            & tenacity.retry_if_exception(lambda _error: is_ui_url(page.url))
+            & tenacity.retry_if_exception(lambda _error: is_ui_url(page.url, ui_domain))
         ),
         stop=tenacity.stop_after_attempt(max_attempts),
         before_sleep=_reload_before_retry,
@@ -341,6 +346,7 @@ def login_and_reach_kubeflow_dashboard(
     profile_namespace: str,
     ui_url: str,
     auth_domain: str,
+    ui_domain: str,
     max_attempts: int = 3,
 ) -> None:
     """Drive the full IdP login flow to the dashboard, retrying transient network aborts.
@@ -360,7 +366,7 @@ def login_and_reach_kubeflow_dashboard(
         # abort it two ways: wait_for_url times out (the URL never changes) or Playwright
         # surfaces the aborted navigation's ERR_NETWORK_CHANGED directly. Both are retried.
         page.wait_for_url(is_ui_url, timeout=REDIRECT_TIMEOUT_MS)
-        reach_dashboard(page, profile_namespace)
+        reach_dashboard(page, profile_namespace, ui_domain)
 
     def _redirect_failed_off_ui_host(error: Exception) -> bool:
         """Return True if the redirect failed recoverably while still off the UI host.
@@ -370,7 +376,7 @@ def login_and_reach_kubeflow_dashboard(
         are recoverable by re-driving the idempotent login. Once on the UI host, a failure
         is a dashboard-render problem — don't retry.
         """
-        if is_ui_url(page.url):
+        if is_ui_url(page.url, ui_domain):
             return False
         return isinstance(error, PlaywrightTimeoutError) or _is_transient_net_error(error)
 
@@ -512,6 +518,7 @@ def assert_login_reaches_application_ui(
             password,
             ui_url=f"https://{ui_domain}",
             auth_domain=auth_domain,
+            ui_domain=ui_domain,
             profile_namespace=kubeflow_profile_name,
         )
 
