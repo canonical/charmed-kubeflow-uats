@@ -37,6 +37,9 @@ log = logging.getLogger(__name__)
 # Disable the noisy warnings emitted when talking to the self-signed endpoints.
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+# Assets directory is relative to the repository root.
+ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
+
 # Generic KServe InferenceService resource.
 INFERENCE_SERVICE_RESOURCE = create_namespaced_resource(
     group="serving.kserve.io",
