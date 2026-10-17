@@ -339,6 +339,8 @@ def login_and_reach_kubeflow_dashboard(
     email: str,
     password: str,
     profile_namespace: str,
+    ui_url: str,
+    auth_domain: str,
     max_attempts: int = 3,
 ) -> None:
     """Drive the full IdP login flow to the dashboard, retrying transient network aborts.
@@ -382,7 +384,7 @@ def login_and_reach_kubeflow_dashboard(
             retry_state.outcome.exception(),
         )
         page.context.clear_cookies()
-        goto_login_form(page)
+        goto_login_form(page, ui_url=ui_url, auth_domain=auth_domain)
 
     retryer = tenacity.Retrying(
         # A timeout or transient network error while still on the auth host is an aborted
@@ -393,7 +395,7 @@ def login_and_reach_kubeflow_dashboard(
         before_sleep=_redrive_login,
         reraise=True,
     )
-    goto_login_form(page)
+    goto_login_form(page, ui_url=ui_url, auth_domain=auth_domain)
     retryer(_login_and_reach)
 
 
@@ -505,7 +507,12 @@ def assert_login_reaches_application_ui(
         login_and_reach_mlflow_ui(page, email, password, ui_domain, auth_domain)
     else:  # i.e, for Kubeflow:
         login_and_reach_kubeflow_dashboard(
-            page, email, password, profile_namespace=kubeflow_profile_name
+            page,
+            email,
+            password,
+            ui_url=f"https://{ui_domain}",
+            auth_domain=auth_domain,
+            profile_namespace=kubeflow_profile_name,
         )
 
     assert is_ui_url(
