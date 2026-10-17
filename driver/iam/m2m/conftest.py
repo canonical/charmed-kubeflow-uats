@@ -15,6 +15,7 @@ from lightkube import Client, codecs
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from iam.m2m.helpers import (  # noqa: E402  (import must follow the sys.path setup above)
+    ASSETS_DIR,
     authorize_contributor,
     create_oauth_client,
     delete_oauth_client,
@@ -29,9 +30,6 @@ from utils import (  # noqa: E402
 )
 
 log = logging.getLogger(__name__)
-
-# Assets directory is relative to the repository root.
-ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
 
 PROFILE_NAME = "test-m2m"
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
