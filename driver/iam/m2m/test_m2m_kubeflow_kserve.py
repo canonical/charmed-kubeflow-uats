@@ -80,7 +80,7 @@ def create_inference_service(
     lightkube_client: Client,
     create_profile,
     patch_gateway,
-    keep_artifacts: bool
+    keep_artifacts: bool,
 ):
     """Create the KServe InferenceService and return its hostname."""
     profile_name, profile_uuid = create_profile
