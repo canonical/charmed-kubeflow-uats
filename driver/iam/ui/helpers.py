@@ -274,7 +274,7 @@ def reach_dashboard(
     """
     # Hostname match (not substring) so the auth page's `rd=...ui.kubeflow.com...`
     # redirect parameter cannot satisfy the wait before the dashboard is reached.
-    page.wait_for_url(is_ui_url, timeout=120_000)
+    page.wait_for_url(lambda url: is_ui_url(url, ui_domain), timeout=120_000)
 
     def _render_dashboard() -> None:
         # Wait for the dashboard SPA to settle (API calls complete, namespace set).
@@ -365,7 +365,7 @@ def login_and_reach_kubeflow_dashboard(
         # Wait for the post-login redirect to land on the UI host. A network change can
         # abort it two ways: wait_for_url times out (the URL never changes) or Playwright
         # surfaces the aborted navigation's ERR_NETWORK_CHANGED directly. Both are retried.
-        page.wait_for_url(is_ui_url, timeout=REDIRECT_TIMEOUT_MS)
+        page.wait_for_url(lambda url: is_ui_url(url, ui_domain), timeout=REDIRECT_TIMEOUT_MS)
         reach_dashboard(page, profile_namespace, ui_domain)
 
     def _redirect_failed_off_ui_host(error: Exception) -> bool:
