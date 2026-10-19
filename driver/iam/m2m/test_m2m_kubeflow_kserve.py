@@ -75,7 +75,7 @@ def patch_gateway(
     yield
 
 
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def create_inference_service(
     lightkube_client: Client,
     create_profile,
