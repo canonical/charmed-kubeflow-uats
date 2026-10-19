@@ -322,13 +322,14 @@ The [`sqa_tests`](sqa_tests) script is the entrypoint used by SQA's Terragrunt D
 Pipelines. It is owned by the Kubeflow team: it lives on `main` and is backported to the
 `track/*` branches, so that SQA can select the `ref` matching the deployed Kubeflow version.
 
-The script runs the `kubeflow-remote` tox environment against the `kubeflow` model, forwarding
-any arguments to pytest, and writes the results to `test_results.xml` (plus a placeholder
-`metrics.json`). It exits with `0` when the tests ran, even if some of them failed, and with a
-nonzero code for operational failures (e.g. dependency installation, collection or usage errors, or
-no tests collected).
+The script runs the `kubeflow-remote` tox environment against the model selected by `MODEL`
+(defaults to `kubeflow`), forwards any arguments to pytest, and writes the results to
+`test_results.xml` (plus a placeholder `metrics.json`). It exits with `0` when the tests ran, even
+if some of them failed, and with a nonzero code for operational failures (e.g. dependency
+installation, collection or usage errors, or no tests collected).
 
 It can be configured through the following environment variables:
+* `MODEL`: Juju model and Kubeflow control-plane namespace. Defaults to `kubeflow`.
 * `SQA_PROXY`: optional proxy used only to install the Python dependencies. Unset by default,
   in which case any proxy settings already in the environment are used as is.
 

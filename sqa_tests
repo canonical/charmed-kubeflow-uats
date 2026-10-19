@@ -3,7 +3,7 @@
 # Any arguments are forwarded to pytest; see the "Run from SQA pipelines" README section.
 set -euxo pipefail
 
-MODEL=kubeflow
+MODEL="${MODEL:-kubeflow}"
 TEST_OPTION=kubeflow-remote
 PROXY="${SQA_PROXY:-}"
 
@@ -46,6 +46,7 @@ TERM=dumb tox -e "${TEST_OPTION}" -- \
     --junit-xml="$OUTPUT_RESULTS" \
     --capture=tee-sys \
     -o junit_logging=all \
+    --model "$MODEL" \
     "$@"  # passed 'args'
 rc=$?
 set -e
