@@ -396,9 +396,8 @@ def request_inference_with_jwt_warmup(
 # and the MLflow client sends the active workspace on every non-"/mlflow/workspaces" call.
 # Verified from mlflow==3.15.1 (mlflow/utils/workspace_utils.py).
 WORKSPACE_HEADER_NAME = "X-MLFLOW-WORKSPACE"
-# The charm serves the tracking server behind the "/mlflow/" ingress prefix (rewritten to "/"),
-# so external API calls go to "<host>/mlflow/api/2.0/mlflow/...".
-MLFLOW_INGRESS_PREFIX = "/mlflow"
+
+MLFLOW_INGRESS_PATH_PREFIX = ""
 
 
 def mlflow_experiments_search(
@@ -419,7 +418,7 @@ def mlflow_experiments_search(
     Returns:
         A ``(http_status_code, response_body)`` tuple.
     """
-    url = f"https://{mlflow_host}{MLFLOW_INGRESS_PREFIX}/api/2.0/mlflow/experiments/search"
+    url = f"https://{mlflow_host}{MLFLOW_INGRESS_PATH_PREFIX}/api/2.0/mlflow/experiments/search"
     headers = {"Content-Type": "application/json", WORKSPACE_HEADER_NAME: workspace}
     if token is not None:
         headers["Authorization"] = f"Bearer {token}"
@@ -453,7 +452,7 @@ def mlflow_create_experiment(
     Returns:
         A ``(status_code, body)`` tuple; ``body`` carries ``experiment_id`` on HTTP 200.
     """
-    url = f"https://{mlflow_host}{MLFLOW_INGRESS_PREFIX}/api/2.0/mlflow/experiments/create"
+    url = f"https://{mlflow_host}{MLFLOW_INGRESS_PATH_PREFIX}/api/2.0/mlflow/experiments/create"
     headers = {"Content-Type": "application/json", WORKSPACE_HEADER_NAME: workspace}
     if token is not None:
         headers["Authorization"] = f"Bearer {token}"
@@ -478,7 +477,7 @@ def mlflow_delete_experiment(
     Returns:
         A ``(status_code, body)`` tuple.
     """
-    url = f"https://{mlflow_host}{MLFLOW_INGRESS_PREFIX}/api/2.0/mlflow/experiments/delete"
+    url = f"https://{mlflow_host}{MLFLOW_INGRESS_PATH_PREFIX}/api/2.0/mlflow/experiments/delete"
     headers = {"Content-Type": "application/json", WORKSPACE_HEADER_NAME: workspace}
     if token is not None:
         headers["Authorization"] = f"Bearer {token}"

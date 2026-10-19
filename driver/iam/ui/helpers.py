@@ -33,15 +33,10 @@ from ingress import find_gateway_for_domain, gateway_service_name, get_service_l
 
 log = logging.getLogger(__name__)
 
-# Model / service constants.
+AUTH_SERVICE = "traefik-lb"
 IAM_MODEL = "iam"
 IAM_CORE_MODEL = "iam-core"
-AUTH_SERVICE = "traefik-lb"
-
-# The mlflow-server charm serves the MLflow UI behind the "/mlflow/" ingress prefix (rewritten
-# to "/"), so external navigation must target "<ui-host>/mlflow/" — the gateway has no route at
-# the bare host and returns 404 there.
-MLFLOW_UI_PATH = "/mlflow/"
+MLFLOW_UI_PATH = "/"
 
 # Chromium network-error codes that are transient and safe to retry. ERR_NETWORK_CHANGED
 # is raised when Chromium's NetworkChangeNotifier detects the host's network config
