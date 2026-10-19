@@ -4,7 +4,7 @@
 set -euxo pipefail
 
 MODEL="${MODEL:-kubeflow}"
-TEST_OPTION=kubeflow-remote
+TEST_OPTION="${TEST_OPTION:-kubeflow-remote}"
 PROXY="${SQA_PROXY:-}"
 
 OUTPUT_RESULTS=$PWD/test_results.xml

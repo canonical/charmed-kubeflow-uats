@@ -330,6 +330,7 @@ installation, collection or usage errors, or no tests collected).
 
 It can be configured through the following environment variables:
 * `MODEL`: Juju model and Kubeflow control-plane namespace. Defaults to `kubeflow`.
+* `TEST_OPTION`: tox environment to run. Defaults to `kubeflow-remote`.
 * `SQA_PROXY`: optional proxy used only to install the Python dependencies. Unset by default,
   in which case any proxy settings already in the environment are used as is.
 
