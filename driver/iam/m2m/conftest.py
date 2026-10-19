@@ -97,6 +97,7 @@ def create_profile(lightkube_client: Client, keep_artifacts: bool):
 def authorized_client(
     lightkube_client: Client,
     gateway_principals,
+    create_profile,
     keep_artifacts: bool,
     is_mlflow_standalone: bool,
 ):
