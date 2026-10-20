@@ -238,6 +238,7 @@ By default, MLflow is tested assuming Kubeflow is deployed underneath. In order 
 
 ```bash
 tox -e mlflow-remote -- --mlflow-standalone --mlflow-tracking-uri http://mlflow-server.mlflow.svc.cluster.local:5000
+```
 
 When MLflow is deployed and tested standalone, IAM tests for external programmatic and UI access can also be carried out by enabling the respective options: `--include-iam-m2m-tests` and `--include-iam-ui-tests`. When so, the DNS names expected by tests for API, UI and authentication default to `api.mlflow.com`, `ui.mlflow.com`, `auth.mlflow.com`, respectively, but can additionally can be customized by passing `--iam-domain-m2m`, `--iam-domain-ui` and `--iam-domain-auth` respectively.
 
