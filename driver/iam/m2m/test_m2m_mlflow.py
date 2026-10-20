@@ -140,7 +140,7 @@ def test_authorized_token_reaches_mlflow(
 
 
 def test_missing_token_is_rejected(m2m_domain: str, gateway_ip: str, mlflow_workspace: str):
-    """A request without a token carries no identity and is denied 401."""
+    """A request without a token carries no identity and is denied 403."""
     http_code, body = mlflow_experiments_search(m2m_domain, gateway_ip, None, mlflow_workspace)
 
     assert (
