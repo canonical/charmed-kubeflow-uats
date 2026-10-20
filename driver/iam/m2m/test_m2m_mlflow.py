@@ -91,12 +91,7 @@ def mlflow_client_grant(
     )
     mlflow_juju.integrate(f"{GRANT_APP}:mlflow", f"{MLFLOW_SERVER_APP}:mlflow-client")
     mlflow_juju.wait(
-        lambda status: (
-            GRANT_APP in status.apps
-            and status.apps[GRANT_APP].app_status.current == "active"
-            and MLFLOW_SERVER_APP in status.apps
-            and status.apps[MLFLOW_SERVER_APP].app_status.current == "active"
-        ),
+        lambda status: jubilant.all_active(status, GRANT_APP, MLFLOW_SERVER_APP),
         timeout=600,
     )
 
