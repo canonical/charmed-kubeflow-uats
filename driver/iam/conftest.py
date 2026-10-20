@@ -27,6 +27,7 @@ def slow_update_status_hook(application_model: str, is_mlflow_standalone: bool):
     """
     # skipping as standalone MLflow has no github-profiles-automator reconciling Profiles:
     if is_mlflow_standalone:
+        yield
         return
 
     juju = jubilant.Juju(model=application_model)
