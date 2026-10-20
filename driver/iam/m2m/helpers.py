@@ -400,6 +400,22 @@ WORKSPACE_HEADER_NAME = "X-MLFLOW-WORKSPACE"
 MLFLOW_INGRESS_PATH_PREFIX = ""
 
 
+def _mlflow_post(
+    mlflow_host: str, gateway_ip: str, token: str | None, workspace: str, path: str, json_data: dict
+) -> tuple[int, str]:
+    """Send a POST request to the MLflow ingress gateway, scoped to the given workspace."""
+    url = f"https://{mlflow_host}{MLFLOW_INGRESS_PATH_PREFIX}{path}"
+    headers = {"Content-Type": "application/json", WORKSPACE_HEADER_NAME: workspace}
+    if token is not None:
+        headers["Authorization"] = f"Bearer {token}"
+
+    with _pin_dns(mlflow_host, gateway_ip):
+        response = requests.post(url, json=json_data, headers=headers, verify=False, timeout=60)
+
+    log.info(f"MLflow POST to {mlflow_host}{path} returned HTTP {response.status_code}")
+    return response.status_code, response.text
+
+
 def mlflow_experiments_search(
     mlflow_host: str, gateway_ip: str, token: str | None, workspace: str
 ) -> tuple[int, str]:
@@ -418,18 +434,14 @@ def mlflow_experiments_search(
     Returns:
         A ``(http_status_code, response_body)`` tuple.
     """
-    url = f"https://{mlflow_host}{MLFLOW_INGRESS_PATH_PREFIX}/api/2.0/mlflow/experiments/search"
-    headers = {"Content-Type": "application/json", WORKSPACE_HEADER_NAME: workspace}
-    if token is not None:
-        headers["Authorization"] = f"Bearer {token}"
-
-    with _pin_dns(mlflow_host, gateway_ip):
-        response = requests.post(
-            url, json={"max_results": 10}, headers=headers, verify=False, timeout=60
-        )
-
-    log.info(f"MLflow experiments/search to {mlflow_host} returned HTTP {response.status_code}")
-    return response.status_code, response.text
+    return _mlflow_post(
+        mlflow_host,
+        gateway_ip,
+        token,
+        workspace,
+        "/api/2.0/mlflow/experiments/search",
+        {"max_results": 10},
+    )
 
 
 def mlflow_create_experiment(
@@ -452,18 +464,14 @@ def mlflow_create_experiment(
     Returns:
         A ``(status_code, body)`` tuple; ``body`` carries ``experiment_id`` on HTTP 200.
     """
-    url = f"https://{mlflow_host}{MLFLOW_INGRESS_PATH_PREFIX}/api/2.0/mlflow/experiments/create"
-    headers = {"Content-Type": "application/json", WORKSPACE_HEADER_NAME: workspace}
-    if token is not None:
-        headers["Authorization"] = f"Bearer {token}"
-
-    with _pin_dns(mlflow_host, gateway_ip):
-        response = requests.post(
-            url, json={"name": name}, headers=headers, verify=False, timeout=60
-        )
-
-    log.info(f"MLflow experiments/create to {mlflow_host} returned HTTP {response.status_code}")
-    return response.status_code, response.text
+    return _mlflow_post(
+        mlflow_host,
+        gateway_ip,
+        token,
+        workspace,
+        "/api/2.0/mlflow/experiments/create",
+        {"name": name},
+    )
 
 
 def mlflow_delete_experiment(
@@ -477,18 +485,14 @@ def mlflow_delete_experiment(
     Returns:
         A ``(status_code, body)`` tuple.
     """
-    url = f"https://{mlflow_host}{MLFLOW_INGRESS_PATH_PREFIX}/api/2.0/mlflow/experiments/delete"
-    headers = {"Content-Type": "application/json", WORKSPACE_HEADER_NAME: workspace}
-    if token is not None:
-        headers["Authorization"] = f"Bearer {token}"
-
-    with _pin_dns(mlflow_host, gateway_ip):
-        response = requests.post(
-            url, json={"experiment_id": experiment_id}, headers=headers, verify=False, timeout=60
-        )
-
-    log.info(f"MLflow experiments/delete to {mlflow_host} returned HTTP {response.status_code}")
-    return response.status_code, response.text
+    return _mlflow_post(
+        mlflow_host,
+        gateway_ip,
+        token,
+        workspace,
+        "/api/2.0/mlflow/experiments/delete",
+        {"experiment_id": experiment_id},
+    )
 
 
 # Standalone MLflow is the first JWT consumer on a fresh deployment, so Hydra mints its
