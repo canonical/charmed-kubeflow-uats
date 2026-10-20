@@ -63,7 +63,7 @@ def mlflow_juju(application_model: str) -> jubilant.Juju:
 
 @pytest.fixture()
 def mlflow_client_grant(
-    authorized_client, mlflow_workspace: str, mlflow_juju, keep_artifacts: bool
+    authorized_client, mlflow_workspace: str, mlflow_juju: jubilant.Juju, keep_artifacts: bool
 ):
     """Grant the authorized client admin on the test workspace via a throwaway data-integrator.
 
@@ -145,7 +145,7 @@ def test_authorized_token_reaches_mlflow(
 
 
 def test_missing_token_is_rejected(m2m_domain: str, gateway_ip: str, mlflow_workspace: str):
-    """A request without a token carries no identity and is denied (401/403)."""
+    """A request without a token carries no identity and is denied 401."""
     http_code, body = mlflow_experiments_search(m2m_domain, gateway_ip, None, mlflow_workspace)
 
     assert (
