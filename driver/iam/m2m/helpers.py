@@ -401,7 +401,12 @@ MLFLOW_INGRESS_PATH_PREFIX = ""
 
 
 def _mlflow_post(
-    mlflow_host: str, gateway_ip: str, token: str | None, workspace: str, path: str, json_data: dict
+    mlflow_host: str,
+    gateway_ip: str,
+    token: str | None,
+    workspace: str,
+    path: str,
+    json_data: dict,
 ) -> tuple[int, str]:
     """Send a POST request to the MLflow ingress gateway, scoped to the given workspace."""
     url = f"https://{mlflow_host}{MLFLOW_INGRESS_PATH_PREFIX}{path}"
