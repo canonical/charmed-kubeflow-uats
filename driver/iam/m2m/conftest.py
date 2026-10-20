@@ -95,9 +95,9 @@ def create_profile(lightkube_client: Client, keep_artifacts: bool):
 
 @pytest.fixture()
 def authorized_client(
+    request: pytest.FixtureRequest,
     lightkube_client: Client,
     gateway_principals,
-    create_profile,
     keep_artifacts: bool,
     is_mlflow_standalone: bool,
 ):
@@ -111,7 +111,7 @@ def authorized_client(
     client_id, client_secret = create_oauth_client(IAM_MODEL, client_name)
 
     if not is_mlflow_standalone:
-        profile_name, _ = create_profile
+        profile_name, _ = request.getfixturevalue(create_profile)
         authorize_contributor(
             lightkube_client,
             namespace=profile_name,
