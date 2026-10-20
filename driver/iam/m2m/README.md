@@ -15,10 +15,12 @@ unless `--include-m2m-tests` is passed.
 
 Given the deployment described under [Prerequisites](#prerequisites), the suite:
 
-1. Discovers the istio `Gateway` serving the KServe domain (`api.kubeflow.com`) by
-   matching its listener hostname — the charm/app name is **not** hardcoded — and
-   patches its listeners to the wildcard hostname `*.api.kubeflow.com` (workaround
-   for
+1. Discovers the istio `Gateway` KServe attaches its routes to from KServe's
+   `inferenceservice-config` ConfigMap — the charm/app name is **not** hardcoded — and
+   removes its listener hostnames so KServe's per-InferenceService subdomain routes
+   attach (workaround for
+   [canonical/kserve-operators#491](https://github.com/canonical/kserve-operators/issues/491)
+   /
    [canonical/service-mesh#102](https://github.com/canonical/service-mesh/issues/102),
    to be removed once the charm supports wildcard listeners natively).
 2. Creates a Kubeflow `Profile` (`test-m2m`).
@@ -49,10 +51,11 @@ clients) are cleaned up at the end of the module.
   test setup in `charmed-kubeflow-solutions` — which provides:
   - Juju models `iam` and `kubeflow`.
   - An istio ingress `Gateway` serving `api.kubeflow.com` (deployed via the
-    `istio-ingress-k8s` charm; its app name is discovered at runtime).
-  - `kserve-controller` configured with `domain-name=api.kubeflow.com`, so
-    InferenceServices get hostnames under that domain (matching the gateway
-    listener). Otherwise they default to `example.com` and never become `Ready`.
+    `istio-ingress-k8s` charm and related to `kserve-controller` via
+    `gateway-metadata`; its app name is discovered at runtime).
+  - `kserve-controller` in `Standard` mode configured with
+    `domain-name=api.kubeflow.com`, so InferenceServices get hostnames under that
+    domain.
   - Hydra (`iam` model) and `oauth2-proxy` (`kubeflow` model).
 - DNS configured so the JWT issuer hostname returned by oauth2-proxy (e.g.
   `auth.kubeflow.com`) resolves in **two** places:

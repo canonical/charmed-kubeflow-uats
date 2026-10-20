@@ -424,11 +424,16 @@ considered a configured management environment. That is, essentially, any machin
 access to the underlying Kubernetes cluster. This is crucial, since the driver directly depends on
 a Kubernetes Job to run the tests. More specifically, the `driver` executes the following steps:
 1. Create a Kubeflow Profile (i.e. `test-kubeflow`) to run the tests in
-2. Submit one Kubernetes Job **per notebook** (the driver parametrises over the selected notebooks).
+2. If KServe uses the Gateway API (ambient deployments), remove the listener hostnames of the
+   ingress `Gateway` KServe attaches its routes to, before each notebook. This lets KServe's
+   per-InferenceService subdomain routes attach to it (workaround for
+   [canonical/kserve-operators#491](https://github.com/canonical/kserve-operators/issues/491)),
+   and it modifies the deployment under test until the charm reconciles the `Gateway` again
+3. Submit one Kubernetes Job **per notebook** (the driver parametrises over the selected notebooks).
    Each Job performs the following:
    * If a `-local` tox environment is run, then it mounts the local `tests` directory to a Pod that uses `jupyter-scipy` as the container image. Else (in `-remote` tox environments), it creates an emptyDir volume which it syncs to the current commit that the repo is checked out locally, using a [git-sync](https://github.com/kubernetes/git-sync/) `initContainer`.
    * Install python dependencies specified in the [requirements.txt](tests/requirements.txt)
    * Execute the single notebook via [`run_notebook.py`](tests/run_notebook.py), which reports the outcome through the Job's exit code and a result marker in its logs
-3. Wait for each Job to complete (regardless of the outcome), retrying failed notebooks when requested
-4. Collect each notebook's result and print a per-notebook summary
-5. Cleanup (remove created Jobs and Profile)
+4. Wait for each Job to complete (regardless of the outcome), retrying failed notebooks when requested
+5. Collect each notebook's result and print a per-notebook summary
+6. Cleanup (remove created Jobs and Profile)

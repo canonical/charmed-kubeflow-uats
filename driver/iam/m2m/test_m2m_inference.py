@@ -26,12 +26,11 @@ from helpers import (
     delete_oauth_client,
     get_jwt_issuer_url,
     get_token,
-    patch_gateway_wildcard_hostname,
     request_inference,
     request_inference_with_jwt_warmup,
     wait_for_inferenceservice_ready,
 )
-from ingress import find_gateway_for_domain, gateway_service_name, get_service_lb_ip
+from ingress import gateway_service_name, get_kserve_gateway, get_service_lb_ip
 from lightkube import Client, codecs
 from utils import PROFILE_RESOURCE, assert_namespace_active, assert_resource_deleted
 
@@ -45,8 +44,6 @@ INFERENCE_SERVICE_TEMPLATE_FILE = ASSETS_DIR / "kserve-inference-service.yaml.j2
 IAM_MODEL = "iam"
 NAMESPACE = PROFILE_NAME = "test-m2m"
 ISVC_NAME = "sklearn-v2-iris"
-DOMAIN = "api.kubeflow.com"
-WILDCARD_HOSTNAME = f"*.{DOMAIN}"
 
 # The prediction request body sent to the sklearn v2 iris model.
 PAYLOAD = '{"instances": [[6.8, 2.8, 4.8, 1.4], [6.0, 3.4, 4.5, 1.6]]}'
@@ -54,12 +51,20 @@ PAYLOAD = '{"instances": [[6.8, 2.8, 4.8, 1.4], [6.0, 3.4, 4.5, 1.6]]}'
 
 @pytest.fixture(scope="module")
 def m2m_gateway(lightkube_client: Client, kubeflow_model: str) -> str:
-    """Name of the istio Gateway serving the KServe (M2M) domain.
+    """Name of the istio Gateway KServe (M2M) attaches its InferenceService routes to.
 
-    Discovered dynamically by matching the listener hostname, so the charm/app name
-    does not need to be hardcoded.
+    Read from KServe's ingress configuration rather than matched by listener hostname,
+    so the charm/app name does not need to be hardcoded and the Gateway is still found
+    after ``patch_gateway`` removes its listener hostnames.
     """
-    return find_gateway_for_domain(lightkube_client, kubeflow_model, DOMAIN)
+    kserve_gateway = get_kserve_gateway(lightkube_client, kubeflow_model)
+    assert kserve_gateway, "KServe is not configured with a Gateway API ingress gateway"
+    gateway_namespace, gateway = kserve_gateway
+    assert (
+        gateway_namespace == kubeflow_model
+    ), f"Expected the KServe Gateway in {kubeflow_model}, found {gateway_namespace}/{gateway}"
+    log.info(f"Discovered KServe ingress Gateway '{gateway}'")
+    return gateway
 
 
 @pytest.fixture(scope="module")
@@ -78,20 +83,6 @@ def gateway_ip(lightkube_client: Client, m2m_gateway, kubeflow_model: str) -> st
 def issuer_url(kubeflow_model: str) -> str:
     """JWT issuer URL trusted by the gateway's RequestAuthentication."""
     return get_jwt_issuer_url(kubeflow_model)
-
-
-@pytest.fixture(scope="module")
-def patch_gateway(lightkube_client: Client, m2m_gateway: str, kubeflow_model: str):
-    """Patch the M2M Gateway listeners to a wildcard hostname.
-
-    Workaround for https://github.com/canonical/service-mesh/issues/102 so KServe's
-    per-service subdomain routes attach to the gateway. Remove this fixture once the
-    issue is fixed and the charm supports wildcard listeners natively.
-    """
-    patch_gateway_wildcard_hostname(
-        lightkube_client, kubeflow_model, m2m_gateway, WILDCARD_HOSTNAME
-    )
-    yield
 
 
 @pytest.fixture()
