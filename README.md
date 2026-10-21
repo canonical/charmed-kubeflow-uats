@@ -227,6 +227,12 @@ tox -e mlflow-remote
 tox -e mlflow-local
 ```
 
+By default, MLflow is tested assuming Kubeflow is deployed underneath. In order not to rely on Kubeflow Profiles and PodDefaults to run experiments, for when MLflow is deployed standalone, pass the option `--mlflow-standalone` instead, and add the option `--mlflow-tracking-uri` as well to let in-cluster tests have their MLflow client identify the tracking server:
+
+```bash
+tox -e mlflow-remote -- --mlflow-standalone --mlflow-tracking-uri http://mlflow-server.mlflow.svc.cluster.local:5000
+```
+
 #### Run Kubeflow+MLFlow UATs
 
 In order to only run the Kubeflow+MLFlow-specific tests you can use the
