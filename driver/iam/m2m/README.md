@@ -68,7 +68,8 @@ clients) are cleaned up at the end of the module.
   The UATs do **not** configure DNS; this is a manual, deployment-time step (easy to
   forget between deploying the solution and running the UATs). The InferenceService's
   own `*.api.kubeflow.com` hostname does **not** need host DNS — the suite connects to
-  the gateway's LoadBalancer IP directly, preserving the TLS SNI and `Host` header.
+  the gateway's LoadBalancer IP directly (resolved from the LoadBalancer hostname on
+  clouds that publish one, e.g. EKS), preserving the TLS SNI and `Host` header.
 - `juju` logged in to the controller (used via jubilant) and a valid `KUBECONFIG`
   pointing at the cluster (used via lightkube).
 - Python dependencies installed (pytest, jubilant, lightkube, tenacity,

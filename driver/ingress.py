@@ -11,6 +11,7 @@ hardcoding the charm/app name, and patch its listeners. They are shared by the
 
 import json
 import logging
+import socket
 from typing import Optional
 
 from lightkube import ApiError, Client
@@ -33,12 +34,20 @@ GATEWAY_RESOURCE = create_namespaced_resource(
 
 
 def get_service_lb_ip(client: Client, namespace: str, service: str) -> str:
-    """Return the LoadBalancer IP of a Kubernetes Service."""
+    """Return the LoadBalancer IP of a Kubernetes Service.
+
+    On clouds whose LoadBalancers publish a hostname instead of an IP (e.g. an AWS ELB
+    on EKS), the hostname is resolved, since callers pin domains to an IP.
+    """
     svc = client.get(Service, name=service, namespace=namespace)
     ingress = (svc.status.loadBalancer.ingress or []) if svc.status else []
     assert ingress, f"Service {namespace}/{service} has no LoadBalancer IP yet"
-    ip = ingress[0].ip
-    assert ip, f"Service {namespace}/{service} has no LoadBalancer IP yet"
+    if ingress[0].ip:
+        return ingress[0].ip
+    hostname = ingress[0].hostname
+    assert hostname, f"Service {namespace}/{service} has no LoadBalancer IP yet"
+    ip = socket.gethostbyname(hostname)
+    log.info(f"Resolved LoadBalancer hostname {hostname} of {namespace}/{service} to {ip}")
     return ip
 
 
