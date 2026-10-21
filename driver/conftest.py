@@ -12,7 +12,7 @@ from driver.notebook_jobs import NotebookResult
 BUNDLE_URL_SIDECAR = "file:assets/versions-sidecar.yaml"
 BUNDLE_URL_AMBIENT = "file:assets/versions-ambient.yaml"
 BUNDLE_URL_AMBIENT_IAM = "file:assets/versions-ambient-iam.yaml"
-TESTS_IMAGE = "ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter-scipy:v1.10.0"
+TESTS_IMAGE = "dariofaccin/ubuntu-python:0.1-8568d92"
 
 NOTEBOOK_DIRS = {
     "cpu": "tests/notebooks/cpu",
