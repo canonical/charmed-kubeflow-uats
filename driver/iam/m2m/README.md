@@ -18,11 +18,12 @@ Given the deployment described under [Prerequisites](#prerequisites), the suite:
 1. Discovers the istio `Gateway` KServe attaches its routes to from KServe's
    `inferenceservice-config` ConfigMap — the charm/app name is **not** hardcoded — and
    removes its listener hostnames so KServe's per-InferenceService subdomain routes
-   attach (workaround for
+   attach, restoring them at the end of each test (workaround for
    [canonical/kserve-operators#491](https://github.com/canonical/kserve-operators/issues/491)
    /
    [canonical/service-mesh#102](https://github.com/canonical/service-mesh/issues/102),
-   to be removed once the charm supports wildcard listeners natively).
+   to be removed once the charm supports wildcard listeners natively). See the
+   warning in the [main README](../../../README.md#prerequisites).
 2. Creates a Kubeflow `Profile` (`test-m2m`).
 3. Creates a KServe `InferenceService` (`sklearn-v2-iris`) in that namespace and
    waits for it to become `Ready`.

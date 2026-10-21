@@ -5,7 +5,11 @@ import logging
 
 import pytest
 from _pytest.config.argparsing import Parser
-from ingress import get_kserve_gateway, remove_gateway_listener_hostnames
+from ingress import (
+    get_kserve_gateway,
+    remove_gateway_listener_hostnames,
+    restore_gateway_listener_hostnames,
+)
 from lightkube import Client
 from lightkube.generic_resource import load_in_cluster_generic_resources
 from notebook_jobs import discover_notebooks, notebook_matches_filter
@@ -53,16 +57,21 @@ def patch_gateway(lightkube_client: Client, kubeflow_model: str):
     Workaround for https://github.com/canonical/kserve-operators/issues/491 so KServe's
     per-InferenceService subdomain routes attach to the gateway (see
     ``remove_gateway_listener_hostnames``). Function-scoped so the patch is re-applied
-    before each test, in case the charm reconciles it back in the meantime. It is a
-    no-op when KServe is not deployed or does not use the Gateway API. Remove this
+    before each test, in case the charm reconciles it back in the meantime, and the
+    removed hostnames are restored after each test, since the charm only reconciles the
+    Gateway on Juju events (not periodically) and would otherwise leave it patched. It is
+    a no-op when KServe is not deployed or does not use the Gateway API. Remove this
     fixture once the issue is fixed and the charm supports wildcard listeners natively.
     """
     kserve_gateway = get_kserve_gateway(lightkube_client, kubeflow_model)
     if kserve_gateway is None:
         log.info("KServe does not use a Gateway API ingress gateway, skipping the Gateway patch")
-    else:
-        remove_gateway_listener_hostnames(lightkube_client, *kserve_gateway)
+        yield
+        return
+
+    removed = remove_gateway_listener_hostnames(lightkube_client, *kserve_gateway)
     yield
+    restore_gateway_listener_hostnames(lightkube_client, *kserve_gateway, removed)
 
 
 def pytest_addoption(parser: Parser):
