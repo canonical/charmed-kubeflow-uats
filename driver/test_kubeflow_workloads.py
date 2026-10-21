@@ -395,6 +395,7 @@ def test_notebook_workload(
     create_poddefault_on_proxy,
     create_poddefault_on_toleration,
     create_poddefault_on_security_policy,
+    patch_gateway,
     mlflow_workspace: str,
     request: pytest.FixtureRequest,
 ):
