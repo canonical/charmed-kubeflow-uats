@@ -1,7 +1,7 @@
 # Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""M2M (machine-to-machine) identity integration tests.
+"""M2M (machine-to-machine) identity integration tests for KServe with Kubeflow.
 
 These tests validate that a token issued by the Identity Platform (Hydra) can be
 used to reach a KServe InferenceService through the Istio ingress gateway from
@@ -15,73 +15,54 @@ Hydra, and oauth2-proxy.
 """
 
 import logging
-from pathlib import Path
-from uuid import uuid4
 
 import pytest
-from helpers import (
+from lightkube import Client, codecs
+
+from helpers import (  # isort:skip
+    ASSETS_DIR,
     INFERENCE_SERVICE_RESOURCE,
-    authorize_contributor,
-    create_oauth_client,
-    delete_oauth_client,
-    get_jwt_issuer_url,
-    get_token,
     patch_gateway_wildcard_hostname,
     request_inference,
     request_inference_with_jwt_warmup,
     wait_for_inferenceservice_ready,
 )
-from ingress import find_gateway_for_domain, gateway_service_name, get_service_lb_ip
-from lightkube import Client, codecs
-from utils import PROFILE_RESOURCE, assert_namespace_active, assert_resource_deleted
+from utils import assert_resource_deleted  # isort:skip
 
 log = logging.getLogger(__name__)
 
-# Assets directory is relative to the repository root.
-ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
-PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
 INFERENCE_SERVICE_TEMPLATE_FILE = ASSETS_DIR / "kserve-inference-service.yaml.j2"
 
-IAM_MODEL = "iam"
-NAMESPACE = PROFILE_NAME = "test-m2m"
+KUBEFLOW_DEFAULT_DOMAIN_M2M = "api.kubeflow.com"
 ISVC_NAME = "sklearn-v2-iris"
-DOMAIN = "api.kubeflow.com"
-WILDCARD_HOSTNAME = f"*.{DOMAIN}"
 
 # The prediction request body sent to the sklearn v2 iris model.
 PAYLOAD = '{"instances": [[6.8, 2.8, 4.8, 1.4], [6.0, 3.4, 4.5, 1.6]]}'
 
 
 @pytest.fixture(scope="module")
-def m2m_gateway(lightkube_client: Client, kubeflow_model: str) -> str:
-    """Name of the istio Gateway serving the KServe (M2M) domain.
-
-    Discovered dynamically by matching the listener hostname, so the charm/app name
-    does not need to be hardcoded.
-    """
-    return find_gateway_for_domain(lightkube_client, kubeflow_model, DOMAIN)
-
-
-@pytest.fixture(scope="module")
-def gateway_principals(m2m_gateway: str, kubeflow_model: str) -> list[str]:
-    """Istio principal of the M2M ingress gateway serving KServe."""
-    return [f"cluster.local/ns/{kubeflow_model}/sa/{gateway_service_name(m2m_gateway)}"]
+def m2m_domain(request: pytest.FixtureRequest) -> str:
+    """Application M2M hostname."""
+    return (
+        domain
+        if (domain := request.config.getoption("--iam-domain-m2m"))
+        else KUBEFLOW_DEFAULT_DOMAIN_M2M
+    )
 
 
 @pytest.fixture(scope="module")
-def gateway_ip(lightkube_client: Client, m2m_gateway, kubeflow_model: str) -> str:
-    """LoadBalancer IP of the M2M ingress gateway."""
-    return get_service_lb_ip(lightkube_client, kubeflow_model, gateway_service_name(m2m_gateway))
+def wildcard_hostname(m2m_domain: str) -> str:
+    """Wildcard hostname for KServe."""
+    return f"*.{m2m_domain}"
 
 
 @pytest.fixture(scope="module")
-def issuer_url(kubeflow_model: str) -> str:
-    """JWT issuer URL trusted by the gateway's RequestAuthentication."""
-    return get_jwt_issuer_url(kubeflow_model)
-
-
-@pytest.fixture(scope="module")
-def patch_gateway(lightkube_client: Client, m2m_gateway: str, kubeflow_model: str):
+def patch_gateway(
+    lightkube_client: Client,
+    m2m_gateway: str,
+    application_model: str,
+    wildcard_hostname: str,
+):
     """Patch the M2M Gateway listeners to a wildcard hostname.
 
     Workaround for https://github.com/canonical/service-mesh/issues/102 so KServe's
@@ -89,40 +70,17 @@ def patch_gateway(lightkube_client: Client, m2m_gateway: str, kubeflow_model: st
     issue is fixed and the charm supports wildcard listeners natively.
     """
     patch_gateway_wildcard_hostname(
-        lightkube_client, kubeflow_model, m2m_gateway, WILDCARD_HOSTNAME
+        lightkube_client, application_model, m2m_gateway, wildcard_hostname
     )
     yield
 
 
-@pytest.fixture()
-def create_profile(lightkube_client: Client, keep_artifacts: bool):
-    """Create the test Profile and clean it up at the end of the module."""
-    profile_uuid = str(uuid4()).split("-")[0]  # get only the first portion of uuid
-    profile_name = namespace_name = f"{PROFILE_NAME}-{profile_uuid}"
-    log.info(f"Creating Profile {profile_name}...")
-    resources = list(
-        codecs.load_all_yaml(
-            PROFILE_TEMPLATE_FILE.read_text(),
-            context={"namespace": namespace_name},
-        )
-    )
-    assert len(resources) == 1, f"Expected 1 Profile, got {len(resources)}!"
-    lightkube_client.create(resources[0])
-
-    assert_namespace_active(lightkube_client, namespace_name)
-
-    yield profile_name, profile_uuid
-
-    if keep_artifacts:
-        log.info(f"Keeping Profile {profile_name} (--keep-artifacts set)")
-        return
-
-    assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, profile_name)
-
-
-@pytest.fixture()
+@pytest.fixture(scope="module")
 def create_inference_service(
-    lightkube_client: Client, create_profile, patch_gateway, keep_artifacts: bool
+    lightkube_client: Client,
+    create_profile,
+    patch_gateway,
+    keep_artifacts: bool,
 ):
     """Create the KServe InferenceService and return its hostname."""
     profile_name, profile_uuid = create_profile
@@ -146,55 +104,6 @@ def create_inference_service(
         return
 
     assert_resource_deleted(lightkube_client, INFERENCE_SERVICE_RESOURCE, isvc_name, profile_name)
-
-
-@pytest.fixture()
-def authorized_client(
-    lightkube_client: Client, create_profile, gateway_principals, keep_artifacts: bool
-):
-    """Create an OAuth client and authorize it as a contributor on the Profile."""
-    profile_name, _ = create_profile
-    client_id, client_secret = create_oauth_client(IAM_MODEL, "uat-m2m-authorized")
-    authorize_contributor(
-        lightkube_client,
-        namespace=profile_name,
-        user=client_id,
-        role="edit",
-        principals=gateway_principals,
-    )
-
-    yield client_id, client_secret
-
-    if keep_artifacts:
-        log.info(f"Keeping OAuth client {client_id} (--keep-artifacts set)")
-        return
-    delete_oauth_client(IAM_MODEL, client_id)
-
-
-@pytest.fixture(scope="module")
-def unauthorized_client(keep_artifacts: bool):
-    """Create an OAuth client that is NOT authorized on any Profile."""
-    client_id, client_secret = create_oauth_client(IAM_MODEL, "uat-m2m-unauthorized")
-
-    yield client_id, client_secret
-
-    if keep_artifacts:
-        return
-    delete_oauth_client(IAM_MODEL, client_id)
-
-
-@pytest.fixture()
-def authorized_token(authorized_client, issuer_url) -> str:
-    """A valid access token for the authorized OAuth client."""
-    client_id, client_secret = authorized_client
-    return get_token(client_id, client_secret, issuer_url)
-
-
-@pytest.fixture(scope="module")
-def unauthorized_token(unauthorized_client, issuer_url):
-    """A valid access token for the unauthorized OAuth client."""
-    client_id, client_secret = unauthorized_client
-    return get_token(client_id, client_secret, issuer_url)
 
 
 def test_authorized_token_reaches_inferenceservice(

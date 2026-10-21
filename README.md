@@ -234,6 +234,18 @@ deployment uses a different workspace, specify it via the `--mlflow-workspace` o
 tox -e mlflow-remote -- --mlflow-workspace my-workspace
 ```
 
+By default, MLflow is tested assuming Kubeflow is deployed underneath. In order not to rely on Kubeflow Profiles and PodDefaults to run experiments, for when MLflow is deployed standalone, pass the option `--mlflow-standalone` instead, and add the option `--mlflow-tracking-uri` as well to let in-cluster tests have their MLflow client identify the tracking server:
+
+```bash
+tox -e mlflow-remote -- --mlflow-standalone --mlflow-tracking-uri http://mlflow-server.mlflow.svc.cluster.local:5000
+```
+
+When MLflow is deployed and tested standalone, IAM tests for external programmatic and UI access can also be carried out by enabling the respective options: `--include-iam-m2m-tests` and `--include-iam-ui-tests`. When so, the DNS names expected by tests for API, UI and authentication default to `api.mlflow.com`, `ui.mlflow.com`, `auth.mlflow.com`, respectively, but can additionally can be customized by passing `--iam-domain-m2m`, `--iam-domain-ui` and `--iam-domain-auth` respectively.
+
+```bash
+tox -e mlflow-remote -- --mlflow-standalone --mlflow-tracking-uri http://mlflow-server.mlflow.svc.cluster.local:5000 --include-iam-m2m-tests --include-iam-ui-tests --iam-domain-auth auth.whatever.mlflow.com --iam-domain-m2m api.whatever.mlflow.com --iam-domain-ui ui.whatever.mlflow.com
+```
+
 #### Run Kubeflow+MLFlow UATs
 
 In order to only run the Kubeflow+MLFlow-specific tests you can use the
