@@ -16,7 +16,7 @@ UPDATE_STATUS_HOOK_INTERVAL = "2h"
 
 
 @pytest.fixture(scope="module", autouse=True)
-def slow_update_status_hook(kubeflow_model: str):
+def slow_update_status_hook(application_model: str, is_mlflow_standalone: bool):
     """Raise the ``kubeflow`` model's update-status interval for the test run.
 
     ``github-profiles-automator`` runs a full reconcile on every ``update_status``
@@ -25,10 +25,15 @@ def slow_update_status_hook(kubeflow_model: str):
     flaky. Setting the interval to 2h stops the hook from firing mid-test; the original
     value is restored on teardown.
     """
-    juju = jubilant.Juju(model=kubeflow_model)
+    # skipping as standalone MLflow has no github-profiles-automator reconciling Profiles:
+    if is_mlflow_standalone:
+        yield
+        return
+
+    juju = jubilant.Juju(model=application_model)
     original = juju.model_config().get("update-status-hook-interval")
     log.info(
-        f"Setting '{kubeflow_model}' update-status-hook-interval to "
+        f"Setting '{application_model}' update-status-hook-interval to "
         f"{UPDATE_STATUS_HOOK_INTERVAL} (was {original})"
     )
     juju.model_config({"update-status-hook-interval": UPDATE_STATUS_HOOK_INTERVAL})
@@ -36,5 +41,5 @@ def slow_update_status_hook(kubeflow_model: str):
     yield
 
     if original:
-        log.info(f"Restoring '{kubeflow_model}' update-status-hook-interval to {original}")
+        log.info(f"Restoring '{application_model}' update-status-hook-interval to {original}")
         juju.model_config({"update-status-hook-interval": original})

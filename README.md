@@ -44,13 +44,13 @@ in the [Run the tests](#run-the-tests) section.
 > hostnames of the ingress `Gateway` KServe attaches its routes to (e.g. the `istio-ingress-k8s`
 > M2M ingress), as a workaround for
 > [canonical/kserve-operators#491](https://github.com/canonical/kserve-operators/issues/491).
-> This is done before every notebook, and in the M2M suite before each test. While a test runs,
-> the `Gateway` accepts traffic for **any** hostname. The original hostnames are restored after
-> each test. However, if the UATs are interrupted before their teardown (e.g. the process is
-> killed), the `Gateway` stays patched. The `istio-ingress-k8s` charm only reconciles it on its
-> next Juju event (e.g. a config or relation change), not periodically. In that case, restore it
-> manually using the hostnames logged by the `driver` (`Removing the listener hostnames of
-> Gateway ...`), e.g. for the first listener:
+> This is done before every notebook, and once for the whole M2M suite. While patched, the
+> `Gateway` accepts traffic for **any** hostname. The original hostnames are restored after each
+> notebook and at the end of the M2M suite. However, if the UATs are interrupted before their
+> teardown (e.g. the process is killed), the `Gateway` stays patched. The `istio-ingress-k8s`
+> charm only reconciles it on its next Juju event (e.g. a config or relation change), not
+> periodically. In that case, restore it manually using the hostnames logged by the `driver`
+> (`Removing the listener hostnames of Gateway ...`), e.g. for the first listener:
 > ```bash
 > kubectl patch gateway <gateway> -n <kubeflow-model> --type json \
 >   -p '[{"op": "add", "path": "/spec/listeners/0/hostname", "value": "<hostname>"}]'
@@ -250,6 +250,18 @@ deployment uses a different workspace, specify it via the `--mlflow-workspace` o
 
 ```bash
 tox -e mlflow-remote -- --mlflow-workspace my-workspace
+```
+
+By default, MLflow is tested assuming Kubeflow is deployed underneath. In order not to rely on Kubeflow Profiles and PodDefaults to run experiments, for when MLflow is deployed standalone, pass the option `--mlflow-standalone` instead, and add the option `--mlflow-tracking-uri` as well to let in-cluster tests have their MLflow client identify the tracking server:
+
+```bash
+tox -e mlflow-remote -- --mlflow-standalone --mlflow-tracking-uri http://mlflow-server.mlflow.svc.cluster.local:5000
+```
+
+When MLflow is deployed and tested standalone, IAM tests for external programmatic and UI access can also be carried out by enabling the respective options: `--include-iam-m2m-tests` and `--include-iam-ui-tests`. When so, the DNS names expected by tests for API, UI and authentication default to `api.mlflow.com`, `ui.mlflow.com`, `auth.mlflow.com`, respectively, but can additionally can be customized by passing `--iam-domain-m2m`, `--iam-domain-ui` and `--iam-domain-auth` respectively.
+
+```bash
+tox -e mlflow-remote -- --mlflow-standalone --mlflow-tracking-uri http://mlflow-server.mlflow.svc.cluster.local:5000 --include-iam-m2m-tests --include-iam-ui-tests --iam-domain-auth auth.whatever.mlflow.com --iam-domain-m2m api.whatever.mlflow.com --iam-domain-ui ui.whatever.mlflow.com
 ```
 
 #### Run Kubeflow+MLFlow UATs
