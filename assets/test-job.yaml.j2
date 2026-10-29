@@ -65,6 +65,12 @@ spec:
               value: "{{ retry_timeout }}"
             - name: KEEP_ARTIFACTS
               value: "{{ 'true' if keep_artifacts else 'false' }}"
+            - name: MLFLOW_WORKSPACE
+              value: {{ mlflow_workspace }}
+            {% if mlflow_tracking_uri %}
+            - name: MLFLOW_TRACKING_URI
+              value: {{ mlflow_tracking_uri }}
+            {% endif %}
           volumeMounts:
             - name: test-volume
               mountPath: /tests

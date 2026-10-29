@@ -27,6 +27,7 @@ in the [Run the tests](#run-the-tests) section.
       * [Feast UATs](#run-feast-uats)
    * [NVIDIA GPU UAT](#nvidia-gpu-uat)
    * [Ambient Integration Test](#ambient-integration-test)
+   * [From SQA pipelines](#run-from-sqa-pipelines)
    * [Behind proxy](#run-behind-proxy)
       * [Prerequisites](#prerequisites-2)
         * [Running the KServe UATs](#running-the-kserve-uats)
@@ -226,6 +227,25 @@ tox -e mlflow-remote
 tox -e mlflow-local
 ```
 
+The MLflow notebooks target the `test-workspace` MLflow workspace by default. If your
+deployment uses a different workspace, specify it via the `--mlflow-workspace` option:
+
+```bash
+tox -e mlflow-remote -- --mlflow-workspace my-workspace
+```
+
+By default, MLflow is tested assuming Kubeflow is deployed underneath. In order not to rely on Kubeflow Profiles and PodDefaults to run experiments, for when MLflow is deployed standalone, pass the option `--mlflow-standalone` instead, and add the option `--mlflow-tracking-uri` as well to let in-cluster tests have their MLflow client identify the tracking server:
+
+```bash
+tox -e mlflow-remote -- --mlflow-standalone --mlflow-tracking-uri http://mlflow-server.mlflow.svc.cluster.local:5000
+```
+
+When MLflow is deployed and tested standalone, IAM tests for external programmatic and UI access can also be carried out by enabling the respective options: `--include-iam-m2m-tests` and `--include-iam-ui-tests`. When so, the DNS names expected by tests for API, UI and authentication default to `api.mlflow.com`, `ui.mlflow.com`, `auth.mlflow.com`, respectively, but can additionally can be customized by passing `--iam-domain-m2m`, `--iam-domain-ui` and `--iam-domain-auth` respectively.
+
+```bash
+tox -e mlflow-remote -- --mlflow-standalone --mlflow-tracking-uri http://mlflow-server.mlflow.svc.cluster.local:5000 --include-iam-m2m-tests --include-iam-ui-tests --iam-domain-auth auth.whatever.mlflow.com --iam-domain-m2m api.whatever.mlflow.com --iam-domain-ui ui.whatever.mlflow.com
+```
+
 #### Run Kubeflow+MLFlow UATs
 
 In order to only run the Kubeflow+MLFlow-specific tests you can use the
@@ -307,6 +327,36 @@ Currently, `kubeflow-profiles` supports only the values `privileged` and `baseli
 tox -e uats-local -- --security-policy "baseline"
 ```
 
+
+### Run from SQA pipelines
+
+The [`sqa_tests`](sqa_tests) script is the entrypoint used by SQA's Terragrunt Deployment
+Pipelines. It is owned by the Kubeflow team: it lives on `main` and is backported to the
+`track/*` branches, so that SQA can select the `ref` matching the deployed Kubeflow version.
+
+The script runs the `kubeflow-remote` tox environment against the model selected by `MODEL`
+(defaults to `kubeflow`), forwards any arguments to pytest, and writes the results to
+`test_results.xml` (plus a placeholder `metrics.json`). It exits with `0` when the tests ran, even
+if some of them failed, and with a nonzero code for operational failures (e.g. dependency
+installation, collection or usage errors, or no tests collected).
+
+It can be configured through the following environment variables:
+* `MODEL`: Juju model and Kubeflow control-plane namespace. Defaults to `kubeflow`.
+* `TEST_OPTION`: tox environment to run. Defaults to `kubeflow-remote`.
+* `SQA_PROXY`: optional proxy used only to install the Python dependencies. Unset by default,
+  in which case any proxy settings already in the environment are used as is.
+
+The tests to run are selected by the pipeline through the `args` parameter. For example, to run
+all the UATs including the GPU ones:
+```json
+{"repo":"canonical/charmed-kubeflow-uats","ref":"main","args":["--include-gpu-tests"]}
+```
+
+When the cluster has no direct internet access, the pipeline also needs to pass the
+[`--proxy`](#running-using-driver) option so that the notebook Jobs run behind the proxy, for example:
+```json
+{"repo":"canonical/charmed-kubeflow-uats","ref":"main","args":["--include-gpu-tests","--proxy","http_proxy=<proxy>","https_proxy=<proxy>","no_proxy=<no-proxy>"]}
+```
 
 ### Run behind proxy
 
