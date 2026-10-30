@@ -19,7 +19,7 @@ import logging
 
 import pytest
 
-from iam.ui.helpers import (  # isort:skip
+from iam.ui.helpers import (
     MLFLOW_UI_PATH,
     assert_login_reaches_application_ui,
     assert_unauthenticated_request_is_redirected_to_login,

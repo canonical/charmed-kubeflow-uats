@@ -29,6 +29,7 @@ from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import ConfigMap, Pod, Secret
 from lightkube.types import CascadeType
 from s3 import S3BucketWrapper
+
 from utils import (
     PROFILE_RESOURCE,
     assert_namespace_active,

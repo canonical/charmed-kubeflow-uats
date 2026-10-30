@@ -38,6 +38,24 @@ in the [Run the tests](#run-the-tests) section.
 
 ## Prerequisites
 
+> [!WARNING]
+> **The UATs temporarily modify the KServe ingress `Gateway` of the deployment under test.**
+> When KServe uses the Gateway API (ambient deployments), the `driver` removes the listener
+> hostnames of the ingress `Gateway` KServe attaches its routes to (e.g. the `istio-ingress-k8s`
+> M2M ingress), as a workaround for
+> [canonical/kserve-operators#491](https://github.com/canonical/kserve-operators/issues/491).
+> This is done before every notebook, and once for the whole M2M suite. While patched, the
+> `Gateway` accepts traffic for **any** hostname. The original hostnames are restored after each
+> notebook and at the end of the M2M suite. However, if the UATs are interrupted before their
+> teardown (e.g. the process is killed), the `Gateway` stays patched. The `istio-ingress-k8s`
+> charm only reconciles it on its next Juju event (e.g. a config or relation change), not
+> periodically. In that case, restore it manually using the hostnames logged by the `driver`
+> (`Removing the listener hostnames of Gateway ...`), e.g. for the first listener:
+> ```bash
+> kubectl patch gateway <gateway> -n <kubeflow-model> --type json \
+>   -p '[{"op": "add", "path": "/spec/listeners/0/hostname", "value": "<hostname>"}]'
+> ```
+
 Executing the UATs requires a deployed Kubeflow cluster. That said, the deployment and
 configuration steps are outside the scope of this project. In other words, the automated tests are
 going to assume programmatic access to a Kubeflow installation. Such a deployment consists (at the
@@ -436,11 +454,16 @@ considered a configured management environment. That is, essentially, any machin
 access to the underlying Kubernetes cluster. This is crucial, since the driver directly depends on
 a Kubernetes Job to run the tests. More specifically, the `driver` executes the following steps:
 1. Create a Kubeflow Profile (i.e. `test-kubeflow`) to run the tests in
-2. Submit one Kubernetes Job **per notebook** (the driver parametrises over the selected notebooks).
+2. If KServe uses the Gateway API (ambient deployments), remove the listener hostnames of the
+   ingress `Gateway` KServe attaches its routes to, before each notebook, and restore them after
+   it. This lets KServe's per-InferenceService subdomain routes attach to it (workaround for
+   [canonical/kserve-operators#491](https://github.com/canonical/kserve-operators/issues/491)).
+   See the warning under [Prerequisites](#prerequisites)
+3. Submit one Kubernetes Job **per notebook** (the driver parametrises over the selected notebooks).
    Each Job performs the following:
    * If a `-local` tox environment is run, then it mounts the local `tests` directory to a Pod that uses `jupyter-scipy` as the container image. Else (in `-remote` tox environments), it creates an emptyDir volume which it syncs to the current commit that the repo is checked out locally, using a [git-sync](https://github.com/kubernetes/git-sync/) `initContainer`.
    * Install python dependencies specified in the [requirements.txt](tests/requirements.txt)
    * Execute the single notebook via [`run_notebook.py`](tests/run_notebook.py), which reports the outcome through the Job's exit code and a result marker in its logs
-3. Wait for each Job to complete (regardless of the outcome), retrying failed notebooks when requested
-4. Collect each notebook's result and print a per-notebook summary
-5. Cleanup (remove created Jobs and Profile)
+4. Wait for each Job to complete (regardless of the outcome), retrying failed notebooks when requested
+5. Collect each notebook's result and print a per-notebook summary
+6. Cleanup (remove created Jobs and Profile)
