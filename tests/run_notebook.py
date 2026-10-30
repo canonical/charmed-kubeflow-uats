@@ -16,6 +16,7 @@ import sys
 import nbformat
 from nbclient.exceptions import CellExecutionError
 from nbconvert.preprocessors import ExecutePreprocessor
+
 from utils import install_python_requirements
 
 

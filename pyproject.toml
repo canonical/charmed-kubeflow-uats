@@ -24,6 +24,7 @@ target-version = ["py312"]
 [tool.isort]
 line_length = 99
 profile = "black"
+known_local_folder = ["helpers", "ingress", "utils", "notebook_jobs", "iam"]
 
 [tool.poetry]
 name = "kubeflow-uat"

@@ -19,18 +19,19 @@ import logging
 import pytest
 from lightkube import Client, codecs
 
-from helpers import (  # isort:skip
+from helpers import (
     ASSETS_DIR,
     INFERENCE_SERVICE_RESOURCE,
     request_inference,
     request_inference_with_jwt_warmup,
     wait_for_inferenceservice_ready,
 )
-from ingress import (  # isort:skip
+from ingress import (
     get_kserve_gateway,
     remove_gateway_listener_hostnames,
     restore_gateway_listener_hostnames,
 )
+
 from utils import assert_resource_deleted  # isort:skip
 
 log = logging.getLogger(__name__)

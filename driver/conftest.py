@@ -5,16 +5,17 @@ import logging
 
 import pytest
 from _pytest.config.argparsing import Parser
+from lightkube import Client
+from lightkube.generic_resource import load_in_cluster_generic_resources
+
+from driver.notebook_jobs import NotebookResult
+
 from ingress import (
     get_kserve_gateway,
     remove_gateway_listener_hostnames,
     restore_gateway_listener_hostnames,
 )
-from lightkube import Client
-from lightkube.generic_resource import load_in_cluster_generic_resources
 from notebook_jobs import discover_notebooks, notebook_matches_filter
-
-from driver.notebook_jobs import NotebookResult
 
 log = logging.getLogger(__name__)
 
