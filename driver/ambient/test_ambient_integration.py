@@ -9,6 +9,7 @@ from lightkube.generic_resource import load_in_cluster_generic_resources
 from lightkube.models.core_v1 import Container, PodSpec
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import Pod
+
 from utils import (
     PROFILE_RESOURCE,
     assert_namespace_active,

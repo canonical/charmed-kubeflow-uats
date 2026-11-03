@@ -15,12 +15,15 @@ unless `--include-m2m-tests` is passed.
 
 Given the deployment described under [Prerequisites](#prerequisites), the suite:
 
-1. Discovers the istio `Gateway` serving the KServe domain (`api.kubeflow.com`) by
-   matching its listener hostname — the charm/app name is **not** hardcoded — and
-   patches its listeners to the wildcard hostname `*.api.kubeflow.com` (workaround
-   for
+1. Discovers the istio `Gateway` KServe attaches its routes to from KServe's
+   `inferenceservice-config` ConfigMap — the charm/app name is **not** hardcoded — and
+   removes its listener hostnames so KServe's per-InferenceService subdomain routes
+   attach, restoring them at the end of the module (workaround for
+   [canonical/kserve-operators#491](https://github.com/canonical/kserve-operators/issues/491)
+   /
    [canonical/service-mesh#102](https://github.com/canonical/service-mesh/issues/102),
-   to be removed once the charm supports wildcard listeners natively).
+   to be removed once the charm supports wildcard listeners natively). See the
+   warning in the [main README](../../../README.md#prerequisites).
 2. Creates a Kubeflow `Profile` (`test-m2m`).
 3. Creates a KServe `InferenceService` (`sklearn-v2-iris`) in that namespace and
    waits for it to become `Ready`.
@@ -49,10 +52,11 @@ clients) are cleaned up at the end of the module.
   test setup in `charmed-kubeflow-solutions` — which provides:
   - Juju models `iam` and `kubeflow`.
   - An istio ingress `Gateway` serving `api.kubeflow.com` (deployed via the
-    `istio-ingress-k8s` charm; its app name is discovered at runtime).
-  - `kserve-controller` configured with `domain-name=api.kubeflow.com`, so
-    InferenceServices get hostnames under that domain (matching the gateway
-    listener). Otherwise they default to `example.com` and never become `Ready`.
+    `istio-ingress-k8s` charm and related to `kserve-controller` via
+    `gateway-metadata`; its app name is discovered at runtime).
+  - `kserve-controller` in `Standard` mode configured with
+    `domain-name=api.kubeflow.com`, so InferenceServices get hostnames under that
+    domain.
   - Hydra (`iam` model) and `oauth2-proxy` (`kubeflow` model).
 - DNS configured so the JWT issuer hostname returned by oauth2-proxy (e.g.
   `auth.kubeflow.com`) resolves in **two** places:
@@ -64,7 +68,8 @@ clients) are cleaned up at the end of the module.
   The UATs do **not** configure DNS; this is a manual, deployment-time step (easy to
   forget between deploying the solution and running the UATs). The InferenceService's
   own `*.api.kubeflow.com` hostname does **not** need host DNS — the suite connects to
-  the gateway's LoadBalancer IP directly, preserving the TLS SNI and `Host` header.
+  the gateway's LoadBalancer IP directly (resolved from the LoadBalancer hostname on
+  clouds that publish one, e.g. EKS), preserving the TLS SNI and `Host` header.
 - `juju` logged in to the controller (used via jubilant) and a valid `KUBECONFIG`
   pointing at the cluster (used via lightkube).
 - Python dependencies installed (pytest, jubilant, lightkube, tenacity,

@@ -19,21 +19,25 @@ import logging
 import pytest
 from lightkube import Client, codecs
 
-from helpers import (  # isort:skip
+from helpers import (
     ASSETS_DIR,
     INFERENCE_SERVICE_RESOURCE,
-    patch_gateway_wildcard_hostname,
     request_inference,
     request_inference_with_jwt_warmup,
     wait_for_inferenceservice_ready,
 )
+from ingress import (
+    get_kserve_gateway,
+    remove_gateway_listener_hostnames,
+    restore_gateway_listener_hostnames,
+)
+
 from utils import assert_resource_deleted  # isort:skip
 
 log = logging.getLogger(__name__)
 
 INFERENCE_SERVICE_TEMPLATE_FILE = ASSETS_DIR / "kserve-inference-service.yaml.j2"
 
-KUBEFLOW_DEFAULT_DOMAIN_M2M = "api.kubeflow.com"
 ISVC_NAME = "sklearn-v2-iris"
 
 # The prediction request body sent to the sklearn v2 iris model.
@@ -41,38 +45,33 @@ PAYLOAD = '{"instances": [[6.8, 2.8, 4.8, 1.4], [6.0, 3.4, 4.5, 1.6]]}'
 
 
 @pytest.fixture(scope="module")
-def m2m_domain(request: pytest.FixtureRequest) -> str:
-    """Application M2M hostname."""
-    return (
-        domain
-        if (domain := request.config.getoption("--iam-domain-m2m"))
-        else KUBEFLOW_DEFAULT_DOMAIN_M2M
-    )
+def m2m_gateway(lightkube_client: Client, application_model: str) -> str:
+    """Name of the istio Gateway KServe (M2M) attaches its InferenceService routes to.
 
-
-@pytest.fixture(scope="module")
-def wildcard_hostname(m2m_domain: str) -> str:
-    """Wildcard hostname for KServe."""
-    return f"*.{m2m_domain}"
-
-
-@pytest.fixture(scope="module")
-def patch_gateway(
-    lightkube_client: Client,
-    m2m_gateway: str,
-    application_model: str,
-    wildcard_hostname: str,
-):
-    """Patch the M2M Gateway listeners to a wildcard hostname.
-
-    Workaround for https://github.com/canonical/service-mesh/issues/102 so KServe's
-    per-service subdomain routes attach to the gateway. Remove this fixture once the
-    issue is fixed and the charm supports wildcard listeners natively.
+    Overrides the conftest fixture to read it from KServe's ingress configuration rather
+    than match it by listener hostname, so the Gateway is still found after
+    ``patch_gateway`` removes its listener hostnames.
     """
-    patch_gateway_wildcard_hostname(
-        lightkube_client, application_model, m2m_gateway, wildcard_hostname
-    )
+    kserve_gateway = get_kserve_gateway(lightkube_client, application_model)
+    assert kserve_gateway, "KServe is not configured with a Gateway API ingress gateway"
+    gateway_namespace, gateway = kserve_gateway
+    assert (
+        gateway_namespace == application_model
+    ), f"Expected the KServe Gateway in {application_model}, found {gateway_namespace}/{gateway}"
+    log.info(f"Discovered KServe ingress Gateway '{gateway}'")
+    return gateway
+
+
+@pytest.fixture(scope="module")
+def patch_gateway(lightkube_client: Client, m2m_gateway: str, application_model: str):
+    """Remove the listener hostnames of the M2M Gateway for the whole module.
+
+    Module-scoped override of the root ``patch_gateway`` fixture (see it for the
+    workaround), as the InferenceService is shared by all the tests in the module.
+    """
+    removed = remove_gateway_listener_hostnames(lightkube_client, application_model, m2m_gateway)
     yield
+    restore_gateway_listener_hostnames(lightkube_client, application_model, m2m_gateway, removed)
 
 
 @pytest.fixture(scope="module")
