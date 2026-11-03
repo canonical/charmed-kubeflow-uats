@@ -61,6 +61,7 @@ target-version = ["py312"]
 [tool.isort]
 line_length = 99
 profile = "black"
+known_local_folder = ["ingress", "utils", "notebook_jobs"]
 
 # Linting tools configuration
 [tool.flake8]

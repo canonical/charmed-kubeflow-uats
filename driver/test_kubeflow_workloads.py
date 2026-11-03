@@ -17,6 +17,7 @@ import yaml
 from lightkube import ApiError, Client, codecs
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import Namespace, ServiceAccount
+
 from notebook_jobs import (
     RUNTIMECLASS_RESOURCE,
     job_name_for,
@@ -452,6 +453,7 @@ def test_notebook_workload(
     create_poddefault_on_toleration,
     create_poddefault_on_security_policy,
     mlflow_tracking_uri: str,
+    patch_gateway,
     request: pytest.FixtureRequest,
 ):
     """Run a single UAT notebook as an isolated Kubernetes Job.
