@@ -19,7 +19,8 @@ Given the deployment described under [Prerequisites](#prerequisites), the suite:
 1. Discovers at runtime the LoadBalancer IPs for the UI (istio Gateway serving
    `ui.kubeflow.com` in `kubeflow`) and the IdP (`traefik-lb` in `iam-core`), and
    hands both to Chromium via `--host-resolver-rules` so no `/etc/hosts` entry (and
-   thus no root) is needed on the UAT host.
+   thus no root) is needed on the UAT host. A LoadBalancer that publishes a hostname
+   instead of an IP (e.g. an AWS ELB on EKS) is resolved to an IP first.
 2. Creates a Kratos identity via the `create-admin-account` Juju action, passing the
    password through a Juju secret (`password-secret-id`) granted to `kratos`. The
    identity is deleted in teardown via the `delete-identity` action.

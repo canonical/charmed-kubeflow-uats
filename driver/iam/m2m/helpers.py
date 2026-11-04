@@ -12,7 +12,6 @@ import json
 import logging
 import re
 import socket
-import sys
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -23,14 +22,8 @@ import urllib3
 from lightkube import Client
 from lightkube.generic_resource import create_namespaced_resource
 from lightkube.resources.rbac_authorization_v1 import RoleBinding
-from lightkube.types import PatchType
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
-
-# Add the driver directory to path so shared modules (utils, ingress) are importable.
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from ingress import GATEWAY_RESOURCE  # noqa: E402
 
 log = logging.getLogger(__name__)
 
@@ -148,26 +141,6 @@ def get_token(client_id: str, client_secret: str, issuer_url: str) -> str:
     )
     log.info(f"Obtained access token for client {client_id}")
     return token["access_token"]
-
-
-def patch_gateway_wildcard_hostname(
-    client: Client, namespace: str, gateway: str, hostname: str
-) -> None:
-    """Patch every listener of a Gateway to use the given (wildcard) hostname.
-
-    Workaround for https://github.com/canonical/service-mesh/issues/102: the
-    istio-ingress-k8s charm pins each listener to the exact ``external_hostname``,
-    which rejects KServe's per-service subdomain routes. Remove this once the issue
-    is fixed and the charm supports wildcard listeners natively.
-    """
-    gw = client.get(GATEWAY_RESOURCE, name=gateway, namespace=namespace)
-    listeners = (gw.spec or {}).get("listeners", [])
-    patch = [
-        {"op": "replace", "path": f"/spec/listeners/{index}/hostname", "value": hostname}
-        for index in range(len(listeners))
-    ]
-    log.info(f"Patching Gateway {namespace}/{gateway} listeners to hostname {hostname}")
-    client.patch(GATEWAY_RESOURCE, gateway, patch, namespace=namespace, patch_type=PatchType.JSON)
 
 
 def _contributor_rolebinding(namespace: str, user: str, role: str) -> RoleBinding:
