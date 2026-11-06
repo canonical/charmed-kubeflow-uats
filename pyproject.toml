@@ -1,9 +1,51 @@
+[project]
+name = "kubeflow-uat"
+version = "1.0"
+description = "kubeflow-uat"
+authors = []
+requires-python = ">=3.12"
+dependencies = [
+    "jubilant>=1,<2",
+    "jinja2>=3,<4",
+    "lightkube<1.0",
+    "requests>=2,<3",
+    "pytest>=9,<10",
+    "pytest-dependency<1.0",
+    "tenacity>=9,<10",
+    "requests-oauthlib>=2,<3",
+    "pytest-jubilant>=2,<3",
+    "playwright>=1,<2",
+    "python-dotenv>=1.0,<2",
+    "kfp>=2.0,<3",
+    "boto3>=1.0,<2",
+]
+
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
 # Testing tools configuration
 [tool.coverage.run]
 branch = true
+
+[dependency-groups]
+fmt = [
+    "black[jupyter]>=26,<27",
+    "isort>=8,<9",
+]
+images = [
+    "pytest>=9,<10",
+    "pyyaml>=6,<7",
+    "requests>=2,<3",
+]
+lint = [
+    "black[jupyter]>=26,<27",
+    "codespell>=2,<3",
+    "flake8-builtins>=3,<4",
+    "flake8-copyright<1.0",
+    "isort>=8,<9",
+    "pep8-naming<1.0",
+    "pyproject-flake8>=7,<8",
+]
 
 [tool.coverage.report]
 show_missing = true
@@ -26,50 +68,6 @@ line_length = 99
 profile = "black"
 known_local_folder = ["helpers", "ingress", "utils", "notebook_jobs", "iam"]
 
-[tool.poetry]
-name = "kubeflow-uat"
-version = "1.0"
-description = "kubeflow-uat"
-authors = []
-
-[tool.poetry.dependencies]
-python = ">=3.12"
-jubilant = "^1"
-jinja2 = "^3"
-lightkube = "<1.0"
-requests = "^2"
-pytest = "^9"
-pytest-dependency = "<1.0"
-tenacity = "^9"
-requests-oauthlib = "^2"
-pytest-jubilant = "^2"
-playwright = "^1"
-# multi-tenancy suite dependencies
-python-dotenv = "^1.0"
-kfp = "^2.0"
-boto3 = "^1.0"
-
-[tool.poetry.group.fmt]
-optional = true
-
-[tool.poetry.group.fmt.dependencies]
-black = {extras=["jupyter"], version="^26"}
-isort = "^8"
-
-[tool.poetry.group.lint]
-optional = true
-
-[tool.poetry.group.lint.dependencies]
-black = {extras=["jupyter"], version="^26"}
-codespell = "^2"
-# Flake is transitive dependencies of other packages
-# flake8 = ">=6.0"
-flake8-builtins = "^3"
-flake8-copyright = "<1.0"
-isort = "^8"
-pep8-naming = "<1.0"
-pyproject-flake8 = "^7"
-
 # Linting tools configuration
 [tool.flake8]
 max-line-length = 99
@@ -81,7 +79,7 @@ select = ["E", "W", "F", "C", "N", "R", "D", "H"]
 # Ignore D107 Missing docstring in __init__
 ignore = ["W503", "E501", "D107"]
 # D100, D101, D102, D103: Ignore missing docstrings in tests
-per-file-ignores = ["tests/*:D100,D101,D102,D103,D104"]
+per-file-ignores = ["tests/*:D100,D101,D102,D103,D104", "scripts/tests/*:D100,D101,D102,D103,D104"]
 docstring-convention = "google"
 # Check for properly formatted copyright header in each file
 copyright-check = "True"

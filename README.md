@@ -34,6 +34,7 @@ in the [Run the tests](#run-the-tests) section.
       * [Using the `driver`](#running-using-driver)
    * [Developer notes](#developer-notes)
       * [Limitations](#limitations)
+* [Test images](#test-images)
 
 
 ## Prerequisites
@@ -467,3 +468,45 @@ a Kubernetes Job to run the tests. More specifically, the `driver` executes the 
 4. Wait for each Job to complete (regardless of the outcome), retrying failed notebooks when requested
 5. Collect each notebook's result and print a per-notebook summary
 6. Cleanup (remove created Jobs and Profile)
+
+## Test images
+
+[`assets/test.images.yaml`](assets/test.images.yaml) lists the container images used by the UATs
+(e.g. to pre-load them in the cluster). Images defined by the charms are grouped by charm
+repository, together with the location of their definition, so they can be updated automatically:
+
+```yaml
+charms:
+  kfp-operators:                                    # charm repository name
+    repo: https://github.com/canonical/kfp-operators
+    branch: main                                    # charm branch matching this repo's branch/track
+    images:
+    - file: charms/kfp-api/config.yaml              # file defining the image (YAML or JSON)
+      path: options.driver-image.default            # dotted key path of the image in that file
+      image: docker.io/charmedkubeflow/kfp-driver:2.16.0-cffd968
+static:                                             # images not defined by charms, never auto-updated
+- docker.io/library/busybox:1.36
+```
+
+Each branch of this repository maps to a Charmed Kubeflow track, so `branch` must point to the
+corresponding branch of each charm repository (e.g. `main` here, `track/<version>` on `track/*`
+branches).
+
+Use the `update-images` tox environment to manage the file:
+
+```shell
+# update the charm images from their sources
+tox -e update-images
+# only check whether images are outdated (exit code 1 if so)
+tox -e update-images -- --check
+# show the diff that would be applied, without writing
+tox -e update-images -- --dry-run
+# print all images, one per line (replaces the former assets/test.images.txt)
+tox -e update-images -- --list
+# or, to get clean output (requires pyyaml and requests)
+python3 scripts/update_test_images.py --list > images.txt
+```
+
+Set `GITHUB_TOKEN` to avoid GitHub rate limits. The
+[Update test images](.github/workflows/update-test-images.yaml) workflow runs weekly and opens a
+PR when images change. Unit tests for the script run with `tox -e scripts-unit`.
