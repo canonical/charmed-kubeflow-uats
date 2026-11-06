@@ -15,3 +15,11 @@ jobs:
       - uses: actions/checkout@v4
       - run: python3 -m pip install tox
       - run: tox -e lint
+
+  scripts-unit:
+    name: Scripts unit tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m pip install tox
+      - run: tox -e scripts-unit
