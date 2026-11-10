@@ -28,7 +28,15 @@ tox -e uats-local -- --filter "not kserve"
 
 # include the GPU notebooks (require a GPU node)
 tox -e uats-local -- --include-gpu-tests
+
+# include the CPU Kubeflow Trainer notebooks
+tox -e uats-local -- --include-kubeflow-trainer-tests
+
+# include both CPU and GPU Kubeflow Trainer notebooks (require a GPU node)
+tox -e uats-local -- --include-gpu-tests --include-kubeflow-trainer-tests
 ```
+
+GPU notebooks under `notebooks/gpu/kubeflow-trainer/` require both opt-in flags.
 
 See the [top-level README](../README.md) for the full set of options (bundle selection, proxies,
 per-notebook timeout, keeping artifacts, etc.).
