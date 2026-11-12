@@ -394,7 +394,7 @@ def _select_notebooks(config):
         include_trainer = config.getoption("--include-kubeflow-trainer-tests")
         if config.getoption("--include-gpu-tests"):
             gpu_notebooks = discover_notebooks(NOTEBOOK_DIRS["gpu"])
-            # Do not include the GPU Kubeflow trainer notebooks if the trainer tests are not included
+            # GPU trainer notebooks also require the trainer opt-in flag
             if not include_trainer:
                 gpu_trainer_dir = (Path(NOTEBOOK_DIRS["gpu"]) / "kubeflow-trainer").resolve()
                 gpu_notebooks = {
