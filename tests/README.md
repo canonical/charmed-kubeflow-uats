@@ -19,24 +19,20 @@ artifact.
 To run the notebooks (or a subset) against a deployed Kubeflow, use the driver via `tox`:
 
 ```bash
-# run all notebooks
 tox -e uats-local
 
 # select a subset by filtering on notebook names (pytest -k syntax)
 tox -e uats-local -- --filter "kfp or katib"
 tox -e uats-local -- --filter "not kserve"
-
-# include the GPU notebooks (require a GPU node)
-tox -e uats-local -- --include-gpu-tests
-
-# include the CPU Kubeflow Trainer notebooks
-tox -e uats-local -- --include-kubeflow-trainer-tests
-
-# include both CPU and GPU Kubeflow Trainer notebooks (require a GPU node)
-tox -e uats-local -- --include-gpu-tests --include-kubeflow-trainer-tests
 ```
 
-GPU notebooks under `notebooks/gpu/kubeflow-trainer/` require both opt-in flags.
+By default only `notebooks/cpu/` is run. Pass these opt-in flags after `--` to include more, and
+`--filter` to narrow the resulting set:
+
+- `--include-gpu-tests`: adds `notebooks/gpu/`. Requires a GPU node in the cluster.
+- `--include-kubeflow-trainer-tests`: adds `notebooks/kubeflow-trainer/`.
+
+Notebooks under `notebooks/gpu/kubeflow-trainer/` require both flags.
 
 See the [top-level README](../README.md) for the full set of options (bundle selection, proxies,
 per-notebook timeout, keeping artifacts, etc.).
