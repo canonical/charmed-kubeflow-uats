@@ -29,7 +29,7 @@ tox -e uats-local -- --filter "not kserve"
 By default only `notebooks/cpu/` is run. Pass these opt-in flags after `--` to include more, and
 `--filter` to narrow the resulting set:
 
-- `--include-gpu-tests`: adds `notebooks/gpu/`. Requires a GPU node in the cluster.
+- `--include-gpu-tests`: adds `notebooks/gpu/`, except `notebooks/gpu/kubeflow-trainer/`. Requires a GPU node in the cluster.
 - `--include-kubeflow-trainer-tests`: adds `notebooks/kubeflow-trainer/`.
 
 Notebooks under `notebooks/gpu/kubeflow-trainer/` require both flags.
