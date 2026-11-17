@@ -2,6 +2,7 @@
 # See LICENSE file for licensing details.
 
 import logging
+from pathlib import Path
 
 import pytest
 from _pytest.config.argparsing import Parser
@@ -390,9 +391,19 @@ def _select_notebooks(config):
         notebooks = discover_notebooks(MLFLOW_STANDALONE_NOTEBOOK_DIR)
     else:
         notebooks = discover_notebooks(NOTEBOOK_DIRS["cpu"])
+        include_trainer = config.getoption("--include-kubeflow-trainer-tests")
         if config.getoption("--include-gpu-tests"):
-            notebooks.update(discover_notebooks(NOTEBOOK_DIRS["gpu"]))
-        if config.getoption("--include-kubeflow-trainer-tests"):
+            gpu_notebooks = discover_notebooks(NOTEBOOK_DIRS["gpu"])
+            # GPU trainer notebooks also require the trainer opt-in flag
+            if not include_trainer:
+                gpu_trainer_dir = (Path(NOTEBOOK_DIRS["gpu"]) / "kubeflow-trainer").resolve()
+                gpu_notebooks = {
+                    name: path
+                    for name, path in gpu_notebooks.items()
+                    if not Path(path).is_relative_to(gpu_trainer_dir)
+                }
+            notebooks.update(gpu_notebooks)
+        if include_trainer:
             notebooks.update(discover_notebooks(NOTEBOOK_DIRS["kubeflow-trainer"]))
 
     filter_expr = config.getoption("--filter")
