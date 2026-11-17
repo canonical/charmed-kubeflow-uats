@@ -495,9 +495,9 @@ branches).
 Use the `update-images` tox environment to manage the file:
 
 ```shell
-# update the charm images from their sources (and regenerate assets/test.images.txt)
+# update the charm images from their sources
 tox -e update-images
-# only check whether images are outdated or the flat list is out of sync (exit code 1 if so)
+# only check whether images are outdated (exit code 1 if so)
 tox -e update-images -- --check
 # show the diff that would be applied, without writing
 tox -e update-images -- --dry-run
@@ -505,10 +505,13 @@ tox -e update-images -- --dry-run
 tox -e update-images -- --list
 ```
 
-For backward compatibility, [`assets/test.images.txt`](assets/test.images.txt) is kept as a flat
-list of all the images (one per line, sorted and de-duplicated). It is generated from
-`assets/test.images.yaml` on every update and must not be edited by hand; after editing the YAML
-manually (e.g. adding a `static` image), run `tox -e update-images` to regenerate it.
+For backward compatibility, [`assets/test.images.txt`](assets/test.images.txt) is temporarily kept
+as a flat list of all the images (one per line, sorted and de-duplicated). It is generated from
+`assets/test.images.yaml` and must not be edited by hand. The
+[Update test images](.github/workflows/update-test-images.yaml) workflow keeps it in sync; to
+regenerate it locally, run `tox -e update-images -- --flat-file assets/test.images.txt`.
+The `--flat-file` option is deprecated and will be removed, together with the txt file, in a
+future release.
 
 Set `GITHUB_TOKEN` to avoid GitHub rate limits. The
 [Update test images](.github/workflows/update-test-images.yaml) workflow runs weekly and opens a

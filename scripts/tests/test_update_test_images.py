@@ -88,13 +88,21 @@ def config():
 def images_file(tmp_path, config):
     path = tmp_path / "test.images.yaml"
     uti.write_config(path, config)
-    uti.default_flat_file(path).write_text(uti.flatten(config))
     return path
 
 
 @pytest.fixture
-def flat_file(images_file):
-    return uti.default_flat_file(images_file)
+def flat_file(tmp_path, config):
+    path = tmp_path / "test.images.txt"
+    path.write_text(uti.flatten(config))
+    return path
+
+
+def run(images_file, *args, flat_file=None, fetcher=None):
+    argv = ["--file", str(images_file), *args]
+    if flat_file is not None:
+        argv += ["--flat-file", str(flat_file)]
+    return uti.main(argv, fetcher or FakeFetcher(UPSTREAM))
 
 
 @pytest.mark.parametrize(
@@ -252,19 +260,27 @@ def test_flatten(config):
     )
 
 
-def test_default_flat_file():
-    assert uti.default_flat_file(Path("a/test.images.yaml")) == Path("a/test.images.txt")
+def test_flat_file_not_written_by_default(images_file, tmp_path):
+    assert run(images_file) == uti.EXIT_OK
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["test.images.yaml"]
+    # without --flat-file, a stale or missing flat list does not affect --check
+    assert run(images_file, "--check") == uti.EXIT_OK
 
 
 def test_update_rewrites_flat_file(images_file, flat_file):
-    assert uti.main(["--file", str(images_file)], FakeFetcher(UPSTREAM)) == uti.EXIT_OK
+    assert run(images_file, flat_file=flat_file) == uti.EXIT_OK
     assert flat_file.read_text() == uti.flatten(uti.load_config(images_file))
     assert "docker.io/charmedkubeflow/argoexec:new\n" in flat_file.read_text()
 
 
+def test_flat_file_deprecation_warning(images_file, flat_file, caplog):
+    run(images_file, "--check", flat_file=flat_file)
+    assert "--flat-file is deprecated" in caplog.text
+
+
 @pytest.mark.parametrize("state", ["missing", "stale"])
 def test_flat_file_out_of_sync_only(images_file, flat_file, state):
-    uti.main(["--file", str(images_file)], FakeFetcher(UPSTREAM))
+    run(images_file, flat_file=flat_file)
     images_before = images_file.read_text()
     expected = flat_file.read_text()
     if state == "missing":
@@ -272,10 +288,9 @@ def test_flat_file_out_of_sync_only(images_file, flat_file, state):
     else:
         flat_file.write_text("docker.io/library/busybox:1.36\n")
 
-    rc = uti.main(["--file", str(images_file), "--check"], FakeFetcher(UPSTREAM))
-    assert rc == uti.EXIT_OUTDATED
+    assert run(images_file, "--check", flat_file=flat_file) == uti.EXIT_OUTDATED
 
-    assert uti.main(["--file", str(images_file)], FakeFetcher(UPSTREAM)) == uti.EXIT_OK
+    assert run(images_file, flat_file=flat_file) == uti.EXIT_OK
     assert flat_file.read_text() == expected
     # the images file is not rewritten when only the flat list is out of sync
     assert images_file.read_text() == images_before
@@ -283,20 +298,12 @@ def test_flat_file_out_of_sync_only(images_file, flat_file, state):
 
 def test_dry_run_shows_flat_file_diff(images_file, flat_file, capsys):
     before = flat_file.read_text()
-    uti.main(["--file", str(images_file), "--dry-run"], FakeFetcher(UPSTREAM))
+    run(images_file, "--dry-run", flat_file=flat_file)
     out = capsys.readouterr().out
     assert f"+++ {flat_file}" in out
     assert "-docker.io/charmedkubeflow/argoexec:old" in out
     assert "+docker.io/charmedkubeflow/argoexec:new" in out
     assert flat_file.read_text() == before
-
-
-def test_custom_flat_file(images_file, tmp_path):
-    custom = tmp_path / "other" / "images.txt"
-    custom.parent.mkdir()
-    argv = ["--file", str(images_file), "--flat-file", str(custom)]
-    assert uti.main(argv, FakeFetcher(UPSTREAM)) == uti.EXIT_OK
-    assert custom.read_text() == uti.flatten(uti.load_config(images_file))
 
 
 def test_exclusive_modes(images_file):
@@ -340,8 +347,3 @@ def test_invalid_file(tmp_path):
 def test_repo_file_is_valid():
     cfg = uti.load_config(uti.DEFAULT_FILE)
     assert cfg["charms"]
-
-
-def test_repo_flat_file_in_sync():
-    cfg = uti.load_config(uti.DEFAULT_FILE)
-    assert uti.default_flat_file(uti.DEFAULT_FILE).read_text() == uti.flatten(cfg)
