@@ -2,17 +2,7 @@
 # Copyright 2026 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-"""Keep assets/test.images.yaml in sync with the images defined in the charm repositories.
-
-Each entry under `charms` points to a file in a charm repository (at a given branch) and to a
-dotted key path inside that file, whose value is the image reference. This script fetches those
-files, resolves the paths and updates the `image` fields accordingly. Images listed under
-`static` are not sourced from charms and are never modified.
-
-For backward compatibility, `--flat-file PATH` also keeps a flat list of all images (one per
-line, sorted and de-duplicated) in sync with the images file. This is deprecated and only meant
-for the transition: it will be removed in a future release.
-"""
+"""Update assets/test.images.yaml with the images defined in the charm repositories."""
 
 import argparse
 import difflib
@@ -43,12 +33,12 @@ Fetcher = Callable[[str], str]
 
 
 class ImagesConfigError(Exception):
-    """Raised when the images file or an upstream source cannot be processed."""
+    """Invalid images file or upstream source."""
 
 
 @dataclass(frozen=True)
 class Change:
-    """An image whose upstream value differs from the one in the images file."""
+    """Outdated image."""
 
     repo: str
     file: str
@@ -93,7 +83,7 @@ def _validate_repo(name: str, repo) -> None:
 
 
 def validate_config(cfg) -> None:
-    """Validate the structure of the images file, raising ImagesConfigError on failure."""
+    """Validate the images file structure."""
     if not isinstance(cfg, dict):
         raise ImagesConfigError("Images file must be a mapping")
     unknown = set(cfg) - {"charms", "static"}
@@ -114,7 +104,7 @@ def validate_config(cfg) -> None:
 
 
 def parse_github_repo(url: str) -> str:
-    """Return `owner/name` from a GitHub repository URL."""
+    """Return `owner/name` of a GitHub URL."""
     parsed = urlparse(url)
     parts = [p for p in parsed.path.split("/") if p]
     if parsed.netloc != "github.com" or len(parts) != 2:
@@ -123,12 +113,12 @@ def parse_github_repo(url: str) -> str:
 
 
 def raw_url(repo_url: str, branch: str, file: str) -> str:
-    """Build the raw.githubusercontent.com URL of a file in a repository at a branch."""
+    """Return the raw URL of a file."""
     return f"{RAW_BASE_URL}/{parse_github_repo(repo_url)}/{branch}/{file.lstrip('/')}"
 
 
 def http_fetch(url: str) -> str:
-    """Fetch a URL as text, authenticating with GITHUB_TOKEN if available."""
+    """Fetch a URL as text."""
     headers = {}
     token = os.environ.get("GITHUB_TOKEN")
     if token:
@@ -142,7 +132,7 @@ def http_fetch(url: str) -> str:
 
 
 def parse_content(content: str, file: str):
-    """Parse a source file as JSON or YAML based on its extension."""
+    """Parse JSON or YAML by extension."""
     suffix = Path(file).suffix.lower()
     try:
         if suffix == ".json":
@@ -155,7 +145,7 @@ def parse_content(content: str, file: str):
 
 
 def resolve_path(data, path: str):
-    """Return the value at a dotted key path (e.g. `options.executor-image.default`)."""
+    """Return the value at a dotted key path."""
     current = data
     for key in path.split("."):
         if not isinstance(current, dict) or key not in current:
@@ -165,7 +155,7 @@ def resolve_path(data, path: str):
 
 
 def normalize_image(ref: str) -> str:
-    """Return a fully qualified image reference, adding the default registry if missing."""
+    """Add the default registry if missing."""
     ref = ref.strip().strip("\"'")
     first, sep, _ = ref.partition("/")
     has_registry = sep and ("." in first or ":" in first or first == "localhost")
@@ -173,7 +163,7 @@ def normalize_image(ref: str) -> str:
 
 
 def compute_updates(cfg: dict, fetcher: Fetcher = http_fetch) -> list[Change]:
-    """Compare each charm-sourced image with its upstream value and return the differences."""
+    """Return the outdated images."""
     cache: dict[str, object] = {}
     changes = []
     for name, repo in cfg.get("charms", {}).items():
@@ -201,7 +191,7 @@ def compute_updates(cfg: dict, fetcher: Fetcher = http_fetch) -> list[Change]:
 
 
 def apply_updates(cfg: dict, changes: list[Change]) -> None:
-    """Update the `image` fields of the config in place."""
+    """Apply changes in place."""
     by_key = {(c.repo, c.file, c.path): c.new for c in changes}
     for name, repo in cfg.get("charms", {}).items():
         for entry in repo["images"]:
@@ -211,12 +201,12 @@ def apply_updates(cfg: dict, changes: list[Change]) -> None:
 
 
 def dump_config(cfg: dict) -> str:
-    """Serialize the images file preserving key order."""
+    """Serialize the images file."""
     return yaml.safe_dump(cfg, sort_keys=False, default_flow_style=False)
 
 
 def write_config(path: Path, cfg: dict) -> None:
-    """Write the images file preserving key order."""
+    """Write the images file."""
     Path(path).write_text(dump_config(cfg))
 
 
@@ -226,26 +216,26 @@ def _read_text(path: Path) -> str:
 
 
 def text_diff(path: Path, new_text: str) -> str:
-    """Return a unified diff between a file on disk (empty if missing) and the given text."""
+    """Return a unified diff against a file."""
     before = _read_text(path).splitlines(keepends=True)
     after = new_text.splitlines(keepends=True)
     return "".join(difflib.unified_diff(before, after, fromfile=str(path), tofile=str(path)))
 
 
 def list_images(cfg: dict) -> list[str]:
-    """Return all images (charm-sourced and static), sorted and de-duplicated."""
+    """Return all images, sorted and de-duplicated."""
     images = {e["image"] for r in cfg.get("charms", {}).values() for e in r["images"]}
     images.update(cfg.get("static", []))
     return sorted(images)
 
 
 def flatten(cfg: dict) -> str:
-    """Render the flat, backward compatible list of images (one per line)."""
+    """Render the flat list of images."""
     return "".join(f"{image}\n" for image in list_images(cfg))
 
 
 def pending_writes(images_file: Path, flat_file: Optional[Path], cfg: dict, changes: list[Change]):
-    """Return the (path, content) pairs that differ from what is on disk."""
+    """Return the (path, content) pairs to write."""
     writes = []
     if changes:
         writes.append((Path(images_file), dump_config(cfg)))
@@ -259,7 +249,7 @@ def pending_writes(images_file: Path, flat_file: Optional[Path], cfg: dict, chan
 def report_check(
     images_file: Path, flat_file: Optional[Path], changes: list[Change], writes
 ) -> int:
-    """Log why the files are out of date and return the --check exit code."""
+    """Report --check failures."""
     if changes:
         logger.error("%d image(s) outdated", len(changes))
     if flat_file is not None and any(path == Path(flat_file) for path, _ in writes):
@@ -268,7 +258,7 @@ def report_check(
 
 
 def apply_writes(writes, dry_run: bool) -> None:
-    """Write the pending files, or print their diff if dry_run is set."""
+    """Write files, or print diffs on dry run."""
     for path, content in writes:
         if dry_run:
             print(text_diff(path, content), end="")
@@ -279,7 +269,7 @@ def apply_writes(writes, dry_run: bool) -> None:
 
 
 def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
-    """Parse command line arguments."""
+    """Parse arguments."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
         "--file", type=Path, default=DEFAULT_FILE, help="images file (default: %(default)s)"

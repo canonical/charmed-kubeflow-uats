@@ -21,8 +21,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Each branch of this repository maps to a track of the charms; the charm branches to
-        # track are defined per repository in assets/test.images.yaml of each branch.
         base:
           - main
     steps:

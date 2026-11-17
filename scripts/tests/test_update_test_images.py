@@ -170,7 +170,6 @@ def test_compute_updates_and_cache(config):
             "docker.io/charmedkubeflow/visualization-server:2",
         ),
     ]
-    # the shared kfp file is fetched only once
     assert sorted(fetcher.calls) == sorted([ARGO_URL, KFP_URL])
 
 
@@ -263,7 +262,6 @@ def test_flatten(config):
 def test_flat_file_not_written_by_default(images_file, tmp_path):
     assert run(images_file) == uti.EXIT_OK
     assert sorted(p.name for p in tmp_path.iterdir()) == ["test.images.yaml"]
-    # without --flat-file, a stale or missing flat list does not affect --check
     assert run(images_file, "--check") == uti.EXIT_OK
 
 
@@ -292,7 +290,6 @@ def test_flat_file_out_of_sync_only(images_file, flat_file, state):
 
     assert run(images_file, flat_file=flat_file) == uti.EXIT_OK
     assert flat_file.read_text() == expected
-    # the images file is not rewritten when only the flat list is out of sync
     assert images_file.read_text() == images_before
 
 
@@ -327,7 +324,6 @@ def test_update_writes_and_preserves_order(images_file):
     assert list(updated) == ["charms", "static"]
     assert list(updated["charms"]["argo-operators"]) == ["repo", "branch", "images"]
 
-    # running again finds nothing to do
     rc = uti.main(["--file", str(images_file), "--check"], FakeFetcher(UPSTREAM))
     assert rc == uti.EXIT_OK
 
