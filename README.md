@@ -495,17 +495,20 @@ branches).
 Use the `update-images` tox environment to manage the file:
 
 ```shell
-# update the charm images from their sources
+# update the charm images from their sources (and regenerate assets/test.images.txt)
 tox -e update-images
-# only check whether images are outdated (exit code 1 if so)
+# only check whether images are outdated or the flat list is out of sync (exit code 1 if so)
 tox -e update-images -- --check
 # show the diff that would be applied, without writing
 tox -e update-images -- --dry-run
-# print all images, one per line (replaces the former assets/test.images.txt)
+# print all images, one per line
 tox -e update-images -- --list
-# or, to get clean output (requires pyyaml and requests)
-python3 scripts/update_test_images.py --list > images.txt
 ```
+
+For backward compatibility, [`assets/test.images.txt`](assets/test.images.txt) is kept as a flat
+list of all the images (one per line, sorted and de-duplicated). It is generated from
+`assets/test.images.yaml` on every update and must not be edited by hand; after editing the YAML
+manually (e.g. adding a `static` image), run `tox -e update-images` to regenerate it.
 
 Set `GITHUB_TOKEN` to avoid GitHub rate limits. The
 [Update test images](.github/workflows/update-test-images.yaml) workflow runs weekly and opens a

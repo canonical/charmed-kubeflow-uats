@@ -88,7 +88,13 @@ def config():
 def images_file(tmp_path, config):
     path = tmp_path / "test.images.yaml"
     uti.write_config(path, config)
+    uti.default_flat_file(path).write_text(uti.flatten(config))
     return path
+
+
+@pytest.fixture
+def flat_file(images_file):
+    return uti.default_flat_file(images_file)
 
 
 @pytest.mark.parametrize(
@@ -237,6 +243,62 @@ def test_dry_run_up_to_date_prints_nothing(images_file, capsys):
     assert capsys.readouterr().out == ""
 
 
+def test_flatten(config):
+    assert uti.flatten(config) == (
+        "docker.io/charmedkubeflow/argoexec:old\n"
+        "docker.io/charmedkubeflow/frontend:1\n"
+        "docker.io/charmedkubeflow/visualization-server:1\n"
+        "docker.io/library/busybox:1.36\n"
+    )
+
+
+def test_default_flat_file():
+    assert uti.default_flat_file(Path("a/test.images.yaml")) == Path("a/test.images.txt")
+
+
+def test_update_rewrites_flat_file(images_file, flat_file):
+    assert uti.main(["--file", str(images_file)], FakeFetcher(UPSTREAM)) == uti.EXIT_OK
+    assert flat_file.read_text() == uti.flatten(uti.load_config(images_file))
+    assert "docker.io/charmedkubeflow/argoexec:new\n" in flat_file.read_text()
+
+
+@pytest.mark.parametrize("state", ["missing", "stale"])
+def test_flat_file_out_of_sync_only(images_file, flat_file, state):
+    uti.main(["--file", str(images_file)], FakeFetcher(UPSTREAM))
+    images_before = images_file.read_text()
+    expected = flat_file.read_text()
+    if state == "missing":
+        flat_file.unlink()
+    else:
+        flat_file.write_text("docker.io/library/busybox:1.36\n")
+
+    rc = uti.main(["--file", str(images_file), "--check"], FakeFetcher(UPSTREAM))
+    assert rc == uti.EXIT_OUTDATED
+
+    assert uti.main(["--file", str(images_file)], FakeFetcher(UPSTREAM)) == uti.EXIT_OK
+    assert flat_file.read_text() == expected
+    # the images file is not rewritten when only the flat list is out of sync
+    assert images_file.read_text() == images_before
+
+
+def test_dry_run_shows_flat_file_diff(images_file, flat_file, capsys):
+    before = flat_file.read_text()
+    uti.main(["--file", str(images_file), "--dry-run"], FakeFetcher(UPSTREAM))
+    out = capsys.readouterr().out
+    assert f"+++ {flat_file}" in out
+    assert "-docker.io/charmedkubeflow/argoexec:old" in out
+    assert "+docker.io/charmedkubeflow/argoexec:new" in out
+    assert flat_file.read_text() == before
+
+
+def test_custom_flat_file(images_file, tmp_path):
+    custom = tmp_path / "other" / "images.txt"
+    custom.parent.mkdir()
+    argv = ["--file", str(images_file), "--flat-file", str(custom)]
+    assert uti.main(argv, FakeFetcher(UPSTREAM)) == uti.EXIT_OK
+    assert custom.read_text() == uti.flatten(uti.load_config(images_file))
+
+
 def test_exclusive_modes(images_file):
     with pytest.raises(SystemExit):
         uti.main(["--file", str(images_file), "--dry-run", "--check"], FakeFetcher(UPSTREAM))
@@ -278,3 +340,8 @@ def test_invalid_file(tmp_path):
 def test_repo_file_is_valid():
     cfg = uti.load_config(uti.DEFAULT_FILE)
     assert cfg["charms"]
+
+
+def test_repo_flat_file_in_sync():
+    cfg = uti.load_config(uti.DEFAULT_FILE)
+    assert uti.default_flat_file(uti.DEFAULT_FILE).read_text() == uti.flatten(cfg)

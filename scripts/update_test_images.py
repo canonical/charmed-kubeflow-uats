@@ -8,6 +8,9 @@ Each entry under `charms` points to a file in a charm repository (at a given bra
 dotted key path inside that file, whose value is the image reference. This script fetches those
 files, resolves the paths and updates the `image` fields accordingly. Images listed under
 `static` are not sourced from charms and are never modified.
+
+For backward compatibility, a flat list of all images (one per line, sorted and de-duplicated)
+is kept in sync next to the images file (assets/test.images.txt by default).
 """
 
 import argparse
@@ -216,10 +219,15 @@ def write_config(path: Path, cfg: dict) -> None:
     Path(path).write_text(dump_config(cfg))
 
 
-def config_diff(path: Path, cfg: dict) -> str:
-    """Return a unified diff between the images file on disk and the given config."""
-    before = Path(path).read_text().splitlines(keepends=True)
-    after = dump_config(cfg).splitlines(keepends=True)
+def _read_text(path: Path) -> str:
+    path = Path(path)
+    return path.read_text() if path.exists() else ""
+
+
+def text_diff(path: Path, new_text: str) -> str:
+    """Return a unified diff between a file on disk (empty if missing) and the given text."""
+    before = _read_text(path).splitlines(keepends=True)
+    after = new_text.splitlines(keepends=True)
     return "".join(difflib.unified_diff(before, after, fromfile=str(path), tofile=str(path)))
 
 
@@ -230,22 +238,69 @@ def list_images(cfg: dict) -> list[str]:
     return sorted(images)
 
 
+def flatten(cfg: dict) -> str:
+    """Render the flat, backward compatible list of images (one per line)."""
+    return "".join(f"{image}\n" for image in list_images(cfg))
+
+
+def default_flat_file(images_file: Path) -> Path:
+    """Return the flat list path next to the images file (e.g. test.images.txt)."""
+    return Path(images_file).with_suffix(".txt")
+
+
+def pending_writes(images_file: Path, flat_file: Path, cfg: dict, changes: list[Change]):
+    """Return the (path, content) pairs that differ from what is on disk."""
+    writes = []
+    if changes:
+        writes.append((Path(images_file), dump_config(cfg)))
+    flat = flatten(cfg)
+    if _read_text(flat_file) != flat:
+        writes.append((Path(flat_file), flat))
+    return writes
+
+
+def report_check(images_file: Path, flat_file: Path, changes: list[Change], writes) -> int:
+    """Log why the files are out of date and return the --check exit code."""
+    if changes:
+        logger.error("%d image(s) outdated", len(changes))
+    if any(path == Path(flat_file) for path, _ in writes):
+        logger.error("%s is out of sync with %s", flat_file, images_file)
+    return EXIT_OUTDATED
+
+
+def apply_writes(writes, dry_run: bool) -> None:
+    """Write the pending files, or print their diff if dry_run is set."""
+    for path, content in writes:
+        if dry_run:
+            print(text_diff(path, content), end="")
+            logger.info("Dry run: %s would be updated", path)
+        else:
+            path.write_text(content)
+            logger.info("Updated %s", path)
+
+
 def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
         "--file", type=Path, default=DEFAULT_FILE, help="images file (default: %(default)s)"
     )
+    parser.add_argument(
+        "--flat-file",
+        type=Path,
+        help="flat list of images kept for backward compatibility "
+        "(default: the images file with a .txt suffix)",
+    )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(
         "--check",
         action="store_true",
-        help="do not write; exit with 1 if any image is outdated",
+        help="do not write; exit with 1 if any image is outdated or the flat list is out of sync",
     )
     mode.add_argument(
         "--dry-run",
         action="store_true",
-        help="do not write; print the diff that would be applied to the images file",
+        help="do not write; print the diff that would be applied to the files",
     )
     mode.add_argument(
         "--list",
@@ -274,21 +329,18 @@ def main(argv: Optional[list[str]] = None, fetcher: Fetcher = http_fetch) -> int
         logger.error("%s", e)
         return EXIT_ERROR
 
-    if not changes:
-        logger.info("All images are up to date")
-        return EXIT_OK
     for change in changes:
         logger.info("%s", change)
-    if args.check:
-        logger.error("%d image(s) outdated", len(changes))
-        return EXIT_OUTDATED
     apply_updates(cfg, changes)
-    if args.dry_run:
-        print(config_diff(args.file, cfg), end="")
-        logger.info("Dry run: %d image(s) would be updated in %s", len(changes), args.file)
+    flat_file = args.flat_file or default_flat_file(args.file)
+    writes = pending_writes(args.file, flat_file, cfg, changes)
+    if not writes:
+        logger.info("All images are up to date")
         return EXIT_OK
-    write_config(args.file, cfg)
-    logger.info("Updated %d image(s) in %s", len(changes), args.file)
+
+    if args.check:
+        return report_check(args.file, flat_file, changes, writes)
+    apply_writes(writes, args.dry_run)
     return EXIT_OK
 
 

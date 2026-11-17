@@ -41,7 +41,7 @@ charms:
     images:
     - file: charms/kserve-controller/src/default-custom-images.json
       path: serving_runtimes__sklearnserver
-      image: docker.io/charmedkubeflow/sklearnserver:0.17.0-5f4a278-20260825092927
+      image: docker.io/charmedkubeflow/sklearnserver:0.17.0-f21ce1c-20261110140307
     - file: charms/kserve-controller/src/default-custom-images.json
       path: configmap__storageInitializer
       image: docker.io/charmedkubeflow/storage-initializer:0.17.0-07d37fb
