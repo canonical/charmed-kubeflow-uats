@@ -12,7 +12,7 @@ import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 from urllib.parse import urlparse
 
 import requests
@@ -30,6 +30,7 @@ EXIT_ERROR = 2
 logger = logging.getLogger("update_test_images")
 
 Fetcher = Callable[[str], str]
+Write = tuple[Path, str]
 
 
 class ImagesConfigError(Exception):
@@ -46,26 +47,26 @@ class Change:
     old: str
     new: str
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.repo}:{self.file}#{self.path}: {self.old} -> {self.new}"
 
 
-def load_config(path: Path) -> dict:
+def load_config(path: Path) -> dict[str, Any]:
     """Load and validate the images file."""
     try:
-        cfg = yaml.safe_load(Path(path).read_text())
+        cfg: dict[str, Any] = yaml.safe_load(Path(path).read_text())
     except (OSError, yaml.YAMLError) as e:
         raise ImagesConfigError(f"Cannot read {path}: {e}") from e
     validate_config(cfg)
     return cfg
 
 
-def _require_str(value, where: str):
+def _require_str(value: Any, where: str) -> None:
     if not isinstance(value, str) or not value.strip():
         raise ImagesConfigError(f"{where} must be a non-empty string")
 
 
-def _validate_repo(name: str, repo) -> None:
+def _validate_repo(name: str, repo: Any) -> None:
     where = f"charms.{name}"
     if not isinstance(repo, dict):
         raise ImagesConfigError(f"{where} must be a mapping")
@@ -82,7 +83,7 @@ def _validate_repo(name: str, repo) -> None:
             _require_str(entry.get(key), f"{where}.images[{i}].{key}")
 
 
-def validate_config(cfg) -> None:
+def validate_config(cfg: Any) -> None:
     """Validate the images file structure."""
     if not isinstance(cfg, dict):
         raise ImagesConfigError("Images file must be a mapping")
@@ -119,7 +120,7 @@ def raw_url(repo_url: str, branch: str, file: str) -> str:
 
 def http_fetch(url: str) -> str:
     """Fetch a URL as text."""
-    headers = {}
+    headers: dict[str, str] = {}
     token = os.environ.get("GITHUB_TOKEN")
     if token:
         headers["Authorization"] = f"Bearer {token}"
@@ -131,7 +132,7 @@ def http_fetch(url: str) -> str:
     return response.text
 
 
-def parse_content(content: str, file: str):
+def parse_content(content: str, file: str) -> Any:
     """Parse JSON or YAML by extension."""
     suffix = Path(file).suffix.lower()
     try:
@@ -144,7 +145,7 @@ def parse_content(content: str, file: str):
     raise ImagesConfigError(f"Unsupported file type for {file} (expected .json, .yaml or .yml)")
 
 
-def resolve_path(data, path: str):
+def resolve_path(data: Any, path: str) -> Any:
     """Return the value at a dotted key path."""
     current = data
     for key in path.split("."):
@@ -162,10 +163,10 @@ def normalize_image(ref: str) -> str:
     return ref if has_registry else f"{DEFAULT_REGISTRY}/{ref}"
 
 
-def compute_updates(cfg: dict, fetcher: Fetcher = http_fetch) -> list[Change]:
+def compute_updates(cfg: dict[str, Any], fetcher: Fetcher = http_fetch) -> list[Change]:
     """Return the outdated images."""
-    cache: dict[str, object] = {}
-    changes = []
+    cache: dict[str, Any] = {}
+    changes: list[Change] = []
     for name, repo in cfg.get("charms", {}).items():
         for entry in repo["images"]:
             url = raw_url(repo["repo"], repo["branch"], entry["file"])
@@ -190,7 +191,7 @@ def compute_updates(cfg: dict, fetcher: Fetcher = http_fetch) -> list[Change]:
     return changes
 
 
-def apply_updates(cfg: dict, changes: list[Change]) -> None:
+def apply_updates(cfg: dict[str, Any], changes: list[Change]) -> None:
     """Apply changes in place."""
     by_key = {(c.repo, c.file, c.path): c.new for c in changes}
     for name, repo in cfg.get("charms", {}).items():
@@ -200,12 +201,12 @@ def apply_updates(cfg: dict, changes: list[Change]) -> None:
                 entry["image"] = by_key[key]
 
 
-def dump_config(cfg: dict) -> str:
+def dump_config(cfg: dict[str, Any]) -> str:
     """Serialize the images file."""
     return yaml.safe_dump(cfg, sort_keys=False, default_flow_style=False)
 
 
-def write_config(path: Path, cfg: dict) -> None:
+def write_config(path: Path, cfg: dict[str, Any]) -> None:
     """Write the images file."""
     Path(path).write_text(dump_config(cfg))
 
@@ -222,21 +223,23 @@ def text_diff(path: Path, new_text: str) -> str:
     return "".join(difflib.unified_diff(before, after, fromfile=str(path), tofile=str(path)))
 
 
-def list_images(cfg: dict) -> list[str]:
+def list_images(cfg: dict[str, Any]) -> list[str]:
     """Return all images, sorted and de-duplicated."""
     images = {e["image"] for r in cfg.get("charms", {}).values() for e in r["images"]}
     images.update(cfg.get("static", []))
     return sorted(images)
 
 
-def flatten(cfg: dict) -> str:
+def flatten(cfg: dict[str, Any]) -> str:
     """Render the flat list of images."""
     return "".join(f"{image}\n" for image in list_images(cfg))
 
 
-def pending_writes(images_file: Path, flat_file: Optional[Path], cfg: dict, changes: list[Change]):
+def pending_writes(
+    images_file: Path, flat_file: Optional[Path], cfg: dict[str, Any], changes: list[Change]
+) -> list[Write]:
     """Return the (path, content) pairs to write."""
-    writes = []
+    writes: list[Write] = []
     if changes:
         writes.append((Path(images_file), dump_config(cfg)))
     if flat_file is not None:
@@ -247,7 +250,7 @@ def pending_writes(images_file: Path, flat_file: Optional[Path], cfg: dict, chan
 
 
 def report_check(
-    images_file: Path, flat_file: Optional[Path], changes: list[Change], writes
+    images_file: Path, flat_file: Optional[Path], changes: list[Change], writes: list[Write]
 ) -> int:
     """Report --check failures."""
     if changes:
@@ -257,7 +260,7 @@ def report_check(
     return EXIT_OUTDATED
 
 
-def apply_writes(writes, dry_run: bool) -> None:
+def apply_writes(writes: list[Write], dry_run: bool) -> None:
     """Write files, or print diffs on dry run."""
     for path, content in writes:
         if dry_run:
@@ -322,7 +325,8 @@ def main(argv: Optional[list[str]] = None, fetcher: Fetcher = http_fetch) -> int
     for change in changes:
         logger.info("%s", change)
     apply_updates(cfg, changes)
-    flat_file = args.flat_file
+    # TODO: remove --flat-file once test.images.txt is no longer consumed
+    flat_file: Optional[Path] = args.flat_file
     if flat_file is not None:
         logger.warning("--flat-file is deprecated and will be removed in a future release")
     writes = pending_writes(args.file, flat_file, cfg, changes)

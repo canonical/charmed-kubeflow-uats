@@ -24,7 +24,7 @@ jobs:
         base:
           - main
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ matrix.base }}
       - run: python3 -m pip install tox
@@ -39,7 +39,7 @@ jobs:
           passphrase: ${{ secrets.CHACI_GPG_PASSPHRASE }}
           git_user_signingkey: true
           git_commit_gpgsign: true
-      - uses: peter-evans/create-pull-request@v7
+      - uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7.0.11
         with:
           token: ${{ secrets.CHACI_GH_TOKEN }}
           author: ${{ steps.import-gpg.outputs.name }} <${{ steps.import-gpg.outputs.email }}>

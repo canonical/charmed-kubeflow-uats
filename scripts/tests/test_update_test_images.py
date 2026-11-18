@@ -5,6 +5,7 @@ import copy
 import json
 import sys
 from pathlib import Path
+from typing import Any, Callable, Optional
 
 import pytest
 import yaml
@@ -22,7 +23,7 @@ KFP_URL = (
     "charms/kfp-profile-controller/src/default-custom-images.json"
 )
 
-CONFIG = {
+CONFIG: dict[str, Any] = {
     "charms": {
         "argo-operators": {
             "repo": "https://github.com/canonical/argo-operators",
@@ -55,7 +56,7 @@ CONFIG = {
     "static": ["docker.io/library/busybox:1.36", "docker.io/charmedkubeflow/frontend:1"],
 }
 
-UPSTREAM = {
+UPSTREAM: dict[str, str] = {
     ARGO_URL: "options:\n  executor-image:\n    type: string\n"
     "    default: charmedkubeflow/argoexec:new\n",
     KFP_URL: json.dumps(
@@ -68,11 +69,13 @@ UPSTREAM = {
 
 
 class FakeFetcher:
-    def __init__(self, responses):
-        self.responses = responses
-        self.calls = []
+    """Fetcher serving canned responses and recording the requested URLs."""
 
-    def __call__(self, url):
+    def __init__(self, responses: dict[str, str]) -> None:
+        self.responses = responses
+        self.calls: list[str] = []
+
+    def __call__(self, url: str) -> str:
         self.calls.append(url)
         if url not in self.responses:
             raise uti.ImagesConfigError(f"Failed to fetch {url}: 404")
@@ -80,25 +83,34 @@ class FakeFetcher:
 
 
 @pytest.fixture
-def config():
+def config() -> dict[str, Any]:
+    """Return a fresh copy of the sample images config."""
     return copy.deepcopy(CONFIG)
 
 
 @pytest.fixture
-def images_file(tmp_path, config):
+def images_file(tmp_path: Path, config: dict[str, Any]) -> Path:
+    """Write the sample config to a temporary images file."""
     path = tmp_path / "test.images.yaml"
     uti.write_config(path, config)
     return path
 
 
 @pytest.fixture
-def flat_file(tmp_path, config):
+def flat_file(tmp_path: Path, config: dict[str, Any]) -> Path:
+    """Write the flat list matching the sample config to a temporary file."""
     path = tmp_path / "test.images.txt"
     path.write_text(uti.flatten(config))
     return path
 
 
-def run(images_file, *args, flat_file=None, fetcher=None):
+def run(
+    images_file: Path,
+    *args: str,
+    flat_file: Optional[Path] = None,
+    fetcher: Optional[FakeFetcher] = None,
+) -> int:
+    """Run the script on images_file, against UPSTREAM unless another fetcher is given."""
     argv = ["--file", str(images_file), *args]
     if flat_file is not None:
         argv += ["--flat-file", str(flat_file)]
@@ -117,11 +129,13 @@ def run(images_file, *args, flat_file=None, fetcher=None):
         ('  "docker.io/a/b:1" ', "docker.io/a/b:1"),
     ],
 )
-def test_normalize_image(ref, expected):
+def test_normalize_image(ref: str, expected: str) -> None:
+    """The default registry is added only when the reference has none."""
     assert uti.normalize_image(ref) == expected
 
 
-def test_resolve_path():
+def test_resolve_path() -> None:
+    """Dotted paths resolve nested keys; missing or non-mapping steps raise KeyError."""
     data = {"options": {"img": {"default": "x"}}, "flat": "y"}
     assert uti.resolve_path(data, "options.img.default") == "x"
     assert uti.resolve_path(data, "flat") == "y"
@@ -131,7 +145,8 @@ def test_resolve_path():
         uti.resolve_path(data, "flat.deeper")
 
 
-def test_parse_content():
+def test_parse_content() -> None:
+    """Files are parsed by extension; unsupported or malformed content raises."""
     assert uti.parse_content('{"a": 1}', "x.json") == {"a": 1}
     assert uti.parse_content("a: 1\n", "x.yaml") == {"a": 1}
     assert uti.parse_content("a: 1\n", "x.yml") == {"a": 1}
@@ -141,7 +156,8 @@ def test_parse_content():
         uti.parse_content("{", "x.json")
 
 
-def test_raw_url():
+def test_raw_url() -> None:
+    """GitHub URLs map to raw URLs (.git and leading / stripped); other hosts raise."""
     assert (
         uti.raw_url("https://github.com/canonical/kfp-operators.git", "track/2.5", "/a/b.json")
         == "https://raw.githubusercontent.com/canonical/kfp-operators/track/2.5/a/b.json"
@@ -150,7 +166,8 @@ def test_raw_url():
         uti.raw_url("https://gitlab.com/canonical/kfp-operators", "main", "a")
 
 
-def test_compute_updates_and_cache(config):
+def test_compute_updates_and_cache(config: dict[str, Any]) -> None:
+    """Only differing images are reported, and a file shared by entries is fetched once."""
     fetcher = FakeFetcher(UPSTREAM)
     changes = uti.compute_updates(config, fetcher)
 
@@ -173,13 +190,15 @@ def test_compute_updates_and_cache(config):
     assert sorted(fetcher.calls) == sorted([ARGO_URL, KFP_URL])
 
 
-def test_compute_updates_missing_path(config):
+def test_compute_updates_missing_path(config: dict[str, Any]) -> None:
+    """A path missing upstream is reported as an error."""
     config["charms"]["kfp-operators"]["images"][0]["path"] = "nope"
     with pytest.raises(uti.ImagesConfigError, match="'nope' not found"):
         uti.compute_updates(config, FakeFetcher(UPSTREAM))
 
 
-def test_compute_updates_non_string_value(config):
+def test_compute_updates_non_string_value(config: dict[str, Any]) -> None:
+    """A path pointing to a non-string value is reported as an error."""
     config["charms"]["argo-operators"]["images"][0]["path"] = "options.executor-image"
     with pytest.raises(uti.ImagesConfigError, match="not an image reference"):
         uti.compute_updates(config, FakeFetcher(UPSTREAM))
@@ -197,17 +216,22 @@ def test_compute_updates_non_string_value(config):
         lambda c: c["charms"]["argo-operators"]["images"][0].update(image=""),
     ],
 )
-def test_validate_config_errors(config, mutate):
+def test_validate_config_errors(
+    config: dict[str, Any], mutate: Callable[[dict[str, Any]], Any]
+) -> None:
+    """Each malformed variant of the config is rejected."""
     mutate(config)
     with pytest.raises(uti.ImagesConfigError):
         uti.validate_config(config)
 
 
-def test_validate_config_ok(config):
+def test_validate_config_ok(config: dict[str, Any]) -> None:
+    """The sample config is valid."""
     uti.validate_config(config)
 
 
-def test_list(images_file, capsys):
+def test_list(images_file: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """--list prints all images sorted and de-duplicated, without fetching."""
     fetcher = FakeFetcher({})
     assert uti.main(["--file", str(images_file), "--list"], fetcher) == uti.EXIT_OK
     assert capsys.readouterr().out.splitlines() == [
@@ -219,14 +243,18 @@ def test_list(images_file, capsys):
     assert fetcher.calls == []
 
 
-def test_check_outdated_does_not_write(images_file):
+def test_check_outdated_does_not_write(images_file: Path) -> None:
+    """--check exits 1 on outdated images and leaves the file untouched."""
     before = images_file.read_text()
     rc = uti.main(["--file", str(images_file), "--check"], FakeFetcher(UPSTREAM))
     assert rc == uti.EXIT_OUTDATED
     assert images_file.read_text() == before
 
 
-def test_dry_run_prints_diff_and_does_not_write(images_file, capsys):
+def test_dry_run_prints_diff_and_does_not_write(
+    images_file: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """--dry-run prints a diff of only the changed images and does not write."""
     before = images_file.read_text()
     rc = uti.main(["--file", str(images_file), "--dry-run"], FakeFetcher(UPSTREAM))
     assert rc == uti.EXIT_OK
@@ -242,7 +270,10 @@ def test_dry_run_prints_diff_and_does_not_write(images_file, capsys):
     )
 
 
-def test_dry_run_up_to_date_prints_nothing(images_file, capsys):
+def test_dry_run_up_to_date_prints_nothing(
+    images_file: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """--dry-run prints nothing when everything is up to date."""
     uti.main(["--file", str(images_file)], FakeFetcher(UPSTREAM))
     capsys.readouterr()
     rc = uti.main(["--file", str(images_file), "--dry-run"], FakeFetcher(UPSTREAM))
@@ -250,7 +281,8 @@ def test_dry_run_up_to_date_prints_nothing(images_file, capsys):
     assert capsys.readouterr().out == ""
 
 
-def test_flatten(config):
+def test_flatten(config: dict[str, Any]) -> None:
+    """The flat list holds charm and static images, sorted and de-duplicated."""
     assert uti.flatten(config) == (
         "docker.io/charmedkubeflow/argoexec:old\n"
         "docker.io/charmedkubeflow/frontend:1\n"
@@ -259,25 +291,31 @@ def test_flatten(config):
     )
 
 
-def test_flat_file_not_written_by_default(images_file, tmp_path):
+def test_flat_file_not_written_by_default(images_file: Path, tmp_path: Path) -> None:
+    """Without --flat-file, no flat list is written or checked."""
     assert run(images_file) == uti.EXIT_OK
     assert sorted(p.name for p in tmp_path.iterdir()) == ["test.images.yaml"]
     assert run(images_file, "--check") == uti.EXIT_OK
 
 
-def test_update_rewrites_flat_file(images_file, flat_file):
+def test_update_rewrites_flat_file(images_file: Path, flat_file: Path) -> None:
+    """An update with --flat-file rewrites the flat list with the new images."""
     assert run(images_file, flat_file=flat_file) == uti.EXIT_OK
     assert flat_file.read_text() == uti.flatten(uti.load_config(images_file))
     assert "docker.io/charmedkubeflow/argoexec:new\n" in flat_file.read_text()
 
 
-def test_flat_file_deprecation_warning(images_file, flat_file, caplog):
+def test_flat_file_deprecation_warning(
+    images_file: Path, flat_file: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Using --flat-file logs a deprecation warning."""
     run(images_file, "--check", flat_file=flat_file)
     assert "--flat-file is deprecated" in caplog.text
 
 
 @pytest.mark.parametrize("state", ["missing", "stale"])
-def test_flat_file_out_of_sync_only(images_file, flat_file, state):
+def test_flat_file_out_of_sync_only(images_file: Path, flat_file: Path, state: str) -> None:
+    """A missing or stale flat list fails --check and is regenerated without touching the YAML."""
     run(images_file, flat_file=flat_file)
     images_before = images_file.read_text()
     expected = flat_file.read_text()
@@ -293,7 +331,10 @@ def test_flat_file_out_of_sync_only(images_file, flat_file, state):
     assert images_file.read_text() == images_before
 
 
-def test_dry_run_shows_flat_file_diff(images_file, flat_file, capsys):
+def test_dry_run_shows_flat_file_diff(
+    images_file: Path, flat_file: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """--dry-run with --flat-file also prints the flat list diff, without writing."""
     before = flat_file.read_text()
     run(images_file, "--dry-run", flat_file=flat_file)
     out = capsys.readouterr().out
@@ -303,12 +344,14 @@ def test_dry_run_shows_flat_file_diff(images_file, flat_file, capsys):
     assert flat_file.read_text() == before
 
 
-def test_exclusive_modes(images_file):
+def test_exclusive_modes(images_file: Path) -> None:
+    """--dry-run and --check cannot be combined."""
     with pytest.raises(SystemExit):
         uti.main(["--file", str(images_file), "--dry-run", "--check"], FakeFetcher(UPSTREAM))
 
 
-def test_update_writes_and_preserves_order(images_file):
+def test_update_writes_and_preserves_order(images_file: Path) -> None:
+    """An update writes only the new images, keeps key order, and is idempotent."""
     assert uti.main(["--file", str(images_file)], FakeFetcher(UPSTREAM)) == uti.EXIT_OK
 
     text = images_file.read_text()
@@ -328,18 +371,21 @@ def test_update_writes_and_preserves_order(images_file):
     assert rc == uti.EXIT_OK
 
 
-def test_fetch_error_does_not_write(images_file):
+def test_fetch_error_does_not_write(images_file: Path) -> None:
+    """A fetch error exits 2 and leaves the file untouched."""
     before = images_file.read_text()
     assert uti.main(["--file", str(images_file)], FakeFetcher({})) == uti.EXIT_ERROR
     assert images_file.read_text() == before
 
 
-def test_invalid_file(tmp_path):
+def test_invalid_file(tmp_path: Path) -> None:
+    """An images file that is not a mapping exits 2."""
     path = tmp_path / "bad.yaml"
     path.write_text("- just\n- a list\n")
     assert uti.main(["--file", str(path), "--list"]) == uti.EXIT_ERROR
 
 
-def test_repo_file_is_valid():
+def test_repo_file_is_valid() -> None:
+    """The committed assets/test.images.yaml is valid."""
     cfg = uti.load_config(uti.DEFAULT_FILE)
     assert cfg["charms"]

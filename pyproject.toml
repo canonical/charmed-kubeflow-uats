@@ -1,7 +1,7 @@
 [project]
-name = "kubeflow-uat"
+name = "kubeflow-uats"
 version = "1.0"
-description = "kubeflow-uat"
+description = "kubeflow-uats"
 authors = []
 requires-python = ">=3.12"
 dependencies = [
