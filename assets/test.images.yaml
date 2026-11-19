@@ -5,7 +5,7 @@ charms:
     images:
     - file: charms/argo-controller/config.yaml
       path: options.executor-image.default
-      image: docker.io/charmedkubeflow/argoexec:3.7.3-dffabf8
+      image: docker.io/charmedkubeflow/argoexec:3.7.3-dffabf8-20260819080054
   katib-operators:
     repo: https://github.com/canonical/katib-operators
     branch: track/0.19
@@ -41,10 +41,10 @@ charms:
     images:
     - file: charms/kserve-controller/src/default-custom-images.json
       path: serving_runtimes__sklearnserver
-      image: docker.io/charmedkubeflow/sklearnserver:0.17.0-58a95a5
+      image: docker.io/charmedkubeflow/sklearnserver:0.17.0-9946fc8-20261110145026
     - file: charms/kserve-controller/src/default-custom-images.json
       path: configmap__storageInitializer
-      image: docker.io/charmedkubeflow/storage-initializer:0.17.0-07d37fb
+      image: docker.io/charmedkubeflow/storage-initializer:0.17.0-9379e1b-20260825092926
   metacontroller-operator:
     repo: https://github.com/canonical/metacontroller-operator
     branch: track/4.11
@@ -58,7 +58,7 @@ charms:
     images:
     - file: config.yaml
       path: options.training-operator-image.default
-      image: docker.io/charmedkubeflow/training-operator:1.9.3-9e9ea13
+      image: docker.io/charmedkubeflow/training-operator:1.9.3-fa7483b-20260909084111
 static:
 - docker.io/kubeflow/tf-mnist-with-summaries:latest
 - docker.io/kubeflowkatib/pytorch-mnist-cpu:v0.16.0
