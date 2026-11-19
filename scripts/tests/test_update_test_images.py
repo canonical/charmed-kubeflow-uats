@@ -3,6 +3,7 @@
 
 import copy
 import json
+import logging
 import sys
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -251,15 +252,16 @@ def test_check_outdated_does_not_write(images_file: Path) -> None:
     assert images_file.read_text() == before
 
 
-def test_dry_run_prints_diff_and_does_not_write(
-    images_file: Path, capsys: pytest.CaptureFixture[str]
+def test_dry_run_logs_diff_and_does_not_write(
+    images_file: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """--dry-run prints a diff of only the changed images and does not write."""
+    """--dry-run logs a diff of only the changed images and does not write."""
+    caplog.set_level(logging.INFO)
     before = images_file.read_text()
     rc = uti.main(["--file", str(images_file), "--dry-run"], FakeFetcher(UPSTREAM))
     assert rc == uti.EXIT_OK
     assert images_file.read_text() == before
-    out = capsys.readouterr().out
+    out = caplog.text
     assert "-      image: docker.io/charmedkubeflow/argoexec:old" in out
     assert "+      image: docker.io/charmedkubeflow/argoexec:new" in out
     assert "+      image: docker.io/charmedkubeflow/visualization-server:2" in out
@@ -270,15 +272,27 @@ def test_dry_run_prints_diff_and_does_not_write(
     )
 
 
-def test_dry_run_up_to_date_prints_nothing(
-    images_file: Path, capsys: pytest.CaptureFixture[str]
+def test_dry_run_up_to_date_logs_no_diff(
+    images_file: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """--dry-run prints nothing when everything is up to date."""
+    """--dry-run logs no diff when everything is up to date."""
+    caplog.set_level(logging.INFO)
     uti.main(["--file", str(images_file)], FakeFetcher(UPSTREAM))
-    capsys.readouterr()
+    caplog.clear()
     rc = uti.main(["--file", str(images_file), "--dry-run"], FakeFetcher(UPSTREAM))
     assert rc == uti.EXIT_OK
-    assert capsys.readouterr().out == ""
+    assert "Dry run" not in caplog.text
+
+
+@pytest.mark.parametrize("dry_run, level", [(False, logging.INFO), (True, logging.DEBUG)])
+def test_change_log_level(
+    images_file: Path, caplog: pytest.LogCaptureFixture, dry_run: bool, level: int
+) -> None:
+    """Image bumps are logged at INFO, except on --dry-run where the diff shows them."""
+    caplog.set_level(logging.DEBUG)
+    run(images_file, *(["--dry-run"] if dry_run else []))
+    bumps = [r for r in caplog.records if " -> " in r.getMessage()]
+    assert bumps and all(r.levelno == level for r in bumps)
 
 
 def test_flatten(config: dict[str, Any]) -> None:
@@ -332,12 +346,13 @@ def test_flat_file_out_of_sync_only(images_file: Path, flat_file: Path, state: s
 
 
 def test_dry_run_shows_flat_file_diff(
-    images_file: Path, flat_file: Path, capsys: pytest.CaptureFixture[str]
+    images_file: Path, flat_file: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """--dry-run with --flat-file also prints the flat list diff, without writing."""
+    """--dry-run with --flat-file also logs the flat list diff, without writing."""
+    caplog.set_level(logging.INFO)
     before = flat_file.read_text()
     run(images_file, "--dry-run", flat_file=flat_file)
-    out = capsys.readouterr().out
+    out = caplog.text
     assert f"+++ {flat_file}" in out
     assert "-docker.io/charmedkubeflow/argoexec:old" in out
     assert "+docker.io/charmedkubeflow/argoexec:new" in out

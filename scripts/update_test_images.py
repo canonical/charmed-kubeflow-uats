@@ -261,11 +261,12 @@ def report_check(
 
 
 def apply_writes(writes: list[Write], dry_run: bool) -> None:
-    """Write files, or print diffs on dry run."""
+    """Write files, or log diffs on dry run."""
     for path, content in writes:
         if dry_run:
-            print(text_diff(path, content), end="")
-            logger.info("Dry run: %s would be updated", path)
+            logger.info(
+                "Dry run: %s would be updated:\n%s", path, text_diff(path, content).rstrip()
+            )
         else:
             path.write_text(content)
             logger.info("Updated %s", path)
@@ -293,7 +294,7 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     mode.add_argument(
         "--dry-run",
         action="store_true",
-        help="do not write; print the diff that would be applied to the files",
+        help="do not write; log the diff that would be applied to the files",
     )
     mode.add_argument(
         "--list",
@@ -322,8 +323,9 @@ def main(argv: Optional[list[str]] = None, fetcher: Fetcher = http_fetch) -> int
         logger.error("%s", e)
         return EXIT_ERROR
 
+    change_level = logging.DEBUG if args.dry_run else logging.INFO
     for change in changes:
-        logger.info("%s", change)
+        logger.log(change_level, "%s", change)
     apply_updates(cfg, changes)
     # TODO: remove --flat-file once test.images.txt is no longer consumed
     flat_file: Optional[Path] = args.flat_file
