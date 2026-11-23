@@ -21,6 +21,7 @@ from lightkube import Client, codecs
 
 from helpers import (
     ASSETS_DIR,
+    AUTHZ_PROPAGATION_RETRY_CODES,
     INFERENCE_SERVICE_RESOURCE,
     request_inference,
     request_inference_with_jwt_warmup,
@@ -116,8 +117,15 @@ def test_authorized_token_reaches_inferenceservice(
     """
     hostname, isvc_name = create_inference_service
 
+    # Also retry on 403: the client's AuthorizationPolicy is created right before this
+    # request and is denied until it has propagated to the waypoint.
     http_code, body = request_inference_with_jwt_warmup(
-        hostname, gateway_ip, authorized_token, PAYLOAD, isvc_name
+        hostname,
+        gateway_ip,
+        authorized_token,
+        PAYLOAD,
+        isvc_name,
+        retry_codes=AUTHZ_PROPAGATION_RETRY_CODES,
     )
 
     assert http_code == 200, f"Expected HTTP 200, got {http_code}. Body: {body}"
