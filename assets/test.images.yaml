@@ -25,7 +25,7 @@ charms:
     images:
     - file: charms/kfp-api/config.yaml
       path: options.driver-image.default
-      image: docker.io/misohu/kfp-driver:2.18.0
+      image: docker.io/charmedkubeflow/kfp-driver:2.18.0-977ac3f-20261122124021
     - file: charms/kfp-api/config.yaml
       path: options.launcher-image.default
       image: docker.io/charmedkubeflow/kfp-launcher:2.18.0-9bac0a6-20261118142823
@@ -34,7 +34,7 @@ charms:
       image: docker.io/misohu/frontend:2.18.0
     - file: charms/kfp-profile-controller/src/default-custom-images.json
       path: visualization_server
-      image: docker.io/misohu/visualization-server:2.18.0
+      image: docker.io/charmedkubeflow/visualization-server:2.18.0-a81e35c-20261119220903
   kserve-operators:
     repo: https://github.com/canonical/kserve-operators
     branch: main
