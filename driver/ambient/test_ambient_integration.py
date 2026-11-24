@@ -4,17 +4,17 @@ import logging
 from pathlib import Path
 
 import pytest
-from lightkube import ApiError, Client, codecs
+from lightkube import Client, codecs
 from lightkube.generic_resource import load_in_cluster_generic_resources
 from lightkube.models.core_v1 import Container, PodSpec
 from lightkube.models.meta_v1 import ObjectMeta
 from lightkube.resources.core_v1 import Pod
-from lightkube.types import CascadeType
+
 from utils import (
     PROFILE_RESOURCE,
     assert_namespace_active,
     assert_pod_running,
-    assert_profile_deleted,
+    assert_resource_deleted,
     assert_service_account_exists,
     exec_in_pod,
 )
@@ -38,7 +38,7 @@ def lightkube_client():
     return lightkube_client
 
 
-def _create_and_cleanup_profile(client: Client, namespace: str):
+def _create_and_cleanup_profile(client: Client, namespace: str, keep_artifacts: bool):
     """Helper to create a profile and handle cleanup. Use in fixtures with yield."""
     log.info(f"Creating Profile {namespace}...")
     profile = list(
@@ -58,31 +58,28 @@ def _create_and_cleanup_profile(client: Client, namespace: str):
 
     yield
 
+    if keep_artifacts:
+        log.info(f"Keeping Profile {namespace} (--keep-artifacts set)")
+        return
+
     # Delete the Profile at the end
-    log.info(f"Deleting Profile {namespace}...")
-    try:
-        client.delete(PROFILE_RESOURCE, name=namespace, cascade=CascadeType.FOREGROUND)
-        assert_profile_deleted(client, namespace, log)
-    except ApiError as e:
-        if e.status.code != 404:
-            raise
-        log.info(f"Profile {namespace} already deleted")
+    assert_resource_deleted(client, PROFILE_RESOURCE, namespace)
 
 
 @pytest.fixture(scope="module")
-def create_profile_1(lightkube_client):
+def create_profile_1(lightkube_client, keep_artifacts: bool):
     """Create Profile 1 (profile1) and handle cleanup at the end."""
-    yield from _create_and_cleanup_profile(lightkube_client, NAMESPACE_1)
+    yield from _create_and_cleanup_profile(lightkube_client, NAMESPACE_1, keep_artifacts)
 
 
 @pytest.fixture(scope="module")
-def create_profile_2(lightkube_client):
+def create_profile_2(lightkube_client, keep_artifacts: bool):
     """Create Profile 2 (profile2) and handle cleanup at the end."""
-    yield from _create_and_cleanup_profile(lightkube_client, NAMESPACE_2)
+    yield from _create_and_cleanup_profile(lightkube_client, NAMESPACE_2, keep_artifacts)
 
 
 @pytest.fixture(scope="module")
-def create_curl_pod(lightkube_client, create_profile_2):
+def create_curl_pod(lightkube_client, create_profile_2, keep_artifacts: bool):
     """Create a curl pod in profile 2."""
     log.info(f"Creating curl pod {NAMESPACE_2}/{CURL_POD_NAME}...")
 
@@ -112,21 +109,19 @@ def create_curl_pod(lightkube_client, create_profile_2):
 
     yield CURL_POD_NAME
 
+    if keep_artifacts:
+        log.info(f"Keeping curl pod {NAMESPACE_2}/{CURL_POD_NAME} (--keep-artifacts set)")
+        return
+
     # Cleanup
-    log.info(f"Deleting pod {NAMESPACE_2}/{CURL_POD_NAME}...")
-    try:
-        lightkube_client.delete(Pod, name=CURL_POD_NAME, namespace=NAMESPACE_2)
-    except ApiError as e:
-        if e.status.code != 404:
-            raise
-        log.info(f"Pod {CURL_POD_NAME} already deleted")
+    assert_resource_deleted(lightkube_client, Pod, CURL_POD_NAME, NAMESPACE_2)
 
 
 @pytest.mark.dependency(
     depends=["driver/test_kubeflow_workloads.py::test_bundle_correctness"], scope="session"
 )
 def test_ambient_rbac_isolation(
-    lightkube_client, create_profile_1, create_profile_2, create_curl_pod
+    lightkube_client, create_profile_1, create_profile_2, create_curl_pod, application_model
 ):
     """Test that ambient mesh prevents cross-profile access via RBAC.
 
@@ -146,7 +141,7 @@ def test_ambient_rbac_isolation(
         "\\nHTTP_CODE:%{http_code}",
         "-H",
         f"kubeflow-userid: {NAMESPACE_1}@email.com",
-        f"ml-pipeline.kubeflow.svc:8888/apis/v2beta1/experiments?namespace={NAMESPACE_1}",
+        f"ml-pipeline.{application_model}.svc:8888/apis/v2beta1/experiments?namespace={NAMESPACE_1}",  # noqa: E501
     ]
 
     stdout, stderr, returncode = exec_in_pod(pod_name, NAMESPACE_2, curl_command)

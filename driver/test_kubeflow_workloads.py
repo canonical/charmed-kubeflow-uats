@@ -1,36 +1,43 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import contextlib
 import logging
 import os
 import re
 import subprocess
 import time
 from functools import reduce
-from itertools import batched
 from pathlib import Path
 
+import jubilant
 import pytest
 import requests
 import yaml
 from lightkube import ApiError, Client, codecs
-from lightkube.generic_resource import (
-    create_global_resource,
-    create_namespaced_resource,
-    load_in_cluster_generic_resources,
+from lightkube.models.meta_v1 import ObjectMeta
+from lightkube.resources.core_v1 import Namespace, ServiceAccount
+
+from notebook_jobs import (
+    RUNTIMECLASS_RESOURCE,
+    job_name_for,
+    record_result,
+    render_notebook_job,
+    run_notebook_job,
 )
-from lightkube.types import CascadeType
 from utils import (
+    PODDEFAULT_RESOURCE,
+    PROFILE_RESOURCE,
     assert_namespace_active,
     assert_poddefault_created_in_namespace,
-    assert_profile_deleted,
+    assert_resource_deleted,
+    assert_service_account_exists,
     context_from,
     create_poddefault,
-    fetch_job_logs,
-    wait_for_job,
 )
 
 log = logging.getLogger(__name__)
+logging.getLogger("jubilant.wait").setLevel("WARNING")
 
 ASSETS_DIR = Path("assets")
 JOB_TEMPLATE_FILE = ASSETS_DIR / "test-job.yaml.j2"
@@ -39,33 +46,19 @@ RUNTIMECLASS_TEMPLATE_FILE = ASSETS_DIR / "runtimeclass.yaml.j2"
 
 TESTS_LOCAL_RUN = eval(os.environ.get("LOCAL"))
 TESTS_LOCAL_DIR = os.path.abspath(Path("tests"))
-TESTS_IMAGE = "charmedkubeflow/jupyter-scipy:1.10.0-fafb9e8"
 
-NAMESPACE = "test-kubeflow"
-PROFILE_RESOURCE = create_global_resource(
-    group="kubeflow.org",
-    version="v1",
-    kind="profile",
-    plural="profiles",
-)
-RUNTIMECLASS_RESOURCE = create_global_resource(
-    group="node.k8s.io",
-    version="v1",
-    kind="runtimeclass",
-    plural="runtimeclasses",
-)
-
-JOB_NAME = "test-kubeflow"
+NAMESPACE = PROFILE_NAME = "test-kubeflow"
+JOB_PREFIX = "test-nb"
 JOB_RUNTIMECLASS_NAME = "uats"
 
-PYTEST_CMD_BASE = "python3 -m pytest"
+# Host directory where the driver saves a notebook's Job logs (on failure/timeout).
+ARTIFACTS_ROOT = Path("artifacts")
 
-PODDEFAULT_RESOURCE = create_namespaced_resource(
-    group="kubeflow.org",
-    version="v1alpha1",
-    kind="poddefault",
-    plural="poddefaults",
-)
+# The tests directory inside the Job pod: the hostPath mount (local) or the git-synced
+# repo's tests dir (remote). Kept in sync with the volume/git-sync setup in test-job.yaml.j2.
+POD_TESTS_DIR_LOCAL = "/tests"
+POD_TESTS_DIR_REMOTE = "/tests/charmed-kubeflow-uats/tests"
+
 PODDEFAULT_WITH_PROXY_PATH = Path("tests") / "proxy-poddefault.yaml.j2"
 PODDEFAULT_WITH_TOLERATION_PATH = Path("assets") / "gpu-toleration-poddefault.yaml.j2"
 PODDEFAULT_WITH_SECURITY_POLICY_PATH = Path("tests") / "security-policy-poddefault.yaml.j2"
@@ -74,8 +67,22 @@ KFP_PODDEFAULT_NAME = "access-ml-pipeline"
 
 
 @pytest.fixture(scope="module")
-def charm_list(request):
-    url = request.config.getoption("--bundle")
+def juju(request: pytest.FixtureRequest, application_model: str):
+    """Create a temporary or use an existing Juju model for running tests."""
+    keep_models = bool(request.config.getoption("--keep-models"))
+
+    if application_model:
+        model_context = contextlib.nullcontext(jubilant.Juju(model=application_model))
+    else:
+        model_context = jubilant.temp_model(keep=keep_models)
+
+    with model_context as juju:
+        yield juju
+
+
+@pytest.fixture(scope="module")
+def charm_list(request: pytest.FixtureRequest):
+    url: str = request.config.getoption("--bundle")
 
     if not url:
         return {}
@@ -106,79 +113,95 @@ def charm_list(request):
 
 
 @pytest.fixture(scope="module")
-def tests_image(request):
+def tests_image(request: pytest.FixtureRequest):
     return request.config.getoption("--test-image")
 
 
 @pytest.fixture(scope="module")
-def k8s_default_runtimeclass_handler(request):
+def k8s_default_runtimeclass_handler(request: pytest.FixtureRequest):
     return request.config.getoption("--k8s-default-runtimeclass-handler")
 
 
 @pytest.fixture(scope="module")
-def pytest_filter(request):
-    """Retrieve filter from Pytest invocation."""
-    filter = request.config.getoption("filter")
-    return f"-k '{filter}'" if filter else ""
-
-
-@pytest.fixture(scope="module")
-def include_ambient(request):
+def include_ambient(request: pytest.FixtureRequest):
     """Retrieve the `--include-ambient-tests` flag from Pytest invocation."""
     return True if request.config.getoption("--include-ambient-tests") else False
 
 
 @pytest.fixture(scope="module")
-def include_gpu_tests(request):
-    """Retrieve the `--include-gpu-tests` flag from Pytest invocation."""
-    return True if request.config.getoption("--include-gpu-tests") else False
-
-
-@pytest.fixture(scope="module")
-def include_kubeflow_trainer_tests(request):
-    """Retrieve the `--include-kubeflow-trainer-tests` flag from Pytest invocation."""
-    return True if request.config.getoption("--include-kubeflow-trainer-tests") else False
-
-
-@pytest.fixture(scope="module")
-def kubeflow_model(request, ops_test):
-    """Retrieve name of the model where Kubeflow is deployed."""
-    model_name = request.config.getoption("--kubeflow-model")
-    return model_name if model_name else ops_test.model.name
-
-
-@pytest.fixture(scope="module")
-def tests_checked_out_commit(request):
+def tests_checked_out_commit():
     """Retrieve active git commit."""
     head = subprocess.check_output(["git", "rev-parse", "HEAD"])
     return head.decode("UTF-8").rstrip()
 
 
 @pytest.fixture(scope="module")
-def pytest_cmd(pytest_filter, include_gpu_tests, include_kubeflow_trainer_tests):
-    """Format the Pytest command."""
-    cmd = PYTEST_CMD_BASE
-    if pytest_filter:
-        cmd += f" {pytest_filter}"
-    if include_gpu_tests:
-        cmd += " --include-gpu-tests"
-    if include_kubeflow_trainer_tests:
-        cmd += " --include-kubeflow-trainer-tests"
-    return cmd
+def notebook_timeout(request: pytest.FixtureRequest):
+    """Return the per-notebook Job timeout (activeDeadlineSeconds) in seconds."""
+    return int(request.config.getoption("--notebook-timeout"))
 
 
 @pytest.fixture(scope="module")
-def lightkube_client():
-    """Initialise Lightkube Client."""
-    lightkube_client = Client(trust_env=False)
-    load_in_cluster_generic_resources(lightkube_client)
-    return lightkube_client
+def mlflow_tracking_uri(request: pytest.FixtureRequest):
+    """Return the MLflow tracking URI to inject into the Job (set for standalone MLflow)."""
+    return request.config.getoption("--mlflow-tracking-uri")
 
 
 @pytest.fixture(scope="module")
-def create_profile(lightkube_client):
-    """Create Profile and handle cleanup at the end of the module tests."""
-    log.info(f"Creating Profile {NAMESPACE}...")
+def rerun_failed(request: pytest.FixtureRequest):
+    """Return how many times a failed notebook should be retried."""
+    return int(request.config.getoption("--rerun-failed-notebooks"))
+
+
+@pytest.fixture(scope="module")
+def retry_timeout(request: pytest.FixtureRequest):
+    """Return the max retry timeout (seconds) exposed to notebooks as RETRY_TIMEOUT."""
+    return int(request.config.getoption("--retry-timeout"))
+
+
+@pytest.fixture(scope="module")
+def create_profile_or_namespace(
+    request: pytest.FixtureRequest,
+    lightkube_client: Client,
+    keep_artifacts: bool,
+    is_mlflow_standalone: bool,
+):
+    """Create the test Profile or namespace and handle cleanup at the end of the module tests.
+
+    When a plain namespace is created instead of a Kubeflow Profile (for MLflow standalone), it is
+    enrolled in the ambient-mode service mesh (so the pod carries the test-kubeflow identity the
+    deployment grants), labelled with the required Pod Security Standards level, and given a
+    default-editor ServiceAccount (the one the Job pod runs as), to be coherent with what Kubeflow
+    does via Profiles and PodDefaults.
+    """
+    if is_mlflow_standalone:
+        security_policy = request.config.getoption("security_policy")
+        log.info(f"Creating namespace {NAMESPACE} for standalone MLflow...")
+        lightkube_client.create(
+            Namespace(
+                metadata=ObjectMeta(
+                    name=NAMESPACE,
+                    labels={
+                        "istio.io/dataplane-mode": "ambient",
+                        "pod-security.kubernetes.io/enforce": security_policy,
+                    },
+                )
+            )
+        )
+        lightkube_client.create(
+            ServiceAccount(metadata=ObjectMeta(name="default-editor", namespace=NAMESPACE))
+        )
+
+        yield PROFILE_NAME
+
+        if keep_artifacts:
+            log.info(f"Keeping namespace {NAMESPACE} (--keep-artifacts set)")
+            return
+        # deleting the namespace cascades to the ServiceAccount:
+        assert_resource_deleted(lightkube_client, Namespace, NAMESPACE)
+        return
+
+    log.info(f"Creating Profile {PROFILE_NAME}...")
     resources = list(
         codecs.load_all_yaml(
             PROFILE_TEMPLATE_FILE.read_text(),
@@ -188,29 +211,34 @@ def create_profile(lightkube_client):
     assert len(resources) == 1, f"Expected 1 Profile, got {len(resources)}!"
     lightkube_client.create(resources[0])
 
-    yield
+    yield PROFILE_NAME
+
+    if keep_artifacts:
+        log.info(f"Keeping Profile {PROFILE_NAME} (--keep-artifacts set)")
+        return
 
     # delete the Profile at the end of the module tests
-    log.info(f"Deleting Profile {NAMESPACE}...")
-    lightkube_client.delete(PROFILE_RESOURCE, name=NAMESPACE, cascade=CascadeType.FOREGROUND)
-    assert_profile_deleted(lightkube_client, NAMESPACE, log)
+    assert_resource_deleted(lightkube_client, PROFILE_RESOURCE, PROFILE_NAME)
 
 
 @pytest.fixture(scope="function")
-def create_poddefault_on_proxy(request, lightkube_client):
-    """Create PodDefault with proxy env variables for the Notebook inside the Job."""
+def create_poddefault_on_proxy(request: pytest.FixtureRequest, lightkube_client: Client):
+    """Create a transient PodDefault with proxy variables for the Notebook Job."""
     # Simply yield if the proxy flag is not set
     if not request.config.getoption("proxy"):
         yield
     else:
         yield from create_poddefault(
-            PODDEFAULT_WITH_PROXY_PATH, context_from("proxy", request), NAMESPACE, lightkube_client
+            PODDEFAULT_WITH_PROXY_PATH,
+            context_from("proxy", request),
+            NAMESPACE,
+            lightkube_client,
         )
 
 
 @pytest.fixture(scope="function")
-def create_poddefault_on_toleration(request, lightkube_client):
-    """Create PodDefault with toleration for workload pods created by GPU tests."""
+def create_poddefault_on_toleration(request: pytest.FixtureRequest, lightkube_client: Client):
+    """Create a transient PodDefault with toleration for GPU workload pods."""
     # Simply yield if the proxy flag is not set
     if not request.config.getoption("toleration"):
         yield
@@ -224,10 +252,14 @@ def create_poddefault_on_toleration(request, lightkube_client):
 
 
 @pytest.fixture(scope="function")
-def create_poddefault_on_security_policy(request, lightkube_client):
-    """Create PodDefault with security policy env variables for the Notebook inside the Job."""
-    # Simply yield if the option is not set
-    if not request.config.getoption("security_policy"):
+def create_poddefault_on_security_policy(
+    request: pytest.FixtureRequest,
+    lightkube_client: Client,
+    is_mlflow_standalone: bool,
+):
+    """Create a transient PodDefault with security policy variables for the Notebook Job."""
+    # Standalone MLflow has no PodDefault CRD/admission webhook, so skip it there.
+    if is_mlflow_standalone or not request.config.getoption("security_policy"):
         yield
     else:
         security_policy_context = {"security_policy": request.config.getoption("security_policy")}
@@ -240,16 +272,15 @@ def create_poddefault_on_security_policy(request, lightkube_client):
 
 
 @pytest.fixture(scope="module")
-def istio_mode(include_ambient):
+def istio_mode(include_ambient: pytest.FixtureRequest):
     if include_ambient:
         return "ambient"
 
     return "sidecar"
 
 
-@pytest.mark.abort_on_fail
 @pytest.mark.dependency()
-async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
+def test_bundle_correctness(juju: pytest.FixtureRequest, charm_list: pytest.FixtureRequest):
     """Test that the correct bundle is selected.
 
     Tests are specific to each Charmed Kubeflow version release. This test makes sure that
@@ -261,45 +292,53 @@ async def test_bundle_correctness(ops_test, kubeflow_model, charm_list):
     if not charm_list:
         pytest.skip("charm_list empty. Cannot test bundle correctness")
 
-    model = await ops_test.track_model("kubeflow", model_name=kubeflow_model, use_existing=True)
-    status = await model.get_status()
+    status = juju.status()
 
     # Check that the version is the one expected by this set of tests
     for name, channel_regex in charm_list.items():
-        app_channel = status["applications"][name]["charm-channel"]
+        app_channel = status.apps[name].charm_channel
         assert re.compile(channel_regex).match(
             app_channel
         ), f"Failed bundle correctness check for charm {name}. Expected: {channel_regex} Found: {app_channel}"
 
     # Check that every charm of the bundle is active/idle
-    for batched_apps in batched(charm_list, 5):
-        await ops_test.model.wait_for_idle(
-            apps=list(batched_apps),
-            timeout=3600,
-            idle_period=30,
-            status="active",
-            raise_on_error=True,
-        )
+    juju.wait(
+        lambda status: jubilant.all_active(status, *charm_list)
+        and jubilant.all_agents_idle(status, *charm_list),
+        error=jubilant.any_error,
+        timeout=3600,
+        delay=10,
+    )
 
 
 @pytest.mark.dependency()
-async def test_create_profile(lightkube_client, create_profile):
-    """Test Profile creation.
+def test_create_profile_or_namespace(
+    lightkube_client: Client,
+    create_profile_or_namespace: pytest.FixtureRequest,
+    is_mlflow_standalone: bool,
+):
+    """Create the test Profile (for Kubeflow) or the test namespace (for MLflow standalone).
 
-    This test relies on the create_profile fixture, which handles the Profile creation and
-    is responsible for cleaning up at the end.
+    This test relies on the create_profile_or_namespace fixture, which handles the creation and is
+    responsible for cleaning up at the end. For standalone MLflow a plain namespace with a
+    default-editor ServiceAccount is created instead of a Kubeflow Profile.
     """
+    if is_mlflow_standalone:
+        assert_namespace_active(lightkube_client, NAMESPACE)
+        assert_service_account_exists(lightkube_client, "default-editor", NAMESPACE)
+        return
+
     try:
         profile_created = lightkube_client.get(
             PROFILE_RESOURCE,
-            name=NAMESPACE,
+            name=PROFILE_NAME,
         )
     except ApiError as e:
         if e.status == 404:
             profile_created = False
         else:
             raise
-    assert profile_created, f"Profile {NAMESPACE} not found!"
+    assert profile_created, f"Profile {PROFILE_NAME} not found!"
 
     assert_namespace_active(lightkube_client, NAMESPACE)
 
@@ -322,67 +361,147 @@ async def test_create_profile(lightkube_client, create_profile):
     log.info(f"PodDefaults in {NAMESPACE} namespace are {created_poddefaults_names}.")
 
 
-@pytest.mark.dependency(depends=["test_create_profile"])
-def test_kubeflow_workloads(
-    k8s_default_runtimeclass_handler,
-    lightkube_client,
-    pytest_cmd,
-    tests_checked_out_commit,
-    tests_image,
-    request,
-    create_poddefault_on_proxy,
-    create_poddefault_on_toleration,
-    create_poddefault_on_security_policy,
-    istio_mode: str,
+@pytest.fixture(scope="module")
+def runtimeclass(
+    k8s_default_runtimeclass_handler: pytest.FixtureRequest,
+    lightkube_client: Client,
+    keep_artifacts: bool,
 ):
-    """Run a K8s Job to execute the notebook tests."""
-    if TESTS_LOCAL_RUN:
-        log.info("Creating the RuntimeClass for exemption from Pod Security Standards...")
-        resources = list(
-            codecs.load_all_yaml(
-                RUNTIMECLASS_TEMPLATE_FILE.read_text(),
-                context={
-                    "runtimeclass_handler": k8s_default_runtimeclass_handler,
-                    "runtimeclass_name": JOB_RUNTIMECLASS_NAME,
-                },
-            )
-        )
-        assert len(resources) == 1, f"Expected 1 RuntimeClass, got {len(resources)}!"
-        lightkube_client.create(resources[0])
+    """Create the RuntimeClass used for PSS exemption in local runs; clean up after."""
+    if not TESTS_LOCAL_RUN:
+        yield
+        return
 
-    log.info(f"Starting Kubernetes Job {NAMESPACE}/{JOB_NAME} to run notebook tests...")
-    log.info(f"Istio Mode: {istio_mode}")
+    log.info("Creating the RuntimeClass for exemption from Pod Security Standards...")
     resources = list(
         codecs.load_all_yaml(
-            JOB_TEMPLATE_FILE.read_text(),
+            RUNTIMECLASS_TEMPLATE_FILE.read_text(),
             context={
-                "job_name": JOB_NAME,
-                "tests_local_run": TESTS_LOCAL_RUN,
-                "tests_local_dir": TESTS_LOCAL_DIR,
-                "tests_image": tests_image,
-                "tests_remote_commit": tests_checked_out_commit,
-                "pytest_cmd": pytest_cmd,
-                "proxy": True if request.config.getoption("proxy") else False,
-                "security_policy": request.config.getoption("security_policy") != "privileged",
-                "istio_mode": istio_mode,
+                "runtimeclass_handler": k8s_default_runtimeclass_handler,
+                "runtimeclass_name": JOB_RUNTIMECLASS_NAME,
             },
         )
     )
+    assert len(resources) == 1, f"Expected 1 RuntimeClass, got {len(resources)}!"
+    lightkube_client.create(resources[0])
 
-    assert len(resources) == 1, f"Expected 1 Job, got {len(resources)}!"
-    lightkube_client.create(resources[0], namespace=NAMESPACE)
+    yield
 
-    try:
-        wait_for_job(lightkube_client, JOB_NAME, NAMESPACE)
-    except ValueError:
-        pytest.fail(
-            f"Something went wrong while running Job {NAMESPACE}/{JOB_NAME}. Please inspect the"
-            " attached logs for more info..."
+    if keep_artifacts:
+        log.info(f"Keeping RuntimeClass {JOB_RUNTIMECLASS_NAME} (--keep-artifacts set)")
+        return
+    assert_resource_deleted(lightkube_client, RUNTIMECLASS_RESOURCE, JOB_RUNTIMECLASS_NAME)
+
+
+def _in_pod_notebook_path(host_path: str, local_run: bool) -> str:
+    """Map a host notebook path to its path inside the Job pod."""
+    relative = os.path.relpath(host_path, start=TESTS_LOCAL_DIR)
+    base = POD_TESTS_DIR_LOCAL if local_run else POD_TESTS_DIR_REMOTE
+    return f"{base}/{relative}"
+
+
+def _notebook_job_context(
+    job_name,
+    notebook_path,
+    local_run,
+    tests_image,
+    tests_remote_commit,
+    notebook_timeout,
+    retry_timeout,
+    keep_artifacts,
+    proxy,
+    security_policy,
+    kubeflow_namespace,
+    istio_mode,
+    mlflow_tracking_uri,
+):
+    """Build the Jinja context for rendering a single-notebook Job."""
+    return {
+        "job_name": job_name,
+        "tests_local_run": local_run,
+        "pod_tests_dir": POD_TESTS_DIR_LOCAL if local_run else POD_TESTS_DIR_REMOTE,
+        "tests_local_dir": TESTS_LOCAL_DIR,
+        "tests_image": tests_image,
+        "tests_remote_commit": tests_remote_commit,
+        "notebook_path": _in_pod_notebook_path(notebook_path, local_run),
+        "notebook_timeout": notebook_timeout,
+        "retry_timeout": retry_timeout,
+        "keep_artifacts": keep_artifacts,
+        "proxy": proxy,
+        "security_policy": security_policy,
+        "kubeflow_namespace": kubeflow_namespace,
+        "user_namespace": PROFILE_NAME,
+        "istio_mode": istio_mode,
+        "mlflow_tracking_uri": mlflow_tracking_uri,
+    }
+
+
+@pytest.mark.dependency(depends=["test_create_profile_or_namespace"])
+def test_notebook_workload(
+    notebook,
+    juju,
+    lightkube_client: Client,
+    tests_image,
+    tests_checked_out_commit: str,
+    istio_mode: str,
+    notebook_timeout: int,
+    retry_timeout: int,
+    keep_artifacts: bool,
+    rerun_failed: bool,
+    runtimeclass,
+    create_poddefault_on_proxy,
+    create_poddefault_on_toleration,
+    create_poddefault_on_security_policy,
+    mlflow_tracking_uri: str,
+    patch_gateway,
+    request: pytest.FixtureRequest,
+):
+    """Run a single UAT notebook as an isolated Kubernetes Job.
+
+    Each notebook runs in its own Job (portable, no shared storage). The notebook's
+    outcome is recovered from its logs, a per-notebook summary is recorded, and the Job
+    is retried up to ``--rerun-failed-notebooks`` times before being reported as failed.
+    """
+    notebook_name = Path(notebook).stem
+    log.info(f"Istio Mode: {istio_mode}")
+
+    result = None
+    for attempt in range(1 + rerun_failed):
+        job_name = job_name_for(JOB_PREFIX, notebook_name)
+        if attempt:
+            job_name = f"{job_name}-retry{attempt}"[:63]
+        context = _notebook_job_context(
+            job_name=job_name,
+            notebook_path=notebook,
+            local_run=TESTS_LOCAL_RUN,
+            tests_image=tests_image,
+            tests_remote_commit=tests_checked_out_commit,
+            notebook_timeout=notebook_timeout,
+            retry_timeout=retry_timeout,
+            keep_artifacts=keep_artifacts,
+            proxy=bool(request.config.getoption("proxy")),
+            security_policy=request.config.getoption("security_policy") != "privileged",
+            kubeflow_namespace=juju.model,
+            istio_mode=istio_mode,
+            mlflow_tracking_uri=mlflow_tracking_uri,
         )
-    finally:
-        log.info("Fetching Job logs...")
-        fetch_job_logs(JOB_NAME, NAMESPACE, TESTS_LOCAL_RUN)
+        manifest = render_notebook_job(str(JOB_TEMPLATE_FILE), context)
+        result = run_notebook_job(
+            client=lightkube_client,
+            notebook_name=notebook_name,
+            manifest=manifest,
+            namespace=NAMESPACE,
+            timeout=notebook_timeout,
+            keep_artifacts=keep_artifacts,
+            artifacts_root=str(ARTIFACTS_ROOT),
+        )
+        record_result(request.config, result)
+        if result.succeeded:
+            break
+        if attempt < rerun_failed:
+            log.warning(f"Notebook '{notebook_name}' {result.status}; retrying ({attempt + 1})...")
 
-        if TESTS_LOCAL_RUN:
-            log.info("Deleting the RuntimeClass for the Job...")
-            lightkube_client.delete(RUNTIMECLASS_RESOURCE, name=JOB_RUNTIMECLASS_NAME)
+    if not result.succeeded:
+        # pytrace=False keeps the output to our concise message, dropping pytest's
+        # assert introspection (the noisy "where False = NotebookResult(...)" dump).
+        pytest.fail(pytrace=False)

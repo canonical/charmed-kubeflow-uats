@@ -1,12 +1,86 @@
 # Copyright 2023 Canonical Ltd.
 # See LICENSE file for licensing details.
 
+import logging
+from pathlib import Path
+
 import pytest
 from _pytest.config.argparsing import Parser
+from lightkube import Client
+from lightkube.generic_resource import load_in_cluster_generic_resources
+
+from driver.notebook_jobs import NotebookResult
+
+from ingress import (
+    get_kserve_gateway,
+    remove_gateway_listener_hostnames,
+    restore_gateway_listener_hostnames,
+)
+from notebook_jobs import discover_notebooks, notebook_matches_filter
+
+log = logging.getLogger(__name__)
 
 BUNDLE_URL_SIDECAR = "file:assets/versions-sidecar.yaml"
 BUNDLE_URL_AMBIENT = "file:assets/versions-ambient.yaml"
 TESTS_IMAGE = "ghcr.io/kubeflow/kubeflow/notebook-servers/jupyter-scipy:v1.10.0"
+
+NOTEBOOK_DIRS = {
+    "cpu": "tests/notebooks/cpu",
+    "gpu": "tests/notebooks/gpu",
+    "kubeflow-trainer": "tests/notebooks/kubeflow-trainer",
+}
+
+MLFLOW_STANDALONE_NOTEBOOK_DIR = f"{NOTEBOOK_DIRS['cpu']}/mlflow"
+
+
+@pytest.fixture(scope="module")
+def keep_artifacts(request: pytest.FixtureRequest) -> bool:
+    """Return whether resources created by tests should be kept."""
+    return bool(request.config.getoption("--keep-artifacts"))
+
+
+@pytest.fixture(scope="module")
+def is_mlflow_standalone(request: pytest.FixtureRequest) -> bool:
+    """Return whether MLflow is deployed standalone, that is without Kubeflow."""
+    return bool(request.config.getoption("--mlflow-standalone"))
+
+
+@pytest.fixture(scope="module")
+def lightkube_client() -> Client:
+    """Initialise a Lightkube client with in-cluster generic resources loaded."""
+    client = Client(trust_env=False)
+    load_in_cluster_generic_resources(client)
+    return client
+
+
+@pytest.fixture(scope="module")
+def application_model(request: pytest.FixtureRequest) -> str:
+    """Return the Juju model (and namespace) where Kubeflow/MLflow is deployed."""
+    return request.config.getoption("--model")
+
+
+@pytest.fixture()
+def patch_gateway(lightkube_client: Client, application_model: str):
+    """Remove the listener hostnames of the Gateway KServe attaches its routes to.
+
+    Workaround for https://github.com/canonical/kserve-operators/issues/491 so KServe's
+    per-InferenceService subdomain routes attach to the gateway (see
+    ``remove_gateway_listener_hostnames``). Function-scoped so the patch is re-applied
+    before each test, in case the charm reconciles it back in the meantime, and the
+    removed hostnames are restored after each test, since the charm only reconciles the
+    Gateway on Juju events (not periodically) and would otherwise leave it patched. It is
+    a no-op when KServe is not deployed or does not use the Gateway API. Remove this
+    fixture once the issue is fixed and the charm supports wildcard listeners natively.
+    """
+    kserve_gateway = get_kserve_gateway(lightkube_client, application_model)
+    if kserve_gateway is None:
+        log.info("KServe does not use a Gateway API ingress gateway, skipping the Gateway patch")
+        yield
+        return
+
+    removed = remove_gateway_listener_hostnames(lightkube_client, *kserve_gateway)
+    yield
+    restore_gateway_listener_hostnames(lightkube_client, *kserve_gateway, removed)
 
 
 def pytest_addoption(parser: Parser):
@@ -26,10 +100,23 @@ def pytest_addoption(parser: Parser):
       of your Kubernetes cluster. The default one for MicroK8s is otherwise assumed.
     * Add a `--security-policy` option to specify the security policy (privileged or baseline)
       defined in `kubeflow-profiles` for the testing namespace.
-    * Add a `--kubeflow-model` option to specify the juju model where kubeflow is deployed.
+    * Add a `--bundle` option to specify the bundle (URL or local file) used for the
+      bundle-correctness check.
     * Add a `--test-image` option to specify the test image to be used by the driver notebook pod.
     * Add an `--include-ambient-tests` flag to include the ambient integration tests in the
       executed tests.
+    * Add a `--model` option to specify the Juju model (and Kubeflow control-plane namespace)
+      where Kubeflow is deployed.
+    * Add a `--notebook-timeout` option to set the per-notebook Job timeout in seconds
+      (activeDeadlineSeconds).
+    * Add a `--rerun-failed-notebooks` option to set how many times a failed notebook is retried.
+    * Add a `--retry-timeout` option to set the maximum time (seconds) for the tenacity retry
+      decorators in the notebooks (exposed to each notebook as the `RETRY_TIMEOUT` env var).
+    * Add a `--keep-models` flag to keep temporarily-created Juju models.
+    * Add a `--keep-artifacts` flag to keep the notebook Jobs, the Profile, and the workloads
+      notebooks create in the cluster for inspection; exposed as the `KEEP_ARTIFACTS` env var.
+      By default all of it is cleaned up. (A failed notebook's Job logs are always saved to a
+      file, regardless of this flag.)
     """
     parser.addoption(
         "--proxy",
@@ -92,11 +179,6 @@ def pytest_addoption(parser: Parser):
         action="store",
     )
     parser.addoption(
-        "--kubeflow-model",
-        default="kubeflow",
-        help="Provide the name of the namespace/juju model where kubeflow is deployed.",
-    )
-    parser.addoption(
         "--bundle",
         default=None,
         help="Provide the bundle to be used during the check. You can use a URL, e.g. http://..., or a local file, file:/path/to/file. If empty, the check is skipped",
@@ -112,10 +194,77 @@ def pytest_addoption(parser: Parser):
         help="Defines whether to include the ambient integration tests."
         "By default, it is set to False.",
     )
+    parser.addoption(
+        "--model",
+        default="kubeflow",
+        help="Provide the name of the Juju model where Kubeflow is deployed. This is also used"
+        " as the Kubernetes namespace of the Kubeflow control plane. If empty, the current Juju"
+        " model is used.",
+    )
+    parser.addoption(
+        "--notebook-timeout",
+        default=1800,
+        type=int,
+        help="Per-notebook Job timeout in seconds (activeDeadlineSeconds). Default: 1800.",
+    )
+    parser.addoption(
+        "--rerun-failed-notebooks",
+        default=0,
+        type=int,
+        help="Number of times to rerun a failed notebook before marking it failed. Default: 0.",
+    )
+    parser.addoption(
+        "--retry-timeout",
+        default=600,
+        type=int,
+        help="Maximum time in seconds for the tenacity retry decorators in the notebooks,"
+        " exposed to each notebook as the RETRY_TIMEOUT environment variable. Default: 600.",
+    )
+    parser.addoption(
+        "--keep-models",
+        action="store_true",
+        default=False,
+        help="keep temporarily-created models",
+    )
+    parser.addoption(
+        "--keep-artifacts",
+        action="store_true",
+        default=False,
+        help="Keep created resources for inspection: the notebook Jobs, the test Profile, and"
+        " the workloads the notebooks create (inference services, training jobs, etc.). Exposed"
+        " to notebooks as the KEEP_ARTIFACTS env var. By default all of these are cleaned up."
+        " A failed notebook's Job logs are saved to a file regardless of this flag. NOTE:"
+        " cleanup is best-effort and not exhaustive across all notebooks, so the default does"
+        " not guarantee a full restore of the deployment state.",
+    )
+    parser.addoption(
+        "--mlflow-standalone",
+        action="store_true",
+        default=False,
+        help="Run the UATs against a standalone MLflow deployment (no Kubeflow, Profile, or"
+        " resource-dispatcher). A plain namespace is created instead of a Kubeflow Profile"
+        " and only the isolated MLflow notebook is run. Requires --mlflow-tracking-uri."
+        " By default, it is set to False.",
+    )
+    parser.addoption(
+        "--mlflow-tracking-uri",
+        default=None,
+        help="MLflow tracking server URI, injected into the notebook Job as the"
+        " MLFLOW_TRACKING_URI environment variable. Required with --mlflow-standalone, where"
+        " no PodDefault is available to inject it.",
+    )
 
 
 def pytest_configure(config):
     """Set the default bundle based on whether ambient tests are enabled."""
+    if config.getoption("--mlflow-standalone"):
+        if not config.getoption("--mlflow-tracking-uri"):
+            raise pytest.UsageError(
+                "--mlflow-tracking-uri is required when --mlflow-standalone is set."
+            )
+        # Standalone MLflow is not the Kubeflow bundle; skip the bundle-correctness check.
+        return
+
     if config.getoption("--bundle") is not None:
         return
 
@@ -140,3 +289,60 @@ def pytest_collection_modifyitems(config, items):
 
     dependency_root = "driver/test_kubeflow_workloads.py::test_bundle_correctness"
     items.sort(key=lambda item: 0 if item.nodeid.endswith(dependency_root) else 1)
+
+
+def _select_notebooks(config):
+    """Return the mapping of notebook stem -> host path selected for this run.
+
+    Honours the ``--include-gpu-tests`` / ``--include-kubeflow-trainer-tests`` flags and
+    the ``--filter`` (pytest ``-k`` style) expression.
+    """
+    if config.getoption("--mlflow-standalone"):
+        # Standalone MLflow: only the isolated MLflow notebook (no Kubeflow/KServe).
+        notebooks = discover_notebooks(MLFLOW_STANDALONE_NOTEBOOK_DIR)
+    else:
+        notebooks = discover_notebooks(NOTEBOOK_DIRS["cpu"])
+        include_trainer = config.getoption("--include-kubeflow-trainer-tests")
+        if config.getoption("--include-gpu-tests"):
+            gpu_notebooks = discover_notebooks(NOTEBOOK_DIRS["gpu"])
+            # GPU trainer notebooks also require the trainer opt-in flag
+            if not include_trainer:
+                gpu_trainer_dir = (Path(NOTEBOOK_DIRS["gpu"]) / "kubeflow-trainer").resolve()
+                gpu_notebooks = {
+                    name: path
+                    for name, path in gpu_notebooks.items()
+                    if not Path(path).is_relative_to(gpu_trainer_dir)
+                }
+            notebooks.update(gpu_notebooks)
+        if include_trainer:
+            notebooks.update(discover_notebooks(NOTEBOOK_DIRS["kubeflow-trainer"]))
+
+    filter_expr = config.getoption("--filter")
+    if filter_expr:
+        notebooks = {
+            name: path
+            for name, path in notebooks.items()
+            if notebook_matches_filter(name, filter_expr)
+        }
+    return dict(sorted(notebooks.items()))
+
+
+def pytest_generate_tests(metafunc):
+    """Parametrise the notebook workload test over the selected notebooks."""
+    if "notebook" not in metafunc.fixturenames:
+        return
+    notebooks = _select_notebooks(metafunc.config)
+    metafunc.parametrize("notebook", list(notebooks.values()), ids=list(notebooks.keys()))
+
+
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    """Print a per-notebook results table at the end of the run."""
+    results: dict[str, NotebookResult] = getattr(config, "_notebook_results", None)
+    if not results:
+        return
+    terminalreporter.write_sep("=", "UAT notebook results")
+    for result in results.values():
+        line = f"{result.status:8} {result.name} ({result.duration:.0f}s)"
+        if result.log_file:
+            line += f" [logs saved to: {result.log_file}]"
+        terminalreporter.write_line(line)
