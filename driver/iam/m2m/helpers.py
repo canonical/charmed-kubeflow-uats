@@ -321,30 +321,58 @@ JWT_WARMUP_TIMEOUT = 360  # seconds to keep retrying while a valid token fails t
 JWT_WARMUP_INTERVAL = 15  # seconds between attempts
 
 
-def _jwt_not_yet_verified(result: tuple[int, str]) -> bool:
-    """Retry predicate: a real token that the gateway has not (yet) verified.
+# Status codes the warm-up retries on by default: 401 means the gateway could not
+# verify the (genuine) token's signature yet.
+JWT_WARMUP_RETRY_CODES = (401,)
 
-    Only the tests that send a genuine token use this, so an HTTP 401 always means the
-    gateway could not verify the signature -- expected transiently until its JWKS
-    catches up with Hydra's access-token key. Any other status means verification
-    completed (allowed, or authz-denied), so stop retrying.
-    """
-    code, _ = result
-    return code == 401
+# Additionally retried by callers that expect access to be *granted*: a freshly created
+# AuthorizationPolicy is enforced only once istiod has pushed it to the waypoint, so
+# until then the authorized client is transiently denied with 403 (RBAC: access denied).
+AUTHZ_PROPAGATION_RETRY_CODES = (*JWT_WARMUP_RETRY_CODES, 403)
 
 
 def _log_jwt_warmup(retry_state: tenacity.RetryCallState) -> None:
-    """Log each warm-up retry so a gateway whose JWKS never converges is visible."""
+    """Log each warm-up retry so a gateway that never converges is visible."""
     code, body = retry_state.outcome.result()
+    reason = (
+        "token not yet verified (gateway JWKS likely still missing Hydra's access-token key)"
+        if code == 401
+        else "request not yet authorized (AuthorizationPolicy likely not yet propagated)"
+    )
     log.warning(
-        f"Gateway returned HTTP {code} -- token not yet verified (gateway JWKS likely "
-        f"still missing Hydra's access-token key). Retrying (attempt "
+        f"Gateway returned HTTP {code} -- {reason}. Retrying (attempt "
         f"{retry_state.attempt_number})... Body: {body!r}"
     )
 
 
+def _jwt_warmup_retryer(
+    timeout: int = JWT_WARMUP_TIMEOUT,
+    retry_codes: tuple[int, ...] = JWT_WARMUP_RETRY_CODES,
+) -> tenacity.Retrying:
+    """Build a tenacity retryer that tolerates the gateway's warm-up.
+
+    A freshly minted token can transiently fail signature verification (HTTP 401) until the
+    gateway's JWKS catches up with Hydra's lazily-created access-token signing key. The retryer
+    reissues the wrapped request while its status code is in ``retry_codes`` (only 401 by
+    default; any other status means verification completed) and gives up after ``timeout``
+    seconds, in which case it returns that last ``(status_code, body)`` rather than raising.
+    """
+    return tenacity.Retrying(
+        retry=tenacity.retry_if_result(lambda result: result[0] in retry_codes),
+        wait=tenacity.wait_fixed(JWT_WARMUP_INTERVAL),
+        stop=tenacity.stop_after_delay(timeout),
+        before_sleep=_log_jwt_warmup,
+        retry_error_callback=lambda retry_state: retry_state.outcome.result(),
+    )
+
+
 def request_inference_with_jwt_warmup(
-    hostname: str, gateway_ip: str, token: str | None, payload: str, model_name: str
+    hostname: str,
+    gateway_ip: str,
+    token: str | None,
+    payload: str,
+    model_name: str,
+    retry_codes: tuple[int, ...] = JWT_WARMUP_RETRY_CODES,
 ) -> tuple[int, str]:
     """Send an inference request, tolerating the gateway's JWT verification warm-up.
 
@@ -352,17 +380,15 @@ def request_inference_with_jwt_warmup(
     key only when the first JWT access token is issued -- which can happen after the
     gateway's RequestAuthentication was already configured. Until the gateway refreshes
     its JWKS, a valid token transiently fails signature verification (HTTP 401). Retry
-    the request until the token verifies (any non-401 response) or the warm-up deadline
+    the request while its status is in ``retry_codes`` or until the warm-up deadline
     elapses, then return the final ``(status_code, body)`` for the caller to assert on.
+
+    Pass ``AUTHZ_PROPAGATION_RETRY_CODES`` when the request is expected to be allowed, to
+    also wait for a just-created AuthorizationPolicy to be enforced (see ``_jwt_warmup_retryer``).
     """
-    retryer = tenacity.Retrying(
-        retry=tenacity.retry_if_result(_jwt_not_yet_verified),
-        wait=tenacity.wait_fixed(JWT_WARMUP_INTERVAL),
-        stop=tenacity.stop_after_delay(JWT_WARMUP_TIMEOUT),
-        before_sleep=_log_jwt_warmup,
-        retry_error_callback=lambda retry_state: retry_state.outcome.result(),
+    return _jwt_warmup_retryer(retry_codes=retry_codes)(
+        request_inference, hostname, gateway_ip, token, payload, model_name
     )
-    return retryer(request_inference, hostname, gateway_ip, token, payload, model_name)
 
 
 # MLflow 3 active-workspace header: the tracking server scopes RBAC/isolation per workspace,
@@ -482,23 +508,6 @@ def mlflow_delete_experiment(
 MLFLOW_JWT_WARMUP_TIMEOUT = 1200  # seconds
 
 
-def _jwt_warmup_retryer() -> tenacity.Retrying:
-    """Build a tenacity retryer that tolerates the gateway's JWT verification warm-up.
-
-    A freshly minted token can transiently fail signature verification (HTTP 401) until the
-    gateway's JWKS catches up with Hydra's lazily-created access-token signing key. The retryer
-    reissues the wrapped request while it keeps returning 401 and gives up at the warm-up
-    deadline, in which case it returns that last ``(status_code, body)`` rather than raising.
-    """
-    return tenacity.Retrying(
-        retry=tenacity.retry_if_result(_jwt_not_yet_verified),
-        wait=tenacity.wait_fixed(JWT_WARMUP_INTERVAL),
-        stop=tenacity.stop_after_delay(MLFLOW_JWT_WARMUP_TIMEOUT),
-        before_sleep=_log_jwt_warmup,
-        retry_error_callback=lambda retry_state: retry_state.outcome.result(),
-    )
-
-
 def mlflow_experiments_search_with_jwt_warmup(
     mlflow_host: str, gateway_ip: str, token: str | None, workspace: str
 ) -> tuple[int, str]:
@@ -507,7 +516,7 @@ def mlflow_experiments_search_with_jwt_warmup(
     See ``_jwt_warmup_retryer``. Returns the final ``(status_code, body)`` once the token
     verifies (any non-401 response) or the warm-up deadline elapses.
     """
-    return _jwt_warmup_retryer()(
+    return _jwt_warmup_retryer(MLFLOW_JWT_WARMUP_TIMEOUT)(
         mlflow_experiments_search, mlflow_host, gateway_ip, token, workspace
     )
 
@@ -520,6 +529,6 @@ def mlflow_create_experiment_with_jwt_warmup(
     See ``_jwt_warmup_retryer``. Returns the final ``(status_code, body)`` once the token
     verifies (any non-401 response) or the warm-up deadline elapses.
     """
-    return _jwt_warmup_retryer()(
+    return _jwt_warmup_retryer(MLFLOW_JWT_WARMUP_TIMEOUT)(
         mlflow_create_experiment, mlflow_host, gateway_ip, token, workspace, name
     )
