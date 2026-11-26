@@ -6,11 +6,11 @@ applications:
   envoy:
     channel: latest/
   istio-ingress-k8s-m2m:
-    channel: dev/
+    channel: 1.31/
   istio-ingress-k8s-ui:
-    channel: dev/
+    channel: 1.31/
   istio-beacon-k8s:
-    channel: dev/
+    channel: 1.31/
   jupyter-controller:
     channel: latest/
   jupyter-ui:

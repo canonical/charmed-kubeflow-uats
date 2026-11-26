@@ -8,11 +8,11 @@ applications:
   envoy:
     channel: latest/
   istio-k8s:
-    channel: 2/
+    channel: 1.31/
   istio-ingress-k8s:
-    channel: 2/
+    channel: 1.31/
   istio-beacon-k8s:
-    channel: 2/
+    channel: 1.31/
   jupyter-controller:
     channel: latest/
   jupyter-ui:
