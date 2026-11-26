@@ -189,6 +189,33 @@ def assert_metrics_reach_prometheus(
 
 
 @retry_for_five_minutes
+def wait_for_metric_value(
+    prometheus_url: str,
+    model: str,
+    app: str,
+    metric: str,
+    labels: dict[str, str],
+    minimum: float = 0,
+) -> float:
+    """Wait for a metric of an application to have a value of at least the minimum, and return it.
+
+    The metric is selected by the application's Juju topology and the given labels. Should several
+    series match (e.g. one per unit), the highest of their values is considered.
+    """
+    matchers = ",".join(
+        [
+            _topology_label_matchers(model, app),
+            *(f'{name}="{value}"' for name, value in labels.items()),
+        ]
+    )
+    samples = query_prometheus(prometheus_url, f"{metric}{{{matchers}}}")
+    assert samples, f"Prometheus has no samples of {metric}{{{matchers}}}"
+    value = max(float(sample["value"][1]) for sample in samples)
+    assert value >= minimum, f"{metric}{{{matchers}}} is {value:g}, expected at least {minimum:g}"
+    return value
+
+
+@retry_for_five_minutes
 def assert_alert_rules_reach_prometheus(
     prometheus_url: str, model: str, app: str, alert_rules: list[str]
 ) -> None:

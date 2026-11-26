@@ -321,7 +321,12 @@ def pytest_addoption(parser: Parser):
 
 
 def pytest_configure(config):
-    """Set the default bundle based on whether ambient tests are enabled."""
+    """Register the custom markers and set the default bundle based on the included tests."""
+    config.addinivalue_line(
+        "markers",
+        "iam_m2m: the test relies on the IAM M2M setup, so it also needs --include-iam-m2m-tests",
+    )
+
     if config.getoption("--mlflow-standalone"):
         if not config.getoption("--mlflow-tracking-uri"):
             raise pytest.UsageError(
@@ -357,7 +362,8 @@ def pytest_collection_modifyitems(config, items):  # noqa C901
     if not config.getoption("--include-iam-m2m-tests", default=False):
         skip_m2m = pytest.mark.skip(reason="need --include-iam-m2m-tests option to run")
         for item in items:
-            if "/iam/m2m/" in item.nodeid:
+            # also skipping the tests of other suites relying on the IAM M2M setup:
+            if "/iam/m2m/" in item.nodeid or item.get_closest_marker("iam_m2m"):
                 item.add_marker(skip_m2m)
 
     if not config.getoption("--include-iam-ui-tests", default=False):

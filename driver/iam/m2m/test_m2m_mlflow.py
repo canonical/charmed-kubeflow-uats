@@ -25,6 +25,8 @@ import jubilant
 import pytest
 
 from helpers import (
+    MLFLOW_DEFAULT_DOMAIN_M2M,
+    grant_mlflow_workspace,
     mlflow_create_experiment_with_jwt_warmup,
     mlflow_delete_experiment,
     mlflow_experiments_search,
@@ -32,10 +34,8 @@ from helpers import (
 
 log = logging.getLogger(__name__)
 
-MLFLOW_DEFAULT_DOMAIN_M2M = "api.mlflow.com"
-# The mlflow-server application and the throwaway data-integrator used to grant the test
-# client; the grant app name is distinct so it never clashes with a deployment's own grants.
-MLFLOW_SERVER_APP = "mlflow-server"
+# The throwaway data-integrator used to grant the test client; the name is distinct so it never
+# clashes with a deployment's own grants.
 GRANT_APP = "uat-m2m-grant"
 
 
@@ -67,41 +67,13 @@ def mlflow_client_grant(
 ):
     """Grant the authorized client admin on the test workspace via a throwaway data-integrator.
 
-    Deploys a ``data-integrator`` configured with the client id as the MLflow username and an
-    admin grant on the workspace, relates it over ``mlflow-client`` (the sanctioned grant path),
-    waits for the grant to be provisioned, and removes it on teardown. No existing charm config
-    is mutated.
+    See ``grant_mlflow_workspace``; the grant is removed on teardown.
     """
     client_id, _ = authorized_client
-    permissions = json.dumps(
-        [
-            {
-                "resource_type": "workspace",
-                "resource_name": mlflow_workspace,
-                "privileges": ["admin"],
-            }
-        ]
-    )
-    log.info(f"Granting MLflow user '{client_id}' admin on workspace '{mlflow_workspace}'...")
-    mlflow_juju.deploy(
-        "data-integrator",
-        app=GRANT_APP,
-        channel="latest/edge",
-        config={"entity-name": client_id, "entity-permissions": permissions},
-    )
-    mlflow_juju.integrate(f"{GRANT_APP}:mlflow", f"{MLFLOW_SERVER_APP}:mlflow-client")
-    mlflow_juju.wait(
-        lambda status: jubilant.all_active(status, GRANT_APP, MLFLOW_SERVER_APP),
-        timeout=600,
-    )
-
-    yield client_id
-
-    if keep_artifacts:
-        log.info(f"Keeping data-integrator {GRANT_APP} (--keep-artifacts set)")
-        return
-    mlflow_juju.remove_application(GRANT_APP, destroy_storage=True)
-    mlflow_juju.wait(lambda status: GRANT_APP not in status.apps)
+    with grant_mlflow_workspace(
+        mlflow_juju, GRANT_APP, client_id, mlflow_workspace, keep_artifacts
+    ):
+        yield client_id
 
 
 def test_authorized_token_reaches_mlflow(

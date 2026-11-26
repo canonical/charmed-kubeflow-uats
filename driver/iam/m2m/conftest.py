@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from iam.m2m.helpers import (  # noqa: E402  (import must follow the sys.path setup above)
     ASSETS_DIR,
+    IAM_MODEL,
     authorize_contributor,
     create_oauth_client,
     delete_oauth_client,
@@ -33,8 +34,6 @@ log = logging.getLogger(__name__)
 
 PROFILE_NAME = "test-m2m"
 PROFILE_TEMPLATE_FILE = ASSETS_DIR / "test-profile.yaml.j2"
-
-IAM_MODEL = "iam"
 
 
 @pytest.fixture(scope="module")

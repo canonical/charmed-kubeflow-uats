@@ -13,7 +13,9 @@ alert rules and titles of the dashboards bundled with the charms), rather than j
 of some telemetry.
 
 The tests live in `driver/cos/`, separate from the main UAT suite, and are skipped unless
-`--include-cos-tests` is passed. Only standalone MLflow is covered so far.
+`--include-cos-tests` is passed. The test creating an MLflow experiment (see below) relies on the
+setup of the [IAM M2M tests](../iam/m2m/README.md), so it also needs `--include-iam-m2m-tests`.
+Only standalone MLflow is covered so far.
 
 ## What it Tests
 
@@ -33,8 +35,13 @@ Given the deployment described under [Prerequisites](#prerequisites), the suite:
 | `test_alert_rules_reach_prometheus[<app>]` | Prometheus `/api/v1/rules`, filtered by the app's Juju topology labels | every expected alert rule loaded |
 | `test_dashboards_reach_grafana[<app>]` | Grafana `/api/search` | a dashboard with every expected title |
 | `test_logs_reach_loki[<app>]` | Loki `/loki/api/v1/query_range` for the app's Juju topology, over the last 24h | at least one log line |
+| `test_new_experiment_updates_workspace_metric` | `mlflow_workspace_metric{metric_name="num_experiments"}` of the `--mlflow-workspace` workspace (default: `test-workspace`), before and after creating an experiment in it through the M2M gateway | the count increases |
 
-The suite is read-only: it creates no resources, so there is nothing to clean up.
+To create the experiment, `test_new_experiment_updates_workspace_metric` reuses the helpers of the
+IAM M2M tests: it creates an OAuth client in Hydra, grants it admin on the workspace through a
+throwaway `data-integrator` related to `mlflow-server:mlflow-client`, and creates the experiment
+with a token of the client. All of them are removed at the end of the test (unless
+`--keep-artifacts` is passed); the rest of the suite is read-only.
 
 ## Expected telemetry
 
@@ -57,6 +64,15 @@ its logs are forwarded. Keep it in sync with the charms under test.
 - Traefik's LoadBalancer in the `cos` model reachable from the UAT host. No DNS configuration is
   required: the proxied endpoints are addressed by the LoadBalancer's address.
 - `juju` logged in to the controller (used via jubilant).
+- For `test_new_experiment_updates_workspace_metric` only, the setup of the
+  [IAM M2M tests](../iam/m2m/README.md) for MLflow: the Identity Platform (Hydra) in the `iam`
+  model, and `oauth2-proxy` and an istio ingress Gateway serving `api.mlflow.com` (or the domain
+  passed via `--iam-domain-m2m`) in the `mlflow` model, with the JWT issuer hostname (e.g.
+  `auth.mlflow.com`) resolvable from the UAT host, and a valid `KUBECONFIG` (used via lightkube to
+  discover the Gateway). The workspace should already exist, as the exporter only gets read access
+  to a new workspace on the next hook of the `mlflow-server` charm. On a fresh deployment, being
+  run before the IAM tests, this test may also have to wait for the M2M gateway's JWT warm-up (up
+  to 20 minutes).
 
 ## Running the Test
 
@@ -66,11 +82,15 @@ tox -e mlflow-local -- --model mlflow --mlflow-standalone --mlflow-tracking-uri 
 
 # Remote mode (tests run from a cloned git repo)
 tox -e mlflow-remote -- --model mlflow --mlflow-standalone --mlflow-tracking-uri http://mlflow-server.mlflow.svc.cluster.local:5000 --include-cos-tests -k cos
+
+# Including the test creating an MLflow experiment, along with the IAM M2M tests
+tox -e mlflow-remote -- --model mlflow --mlflow-standalone --mlflow-tracking-uri http://mlflow-server.mlflow.svc.cluster.local:5000 --include-cos-tests --include-iam-m2m-tests
 ```
 
 By default (without `--include-cos-tests`) these tests are skipped, and the MLflow ones are also
-skipped without `--mlflow-standalone`. If COS is deployed to a model other than `cos`, pass its
-name via `--cos-model`.
+skipped without `--mlflow-standalone`. `test_new_experiment_updates_workspace_metric` is also
+skipped without `--include-iam-m2m-tests`. If COS is deployed to a model other than `cos`, pass
+its name via `--cos-model`.
 
 ## Test Implementation Files
 
@@ -80,3 +100,5 @@ name via `--cos-model`.
 - `driver/cos/conftest.py` — fixtures shared by the COS suites (COS model, endpoints, Grafana
   credentials).
 - `assets/cos-mlflow.yaml` — the telemetry expected from the applications of standalone MLflow.
+- `driver/iam/m2m/helpers.py` and `driver/ingress.py` — the helpers of the IAM M2M tests, reused
+  to create the MLflow experiment through the M2M gateway.
