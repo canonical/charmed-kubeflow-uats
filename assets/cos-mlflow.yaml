@@ -1,0 +1,27 @@
+# Telemetry each application of standalone MLflow is expected to send to COS, through the
+# opentelemetry-collector-k8s deployed alongside it (see driver/cos/README.md):
+# * metrics: metrics the application itself exports. Unlike `up`, which is reported even when
+#   a scrape fails, these can only reach Prometheus from successful scrapes.
+# * alert_rules: the names of the alert rules bundled with the charm, under
+#   src/prometheus_alert_rules/.
+# * dashboards: the titles of the dashboards bundled with the charm, under
+#   src/grafana_dashboards/.
+# * logs: whether the logs of the application are forwarded to Loki.
+applications:
+  # https://github.com/canonical/mlflow-operator
+  mlflow-server:
+    metrics:
+      # resource counts exported by the mlflow-prometheus-exporter container, across the whole
+      # deployment and per workspace (the charm always enables workspaces, and MLflow always has
+      # its reserved `default` workspace)
+      - mlflow_metric
+      - mlflow_workspace_metric
+      # traffic metrics of the tracking server, re-exposed by the exporter:
+      - mlflow_http_request_total
+    alert_rules:
+      - KubeflowServiceDown
+      - KubeflowServiceIsNotStable
+      - MLFlowRequestDurationTooLong
+    dashboards:
+      - MLflow metrics Dashboard
+    logs: true
