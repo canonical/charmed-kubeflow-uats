@@ -117,8 +117,9 @@ def get_cos_app_url(proxied_endpoints: dict[str, dict], cos_model: str, app: str
         if name == app or name.startswith(f"{app}/"):
             return proxied_endpoints[name]["url"].rstrip("/")
     traefik_url = proxied_endpoints[TRAEFIK_APP]["url"].rstrip("/")
-    # the model name may be prefixed with the controller name, which is not part of the path:
-    return f"{traefik_url}/{cos_model.rpartition(':')[-1]}-{app}"
+    # Controller and owner qualifiers are not part of the route's model name:
+    model_name = cos_model.rpartition(":")[-1].rpartition("/")[-1]
+    return f"{traefik_url}/{model_name}-{app}"
 
 
 def get_grafana_admin_password(cos_juju: jubilant.Juju) -> str:
