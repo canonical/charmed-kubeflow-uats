@@ -265,6 +265,12 @@ When MLflow is deployed and tested standalone, IAM tests for external programmat
 tox -e mlflow-remote -- --mlflow-standalone --mlflow-tracking-uri http://mlflow-server.mlflow.svc.cluster.local:5000 --include-iam-m2m-tests --include-iam-ui-tests --iam-domain-auth auth.whatever.mlflow.com --iam-domain-m2m api.whatever.mlflow.com --iam-domain-ui ui.whatever.mlflow.com
 ```
 
+When MLflow is deployed standalone together with COS Lite (e.g. via the `mlflow-ambient-iam-cos` test setup in `charmed-kubeflow-solutions`), COS tests verifying that MLflow's metrics, alert rules, dashboards and logs reach COS can also be carried out by enabling the option `--include-cos-tests`. The Juju model where COS is deployed defaults to `cos`, but can be customized by passing `--cos-model`. When the IAM M2M tests are included too (`--include-iam-m2m-tests`), an additional COS test creates an MLflow experiment through the M2M gateway and verifies that MLflow's metrics in COS reflect it. For more details, see the [COS Integration Test README](./driver/cos/README.md).
+
+```bash
+tox -e mlflow-remote -- --model mlflow --mlflow-standalone --mlflow-tracking-uri http://mlflow-server.mlflow.svc.cluster.local:5000 --include-cos-tests --cos-model cos
+```
+
 #### Run Kubeflow+MLFlow UATs
 
 In order to only run the Kubeflow+MLFlow-specific tests you can use the

@@ -33,6 +33,15 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # Assets directory is relative to the repository root.
 ASSETS_DIR = Path(__file__).parent.parent.parent.parent / "assets"
 
+# The Juju model where the Identity Platform (Hydra) is deployed.
+IAM_MODEL = "iam"
+
+# Default M2M hostname of standalone MLflow (overridable via --iam-domain-m2m).
+MLFLOW_DEFAULT_DOMAIN_M2M = "api.mlflow.com"
+
+# The MLflow tracking server application, which users are granted access to workspaces of.
+MLFLOW_SERVER_APP = "mlflow-server"
+
 # Generic KServe InferenceService resource.
 INFERENCE_SERVICE_RESOURCE = create_namespaced_resource(
     group="serving.kserve.io",
@@ -397,6 +406,49 @@ def request_inference_with_jwt_warmup(
 WORKSPACE_HEADER_NAME = "X-MLFLOW-WORKSPACE"
 
 MLFLOW_INGRESS_PATH_PREFIX = ""
+
+
+@contextmanager
+def grant_mlflow_workspace(
+    juju: jubilant.Juju, app: str, user: str, workspace: str, keep_artifacts: bool = False
+):
+    """Grant an MLflow user admin on a workspace through a throwaway data-integrator.
+
+    Deploys a ``data-integrator`` configured with ``user`` as the MLflow username and an admin
+    grant on ``workspace``, relates it to ``mlflow-server`` over ``mlflow-client`` (the same
+    sanctioned path a real programmatic consumer uses) and waits for the grant to be provisioned.
+    No existing charm config is mutated. On exit, the data-integrator is removed, revoking the
+    grant, unless ``keep_artifacts`` is set.
+
+    Args:
+        juju: A Jubilant handle to the MLflow model.
+        app: The name of the data-integrator application; use a distinct one per suite so that
+            the grants of different suites never clash.
+        user: The MLflow username to grant, e.g. an OAuth client id.
+        workspace: The MLflow workspace to grant admin on.
+        keep_artifacts: Whether to keep the data-integrator on exit.
+    """
+    permissions = [
+        {"resource_type": "workspace", "resource_name": workspace, "privileges": ["admin"]}
+    ]
+    log.info(f"Granting MLflow user '{user}' admin on workspace '{workspace}'...")
+    juju.deploy(
+        "data-integrator",
+        app=app,
+        channel="latest/edge",
+        config={"entity-name": user, "entity-permissions": json.dumps(permissions)},
+    )
+    juju.integrate(f"{app}:mlflow", f"{MLFLOW_SERVER_APP}:mlflow-client")
+    juju.wait(lambda status: jubilant.all_active(status, app, MLFLOW_SERVER_APP), timeout=600)
+
+    try:
+        yield
+    finally:
+        if keep_artifacts:
+            log.info(f"Keeping data-integrator {app} (--keep-artifacts set)")
+        else:
+            juju.remove_application(app, destroy_storage=True)
+            juju.wait(lambda status: app not in status.apps)
 
 
 def _mlflow_post(

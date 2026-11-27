@@ -111,6 +111,8 @@ def pytest_addoption(parser: Parser):
     * Add an `--iam-domain-auth` option to specify the domain for auth access in IAM tests.
     * Add an `--iam-domain-m2m` option to specify the domain for M2M access in IAM tests.
     * Add an `--iam-domain-ui` option to specify the domain for UI access in IAM tests.
+    * Add an `--include-cos-tests` flag to include the COS (observability) integration tests.
+    * Add a `--cos-model` option to specify the Juju model where COS is deployed in COS tests.
     * Add a `--model` option to specify the Juju model (and Kubeflow control-plane namespace)
       where Kubeflow is deployed.
     * Add a `--notebook-timeout` option to set the per-notebook Job timeout in seconds
@@ -235,6 +237,18 @@ def pytest_addoption(parser: Parser):
         "`ui.kubeflow.com` with Kubeflow and `ui.mlflow.com` when MLflow standalone.",
     )
     parser.addoption(
+        "--include-cos-tests",
+        action="store_true",
+        help="Defines whether to include the COS (observability) integration tests."
+        " By default, it is set to False.",
+    )
+    parser.addoption(
+        "--cos-model",
+        default="cos",
+        help="Name of the Juju model where COS is deployed, queried by the COS integration"
+        " tests. Default: cos.",
+    )
+    parser.addoption(
         "--model",
         default="kubeflow",
         help="Provide the name of the Juju model where Kubeflow is deployed. This is also used"
@@ -307,7 +321,12 @@ def pytest_addoption(parser: Parser):
 
 
 def pytest_configure(config):
-    """Set the default bundle based on whether ambient tests are enabled."""
+    """Register the custom markers and set the default bundle based on the included tests."""
+    config.addinivalue_line(
+        "markers",
+        "iam_m2m: the test relies on the IAM M2M setup, so it also needs --include-iam-m2m-tests",
+    )
+
     if config.getoption("--mlflow-standalone"):
         if not config.getoption("--mlflow-tracking-uri"):
             raise pytest.UsageError(
@@ -343,7 +362,8 @@ def pytest_collection_modifyitems(config, items):  # noqa C901
     if not config.getoption("--include-iam-m2m-tests", default=False):
         skip_m2m = pytest.mark.skip(reason="need --include-iam-m2m-tests option to run")
         for item in items:
-            if "/iam/m2m/" in item.nodeid:
+            # also skipping the tests of other suites relying on the IAM M2M setup:
+            if "/iam/m2m/" in item.nodeid or item.get_closest_marker("iam_m2m"):
                 item.add_marker(skip_m2m)
 
     if not config.getoption("--include-iam-ui-tests", default=False):
@@ -352,21 +372,32 @@ def pytest_collection_modifyitems(config, items):  # noqa C901
             if "/iam/ui/" in item.nodeid:
                 item.add_marker(skip_ui)
 
-    # standalone MLflow and Kubeflow share the iam/ test directories but require different
-    # deployments, so only the IAM tests matching the deployment under test are run: the MLflow
-    # IAM tests, whose filename contains "mlflow", with --mlflow-standalone, and the Kubeflow ones
-    # otherwise:
+    if not config.getoption("--include-cos-tests", default=False):
+        skip_cos = pytest.mark.skip(reason="need --include-cos-tests option to run")
+        for item in items:
+            if "/cos/" in item.nodeid:
+                item.add_marker(skip_cos)
+
+    # standalone MLflow and Kubeflow share the iam/ and cos/ test directories but require
+    # different deployments, so only the tests matching the deployment under test are run: the
+    # MLflow ones, whose filename contains "mlflow", with --mlflow-standalone, and the Kubeflow
+    # ones otherwise:
     is_mlflow_standalone = config.getoption("--mlflow-standalone", default=False)
     for item in items:
-        if "/iam/" not in item.nodeid:
+        suite = next((suite for suite in ("iam", "cos") if f"/{suite}/" in item.nodeid), None)
+        if suite is None:
             continue
-        is_mlflow_iam = "mlflow" in item.nodeid.split("::", 1)[0]
-        if is_mlflow_standalone and not is_mlflow_iam:
+        is_mlflow_test = "mlflow" in item.nodeid.split("::", 1)[0]
+        if is_mlflow_standalone and not is_mlflow_test:
             item.add_marker(
-                pytest.mark.skip(reason="Kubeflow IAM test skipped with --mlflow-standalone")
+                pytest.mark.skip(
+                    reason=f"Kubeflow {suite.upper()} test skipped with --mlflow-standalone"
+                )
             )
-        elif not is_mlflow_standalone and is_mlflow_iam:
-            item.add_marker(pytest.mark.skip(reason="MLflow IAM test needs --mlflow-standalone"))
+        elif not is_mlflow_standalone and is_mlflow_test:
+            item.add_marker(
+                pytest.mark.skip(reason=f"MLflow {suite.upper()} test needs --mlflow-standalone")
+            )
 
     if not config.getoption("--include-multi-tenancy-tests", default=False):
         skip_multi_tenancy = pytest.mark.skip(
